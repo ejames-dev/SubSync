@@ -1,6 +1,6 @@
-# Subscription Tracker (Streaming + Media MVP)
+# SubSync
 
-Beacon is a unified dashboard for monitoring streaming and media subscriptions, auto-importing renewals via OAuth connections and email parsing.
+SubSync helps you track every active subscription across streaming and media platforms. It surfaces renewal/expiry reminders, highlights overlapping plans, and lays the groundwork for real-time price comparisons between similar services.
 
 ## Repository layout
 ```

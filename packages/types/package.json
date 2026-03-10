@@ -1,0 +1,25 @@
+{
+  "name": "@subscription-tracker/types",
+  "version": "0.1.0",
+  "description": "Shared TypeScript interfaces for the subscription tracker",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "lint": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test": "echo 'no tests yet' && exit 0",
+    "prepare": "npm run build"
+  },
+  "keywords": ["subscriptions", "types"],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "files": ["dist"],
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,9 +1,28 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import {
+  IsISO8601,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class EmailIngestPayload {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(320)
   sender!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   subject!: string;
+
+  @IsISO8601()
   receivedAt!: string;
+
+  @IsOptional()
+  @IsString()
   body?: string;
 }
 

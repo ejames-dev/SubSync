@@ -11,7 +11,7 @@ export class IntegrationsController {
       provider,
       status: 'pending',
       message: `Integration handshake queued for ${provider}`,
-      received: body,
+      submittedFields: Object.keys(body ?? {}),
     };
   }
 }

@@ -17,30 +17,30 @@ export class SubscriptionsController {
   constructor(private readonly subscriptions: SubscriptionsService) {}
 
   @Get()
-  list(): Subscription[] {
+  async list(): Promise<Subscription[]> {
     return this.subscriptions.list();
   }
 
   @Get(':id')
-  detail(@Param('id') id: string): Subscription {
+  async detail(@Param('id') id: string): Promise<Subscription> {
     return this.subscriptions.findOne(id);
   }
 
   @Post()
-  create(@Body() dto: CreateSubscriptionDto): Subscription {
+  async create(@Body() dto: CreateSubscriptionDto): Promise<Subscription> {
     return this.subscriptions.create(dto);
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() dto: UpdateSubscriptionDto,
-  ): Subscription {
+  ): Promise<Subscription> {
     return this.subscriptions.update(id, dto);
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string): void {
+  async delete(@Param('id') id: string): Promise<void> {
     return this.subscriptions.remove(id);
   }
 }

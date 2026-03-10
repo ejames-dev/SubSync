@@ -1,0 +1,37 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+model Service {
+  id             String          @id
+  name           String
+  category       String
+  supportsOAuth  Boolean         @default(false)
+  description    String?
+  subscriptions  Subscription[]
+}
+
+model Subscription {
+  id                String   @id @default(uuid())
+  serviceId         String
+  planName          String
+  status            String
+  billingAmount     Decimal  @db.Decimal(10, 2)
+  billingCurrency   String
+  billingInterval   String
+  nextRenewal       DateTime
+  paymentSource     String?
+  paymentLast4      String?
+  autoImportSource  String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+}

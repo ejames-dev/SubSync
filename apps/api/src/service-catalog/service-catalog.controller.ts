@@ -7,7 +7,7 @@ export class ServiceCatalogController {
   constructor(private readonly serviceCatalog: ServiceCatalogService) {}
 
   @Get()
-  list(): ServiceProvider[] {
+  async list(): Promise<ServiceProvider[]> {
     return this.serviceCatalog.findAll();
   }
 }

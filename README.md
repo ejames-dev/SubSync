@@ -20,6 +20,26 @@ npm run dev:api                # starts NestJS API on http://localhost:3000/api
 npm run dev:web                # starts Next.js client on http://localhost:3000 (port may vary)
 ```
 
+### Database (Postgres + Prisma)
+1. Copy the sample env and adjust credentials as needed:
+   ```bash
+   cp .env.example .env
+   ```
+2. Start Postgres via Docker (requires Docker Desktop running):
+   ```bash
+   docker compose up -d
+   ```
+3. Apply migrations + generate the Prisma client:
+   ```bash
+   npm run prisma:migrate --workspace api
+   npm run prisma:generate --workspace api
+   ```
+4. Seed the service catalog:
+   ```bash
+   npm run prisma:seed --workspace api
+   ```
+5. Launch the API with `npm run dev:api` (it now requires a reachable `DATABASE_URL`).
+
 The API exposes seed endpoints:
 - `GET /api/services` – streaming catalog
 - `GET /api/subscriptions` (plus CRUD) – in-memory subscription store
@@ -37,6 +57,8 @@ The web client currently reflects mock data for dashboard KPIs, connection cards
 | `npm run test` | Runs workspace test placeholders |
 | `npm run format` | Prettier across workspaces |
 | `npm run build --workspace <name>` | Build a specific workspace (e.g., types, api, web) |
+| `npm run prisma:migrate --workspace api` | Apply Prisma migrations (requires DATABASE_URL) |
+| `npm run prisma:seed --workspace api` | Seed Postgres with streaming services |
 
 ## Documentation
 High-level architecture, data model, and wireframes live under [`docs/`](docs/):

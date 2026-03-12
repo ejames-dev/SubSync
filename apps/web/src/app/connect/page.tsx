@@ -1,31 +1,16 @@
+import { getServices } from '../../lib/api';
+
+export const dynamic = 'force-dynamic';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
-import { CheckCircle2, PlugZap } from 'lucide-react';
+import { PlugZap } from 'lucide-react';
 
-const integrations = [
-  {
-    id: 'spotify',
-    name: 'Spotify',
-    description: 'OAuth-based connection for Premium plans.',
-    status: 'connected',
-    lastSynced: '5 min ago',
-  },
-  {
-    id: 'google',
-    name: 'Google / YouTube Premium',
-    description: 'Use Google OAuth to import YouTube Premium & Music.',
-    status: 'ready',
-  },
-  {
-    id: 'netflix',
-    name: 'Netflix via email receipts',
-    description: 'Forward billing emails to auto-detect renewals.',
-    status: 'manual',
-  },
-];
+const alias = 'subs+general@beacon.app';
 
-export default function ConnectPage() {
+export default async function ConnectPage() {
+  const services = await getServices();
+
   return (
     <div className="space-y-6">
       <div>
@@ -35,35 +20,27 @@ export default function ConnectPage() {
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        {integrations.map((integration) => (
+        {services.map((integration) => (
           <Card key={integration.id}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>{integration.name}</CardTitle>
-                {integration.status === 'connected' ? (
-                  <Badge variant="success">Connected</Badge>
-                ) : integration.status === 'manual' ? (
-                  <Badge variant="warning">Email route</Badge>
-                ) : (
+                {integration.supportsOAuth ? (
                   <Badge>Ready</Badge>
+                ) : (
+                  <Badge variant="warning">Email route</Badge>
                 )}
               </div>
-              <p className="text-sm text-slate-500">{integration.description}</p>
+              <p className="text-sm text-slate-500">Category: {integration.category}</p>
             </CardHeader>
             <CardContent className="flex items-center justify-between">
-              {integration.status === 'connected' ? (
-                <p className="text-xs text-emerald-600 flex items-center gap-1">
-                  <CheckCircle2 className="h-4 w-4" /> Synced {integration.lastSynced}
-                </p>
-              ) : (
-                <p className="text-xs text-slate-500">
-                  {integration.status === 'manual'
-                    ? 'Forward receipts to subs+you@track.app'
-                    : 'Secure OAuth hand-off'}
-                </p>
-              )}
-              <Button variant={integration.status === 'connected' ? 'outline' : 'default'}>
-                {integration.status === 'connected' ? 'Manage' : 'Connect'}
+              <p className="text-xs text-slate-500">
+                {integration.supportsOAuth
+                  ? 'Connect via OAuth to keep plans current.'
+                  : 'Route invoices to the forwarding alias below.'}
+              </p>
+              <Button variant={integration.supportsOAuth ? 'default' : 'outline'}>
+                {integration.supportsOAuth ? 'Connect' : 'Guide'}
               </Button>
             </CardContent>
           </Card>
@@ -75,7 +52,7 @@ export default function ConnectPage() {
           <div>
             <CardTitle>Email forwarding alias</CardTitle>
             <p className="text-sm text-slate-500">
-              Send streaming invoices to <span className="font-mono text-slate-800">subs+general@beacon.app</span>
+              Send streaming invoices to <span className="font-mono text-slate-800">{alias}</span>
             </p>
           </div>
         </CardHeader>

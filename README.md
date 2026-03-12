@@ -16,8 +16,8 @@ projects/subscription-tracker
 ## Getting started
 ```bash
 npm install --workspaces       # installs all workspaces and links shared types
-npm run dev:api                # starts NestJS API on http://localhost:3000/api
-npm run dev:web                # starts Next.js client on http://localhost:3000 (port may vary)
+npm run dev:api                # starts NestJS API on http://localhost:3001/api
+npm run dev:web                # starts Next.js client on http://localhost:3000
 ```
 
 ### Database (Postgres + Prisma)
@@ -39,6 +39,11 @@ npm run dev:web                # starts Next.js client on http://localhost:3000 
    npm run prisma:seed --workspace api
    ```
 5. Launch the API with `npm run dev:api` (it now requires a reachable `DATABASE_URL`).
+
+### Web client environment
+1. `cd apps/web`
+2. `cp .env.example .env` and ensure `NEXT_PUBLIC_API_URL` points at the API base URL (default `http://localhost:3001/api`).
+3. Run `npm run dev:web` from the repo root to load the dashboard against live data.
 
 The API exposes seed endpoints:
 - `GET /api/services` – streaming catalog

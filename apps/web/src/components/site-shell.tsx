@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/connect', label: 'Connect' },
+  { href: '/subscriptions/new', label: 'Add subscription' },
   { href: '/settings', label: 'Settings' },
 ];
 

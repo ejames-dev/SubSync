@@ -58,7 +58,7 @@ export class SubscriptionsService {
     dto: CreateSubscriptionDto,
   ): Prisma.SubscriptionCreateInput {
     return {
-      status: 'active',
+      status: dto.status ?? 'active',
       autoImportSource: 'manual',
       service: { connect: { id: dto.serviceId } },
       planName: dto.planName,
@@ -87,6 +87,7 @@ export class SubscriptionsService {
       data.billingCurrency = dto.billingCurrency;
     if (dto.billingInterval !== undefined)
       data.billingInterval = dto.billingInterval;
+    if (dto.status !== undefined) data.status = dto.status;
     if (dto.nextRenewal !== undefined)
       data.nextRenewal = new Date(dto.nextRenewal);
     if (dto.paymentSource !== undefined) data.paymentSource = dto.paymentSource;
@@ -143,7 +144,12 @@ export class SubscriptionsService {
   private toPaymentSource(
     value: string | null,
   ): Subscription['paymentSource'] | undefined {
-    if (value === 'card' || value === 'paypal' || value === 'gift' || value === 'other') {
+    if (
+      value === 'card' ||
+      value === 'paypal' ||
+      value === 'gift' ||
+      value === 'other'
+    ) {
       return value;
     }
     return undefined;

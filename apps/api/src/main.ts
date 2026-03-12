@@ -15,7 +15,13 @@ async function bootstrap() {
   app.useGlobalInterceptors(new LoggingInterceptor());
   app.setGlobalPrefix('api');
 
-  await app.listen(process.env.PORT ?? 3000);
+  const corsOrigin = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
+    : true;
+  app.enableCors({ origin: corsOrigin });
+
+  const port = Number(process.env.PORT ?? 3001);
+  await app.listen(port);
   console.log(`API listening on ${await app.getUrl()}`);
 }
 bootstrap();

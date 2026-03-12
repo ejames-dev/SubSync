@@ -6,7 +6,7 @@ import {
   Min,
   IsIn,
 } from 'class-validator';
-import { BillingInterval } from '@subscription-tracker/types';
+import { BillingInterval, Subscription } from '@subscription-tracker/types';
 
 export class CreateSubscriptionDto {
   @IsString()
@@ -35,6 +35,10 @@ export class CreateSubscriptionDto {
   @IsOptional()
   @IsString()
   paymentLast4?: string;
+
+  @IsOptional()
+  @IsIn(['active', 'trial', 'canceled_pending'])
+  status?: Subscription['status'];
 
   @IsOptional()
   @IsString()

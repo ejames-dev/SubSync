@@ -1,6 +1,17 @@
 # SubSync
 
-SubSync helps you track every active subscription across streaming and media platforms. It surfaces renewal/expiry reminders, highlights overlapping plans, and lays the groundwork for real-time price comparisons between similar services.
+SubSync keeps every streaming, productivity, and media subscription in one command center. It ingests a structured service catalog, lets you create or edit subscriptions by hand, and tracks each plan’s status, billing cadence, and renewal history. The dashboard highlights monthly spend, near-term renewals, and recent status changes, while the active-subscriptions grid supports search + status filters so you can zero in on exactly what needs attention.
+
+### Highlights
+- **End-to-end subscription lifecycle:** manual creation flow, edit/delete, and Prisma-backed `SubscriptionEvent` logging for every status change.
+- **Renewal awareness:** upcoming-renewals stack with snooze/review actions, plus reminder preferences (lead time + channels) ready for the notification worker.
+- **Context in-line:** service logos, note snippets, status badges, and a timeline component when you drill into an individual subscription.
+- **Modern dashboard UX:** KPI strip, status-change feed, filterable grid, and URL-synced filters/search so views are shareable and refresh-safe.
+
+### Stack
+- **API:** NestJS 10 + Prisma 5 on Postgres (Dockerized), with modular controllers for subscriptions, service catalog, integrations, ingest, and notifications.
+- **Web:** Next.js 14 App Router + Tailwind UI components, speaking to the API via typed fetch helpers.
+- **Shared types:** `@subscription-tracker/types` package keeps DTOs/models consistent across the monorepo.
 
 ## Repository layout
 ```

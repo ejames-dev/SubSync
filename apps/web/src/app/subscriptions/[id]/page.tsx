@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
-import { getServices, getSubscription } from '../../../lib/api';
+import { getServices, getSubscription, getSubscriptionEvents } from '../../../lib/api';
 import { SubscriptionForm } from '../../../components/subscription-form';
+import { SubscriptionTimeline } from '../../../components/subscription-timeline';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 
 export const dynamic = 'force-dynamic';
@@ -11,9 +12,10 @@ interface Props {
 
 export default async function SubscriptionDetailPage({ params }: Props) {
   try {
-    const [subscription, services] = await Promise.all([
+    const [subscription, services, events] = await Promise.all([
       getSubscription(params.id),
       getServices(),
+      getSubscriptionEvents(params.id),
     ]);
 
     return (
@@ -29,6 +31,15 @@ export default async function SubscriptionDetailPage({ params }: Props) {
               mode="edit"
               initial={subscription}
             />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Status timeline</CardTitle>
+            <p className="text-sm text-slate-500">Track key changes over time</p>
+          </CardHeader>
+          <CardContent>
+            <SubscriptionTimeline events={events} />
           </CardContent>
         </Card>
       </div>

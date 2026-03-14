@@ -7,6 +7,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     category: 'music',
     supportsOAuth: true,
     description: 'Premium music streaming',
+    logoUrl: 'https://logo.clearbit.com/spotify.com',
   },
   {
     id: 'svc_youtube_premium',
@@ -14,6 +15,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     category: 'streaming',
     supportsOAuth: true,
     description: 'Ad-free YouTube + Music',
+    logoUrl: 'https://logo.clearbit.com/youtube.com',
   },
   {
     id: 'svc_netflix',
@@ -21,6 +23,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     category: 'streaming',
     supportsOAuth: false,
     description: 'On-demand series and films',
+    logoUrl: 'https://logo.clearbit.com/netflix.com',
   },
   {
     id: 'svc_disney_plus',
@@ -28,6 +31,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     category: 'streaming',
     supportsOAuth: false,
     description: 'Disney, Marvel, Star Wars catalog',
+    logoUrl: 'https://logo.clearbit.com/disneyplus.com',
   },
   {
     id: 'svc_hulu',
@@ -35,5 +39,6 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     category: 'streaming',
     supportsOAuth: false,
     description: 'TV + originals',
+    logoUrl: 'https://logo.clearbit.com/hulu.com',
   },
 ];

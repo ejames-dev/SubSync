@@ -6,11 +6,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
-import { Subscription } from '@subscription-tracker/types';
+import { Subscription, SubscriptionEvent } from '@subscription-tracker/types';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -21,9 +22,22 @@ export class SubscriptionsController {
     return this.subscriptions.list();
   }
 
+  @Get('events/recent')
+  async recent(@Query('limit') limit?: string): Promise<SubscriptionEvent[]> {
+    const parsed = limit !== undefined ? Number(limit) : undefined;
+    const normalized =
+      parsed !== undefined && Number.isNaN(parsed) ? undefined : parsed;
+    return this.subscriptions.recentEvents(normalized);
+  }
+
   @Get(':id')
   async detail(@Param('id') id: string): Promise<Subscription> {
     return this.subscriptions.findOne(id);
+  }
+
+  @Get(':id/events')
+  async events(@Param('id') id: string): Promise<SubscriptionEvent[]> {
+    return this.subscriptions.listEvents(id);
   }
 
   @Post()

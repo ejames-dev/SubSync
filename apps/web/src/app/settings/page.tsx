@@ -1,7 +1,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import {
+  getNotificationPreference,
+} from '../../lib/api';
+import { NotificationPreferenceForm } from '../../components/notification-preference-form';
 
-export default function SettingsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function SettingsPage() {
+  const preference = await getNotificationPreference();
+
   return (
     <div className="space-y-6">
       <div>
@@ -19,25 +27,7 @@ export default function SettingsPage() {
           </p>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-4">
-            <label className="text-sm font-medium text-slate-700">
-              Days before renewal
-              <input
-                type="number"
-                defaultValue={7}
-                className="mt-1 w-32 rounded-md border border-slate-300 px-3 py-2 text-sm"
-              />
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" defaultChecked /> Email
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" defaultChecked /> Push
-              </label>
-            </div>
-            <Button className="w-fit">Save preferences</Button>
-          </form>
+          <NotificationPreferenceForm preference={preference} />
         </CardContent>
       </Card>
 

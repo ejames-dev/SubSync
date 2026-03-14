@@ -1,12 +1,14 @@
-import { ServiceProvider, Subscription } from '@subscription-tracker/types';
+import { ServiceProvider, Subscription, SubscriptionEvent } from '@subscription-tracker/types';
 
 export const dynamic = 'force-dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
+import { StatusBadge } from '../../components/status-badge';
 import Link from 'next/link';
 import { Pause } from 'lucide-react';
-import { getServices, getSubscriptions } from '../../lib/api';
+import { getRecentSubscriptionEvents, getServices, getSubscriptions } from '../../lib/api';
+import { SubscriptionsGrid } from '../../components/subscriptions-grid';
 
 function summarize(subscriptions: Subscription[]) {
   const monthlySpend = subscriptions
@@ -25,14 +27,81 @@ function mapServices(services: ServiceProvider[]) {
   return Object.fromEntries(services.map((service) => [service.id, service]));
 }
 
+function mapSubscriptions(subscriptions: Subscription[]) {
+  return Object.fromEntries(subscriptions.map((subscription) => [subscription.id, subscription]));
+}
+
+
+function formatEventTimestamp(timestamp: string) {
+  return new Date(timestamp).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
+function RecentStatusChanges({
+  events,
+  subscriptionsById,
+  servicesById,
+}: {
+  events: SubscriptionEvent[];
+  subscriptionsById: Record<string, Subscription>;
+  servicesById: Record<string, ServiceProvider>;
+}) {
+  if (events.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-6 text-sm text-slate-500">
+          No recent status changes.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent status changes</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {events.map((event) => {
+          const subscription = subscriptionsById[event.subscriptionId];
+          const service = subscription ? servicesById[subscription.serviceId] : undefined;
+          return (
+            <div
+              key={event.id}
+              className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3"
+            >
+              <div>
+                <p className="font-medium text-slate-900">
+                  {service?.name ?? subscription?.serviceId ?? 'Unknown service'}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {subscription?.planName ?? 'Subscription'}
+                </p>
+                <p className="text-xs text-slate-400">
+                  {formatEventTimestamp(event.occurredAt)}
+                </p>
+              </div>
+              <StatusBadge status={event.status} />
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default async function DashboardPage() {
   try {
-    const [subscriptions, services] = await Promise.all([
+    const [subscriptions, services, recentEvents] = await Promise.all([
       getSubscriptions(),
       getServices(),
+      getRecentSubscriptionEvents(5),
     ]);
     const { monthlySpend, upcomingRenewals } = summarize(subscriptions);
     const servicesById = mapServices(services);
+    const subscriptionsById = mapSubscriptions(subscriptions);
 
     return (
       <div className="space-y-6">
@@ -122,50 +191,20 @@ export default async function DashboardPage() {
         </section>
 
         <section>
+          <RecentStatusChanges
+            events={recentEvents}
+            subscriptionsById={subscriptionsById}
+            servicesById={servicesById}
+          />
+        </section>
+
+        <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
               Active subscriptions
             </h2>
           </div>
-          {subscriptions.length === 0 ? (
-            <Card>
-              <CardContent className="py-6 text-sm text-slate-500">
-                Nothing here yet. Add your first subscription to start tracking spend.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {subscriptions.map((subscription) => {
-                const service = servicesById[subscription.serviceId];
-                return (
-                  <Card key={subscription.id}>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle>{service?.name ?? subscription.serviceId}</CardTitle>
-                        <p className="text-sm text-slate-500">{subscription.planName}</p>
-                      </div>
-                      <Badge variant={subscription.autoImportSource === 'oauth' ? 'success' : 'default'}>
-                        {subscription.autoImportSource ?? 'manual'}
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-semibold text-slate-900">
-                          ${subscription.billingAmount.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-slate-500">/{subscription.billingInterval}</p>
-                      </div>
-                      <Link href={`/subscriptions/${subscription.id}`}>
-                        <Button variant="ghost" size="sm">
-                          Manage
-                        </Button>
-                      </Link>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+          <SubscriptionsGrid subscriptions={subscriptions} servicesById={servicesById} />
         </section>
       </div>
     );

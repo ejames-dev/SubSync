@@ -1,12 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Subscription } from '@subscription-tracker/types';
+import { Subscription, SubscriptionEvent } from '@subscription-tracker/types';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   Prisma,
   Subscription as PrismaSubscription,
-} from '../../prisma/generated/client';
+  SubscriptionEvent as PrismaSubscriptionEvent,
+  SubscriptionEventType as PrismaSubscriptionEventType,
+  SubscriptionStatus as PrismaSubscriptionStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class SubscriptionsService {
@@ -20,38 +23,70 @@ export class SubscriptionsService {
   }
 
   async findOne(id: string): Promise<Subscription> {
-    const sub = await this.prisma.subscription.findUnique({ where: { id } });
-    if (!sub) {
-      throw new NotFoundException(`Subscription ${id} not found`);
-    }
+    const sub = await this.getEntityOrThrow(id);
     return this.toDomain(sub);
   }
 
   async create(dto: CreateSubscriptionDto): Promise<Subscription> {
     const data = this.mapDtoToCreate(dto);
     const created = await this.prisma.subscription.create({ data });
+    await this.recordEvent(created.id, 'created', created.status);
     return this.toDomain(created);
   }
 
   async update(id: string, dto: UpdateSubscriptionDto): Promise<Subscription> {
-    await this.ensureExists(id);
+    const existing = await this.getEntityOrThrow(id);
+    const statusChanged =
+      dto.status !== undefined && dto.status !== existing.status;
+
+    const updateData = this.mapDtoToUpdate(dto);
+    if (statusChanged) {
+      updateData.statusChangedAt = new Date();
+    }
+
     const updated = await this.prisma.subscription.update({
       where: { id },
-      data: this.mapDtoToUpdate(dto),
+      data: updateData,
     });
+
+    if (statusChanged) {
+      await this.recordEvent(updated.id, 'status_changed', updated.status);
+    }
+
     return this.toDomain(updated);
   }
 
   async remove(id: string): Promise<void> {
-    await this.ensureExists(id);
+    await this.getEntityOrThrow(id);
     await this.prisma.subscription.delete({ where: { id } });
   }
 
-  private async ensureExists(id: string) {
+  async listEvents(subscriptionId: string): Promise<SubscriptionEvent[]> {
+    await this.getEntityOrThrow(subscriptionId);
+    const events = await this.prisma.subscriptionEvent.findMany({
+      where: { subscriptionId },
+      orderBy: { occurredAt: 'desc' },
+    });
+    return events.map((event) => this.toEventDomain(event));
+  }
+
+  async recentEvents(limit?: number): Promise<SubscriptionEvent[]> {
+    const normalized =
+      typeof limit === 'number' && !Number.isNaN(limit) ? limit : 5;
+    const take = Math.min(Math.max(normalized, 1), 20);
+    const events = await this.prisma.subscriptionEvent.findMany({
+      orderBy: { occurredAt: 'desc' },
+      take,
+    });
+    return events.map((event) => this.toEventDomain(event));
+  }
+
+  private async getEntityOrThrow(id: string): Promise<PrismaSubscription> {
     const found = await this.prisma.subscription.findUnique({ where: { id } });
     if (!found) {
       throw new NotFoundException(`Subscription ${id} not found`);
     }
+    return found;
   }
 
   private mapDtoToCreate(
@@ -69,6 +104,7 @@ export class SubscriptionsService {
       paymentSource: dto.paymentSource,
       paymentLast4: dto.paymentLast4,
       notes: dto.notes,
+      nextRenewalReminderSent: false,
     };
   }
 
@@ -88,12 +124,30 @@ export class SubscriptionsService {
     if (dto.billingInterval !== undefined)
       data.billingInterval = dto.billingInterval;
     if (dto.status !== undefined) data.status = dto.status;
-    if (dto.nextRenewal !== undefined)
+    if (dto.nextRenewal !== undefined) {
       data.nextRenewal = new Date(dto.nextRenewal);
+      data.nextRenewalReminderSent = false;
+    }
     if (dto.paymentSource !== undefined) data.paymentSource = dto.paymentSource;
     if (dto.paymentLast4 !== undefined) data.paymentLast4 = dto.paymentLast4;
     if (dto.notes !== undefined) data.notes = dto.notes;
     return data;
+  }
+
+  private async recordEvent(
+    subscriptionId: string,
+    eventType: PrismaSubscriptionEventType,
+    status: PrismaSubscriptionStatus,
+    notes?: string,
+  ) {
+    await this.prisma.subscriptionEvent.create({
+      data: {
+        subscriptionId,
+        eventType,
+        status,
+        notes,
+      },
+    });
   }
 
   private toDomain(sub: PrismaSubscription): Subscription {
@@ -101,35 +155,29 @@ export class SubscriptionsService {
       id: sub.id,
       serviceId: sub.serviceId,
       planName: sub.planName,
-      status: this.toStatus(sub.status),
+      status: sub.status,
       billingAmount: Number(sub.billingAmount),
       billingCurrency: sub.billingCurrency,
-      billingInterval: this.toBillingInterval(sub.billingInterval),
+      billingInterval: sub.billingInterval,
       nextRenewal: sub.nextRenewal.toISOString(),
       paymentSource: this.toPaymentSource(sub.paymentSource),
       paymentLast4: sub.paymentLast4 ?? undefined,
       autoImportSource: this.toAutoImportSource(sub.autoImportSource),
       notes: sub.notes ?? undefined,
+      nextRenewalReminderSent: sub.nextRenewalReminderSent,
+      statusChangedAt: sub.statusChangedAt.toISOString(),
     };
   }
 
-  private toStatus(value: string): Subscription['status'] {
-    if (value === 'trial' || value === 'canceled_pending') {
-      return value;
-    }
-    return 'active';
-  }
-
-  private toBillingInterval(value: string): Subscription['billingInterval'] {
-    const allowed: Subscription['billingInterval'][] = [
-      'monthly',
-      'yearly',
-      'quarterly',
-      'custom',
-    ];
-    return allowed.includes(value as Subscription['billingInterval'])
-      ? (value as Subscription['billingInterval'])
-      : 'monthly';
+  private toEventDomain(event: PrismaSubscriptionEvent): SubscriptionEvent {
+    return {
+      id: event.id,
+      subscriptionId: event.subscriptionId,
+      eventType: event.eventType,
+      status: event.status,
+      notes: event.notes ?? undefined,
+      occurredAt: event.occurredAt.toISOString(),
+    };
   }
 
   private toAutoImportSource(

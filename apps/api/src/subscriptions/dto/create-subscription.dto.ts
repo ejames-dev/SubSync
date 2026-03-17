@@ -15,7 +15,7 @@ export class CreateSubscriptionDto {
   @IsString()
   planName!: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   billingAmount!: number;
 

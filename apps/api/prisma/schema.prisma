@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -8,68 +8,63 @@ generator client {
   output   = "./generated/client"
 }
 
-generator client_default {
-  provider = "prisma-client-js"
-}
-
-enum SubscriptionStatus {
-  active
-  trial
-  canceled_pending
-}
-
-enum BillingInterval {
-  monthly
-  quarterly
-  yearly
-  custom
-}
-
-enum SubscriptionEventType {
-  created
-  status_changed
-  renewal
-}
-
 model Service {
-  id             String          @id
-  name           String
-  category       String
-  supportsOAuth  Boolean         @default(false)
-  description    String?
-  subscriptions  Subscription[]
+  id            String                  @id
+  name          String
+  category      String
+  supportsOAuth Boolean                 @default(false)
+  description   String?
+  subscriptions Subscription[]
+  integration   IntegrationConnection?
+}
+
+model IntegrationConnection {
+  providerId   String   @id
+  status       String
+  source       String
+  connectedAt  DateTime @default(now())
+  lastSyncedAt DateTime?
+  updatedAt    DateTime @updatedAt
+
+  service Service @relation(fields: [providerId], references: [id], onDelete: Restrict)
+}
+
+model UserSettings {
+  id                   String @id
+  leadTimeDays         Int
+  notificationChannels String
 }
 
 model Subscription {
-  id                       String                @id @default(uuid())
-  serviceId                String
-  planName                 String
-  status                   SubscriptionStatus    @default(active)
-  billingAmount            Decimal               @db.Decimal(10, 2)
-  billingCurrency          String
-  billingInterval          BillingInterval       @default(monthly)
-  nextRenewal              DateTime
-  paymentSource            String?
-  paymentLast4             String?
-  autoImportSource         String?
-  notes                    String?
-  nextRenewalReminderSent  Boolean               @default(false)
-  statusChangedAt          DateTime              @default(now())
-  createdAt                DateTime              @default(now())
-  updatedAt                DateTime              @updatedAt
+  id                      String   @id @default(uuid())
+  serviceId               String
+  planName                String
+  status                  String   @default("active")
+  billingAmountCents      Int
+  billingCurrency         String
+  billingInterval         String   @default("monthly")
+  nextRenewal             DateTime
+  paymentSource           String?
+  paymentLast4            String?
+  autoImportSource        String?
+  notes                   String?
+  nextRenewalReminderSent Boolean  @default(false)
+  statusChangedAt         DateTime @default(now())
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   service Service             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   events  SubscriptionEvent[]
 }
 
 model SubscriptionEvent {
-  id             String                   @id @default(uuid())
+  id             String   @id @default(uuid())
   subscriptionId String
-  eventType      SubscriptionEventType
-  status         SubscriptionStatus
+  eventType      String
+  status         String
   notes          String?
-  occurredAt     DateTime                 @default(now())
-  createdAt      DateTime                 @default(now())
+  occurredAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
 
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
@@ -77,7 +72,7 @@ model SubscriptionEvent {
 model NotificationPreference {
   id           String   @id
   leadTimeDays Int      @default(7)
-  channels     Json
+  channels     String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

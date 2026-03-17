@@ -31,25 +31,47 @@ npm run dev:api                # starts NestJS API on http://localhost:3001/api
 npm run dev:web                # starts Next.js client on http://localhost:3000
 ```
 
-### Database (Postgres + Prisma)
+## Desktop app
+SubSync now has an Electron desktop target for Windows packaging.
+
+```bash
+npm run build:desktop          # builds API + web and prepares the desktop runtime
+npm run dev:desktop            # launches the Electron shell locally
+npm run dist:desktop           # creates a Windows portable executable in release/
+```
+
+The portable Windows build is written to:
+
+```text
+release/SubSync 1.0.0.exe
+```
+
+`npm run dist:desktop` now stages a dedicated Electron app directory under `desktop/app/`, installs only the runtime dependencies needed for packaging, and applies all bundled SQLite migrations on first launch.
+
+For GitHub distribution, see:
+- `docs/windows-portable-quickstart.md`
+- `docs/release-checklist.md`
+
+The desktop runtime starts:
+- the Nest API locally on `http://127.0.0.1:43100/api`
+- the Next.js frontend locally on `http://127.0.0.1:43101`
+- a local SQLite database under the app user-data directory
+
+### Database (SQLite + Prisma)
 1. Copy the sample env and adjust credentials as needed:
    ```bash
    cp .env.example .env
    ```
-2. Start Postgres via Docker (requires Docker Desktop running):
-   ```bash
-   docker compose up -d
-   ```
-3. Apply migrations + generate the Prisma client:
+2. Apply migrations + generate the Prisma client:
    ```bash
    npm run prisma:migrate --workspace api
    npm run prisma:generate --workspace api
    ```
-4. Seed the service catalog:
+3. Seed the service catalog:
    ```bash
    npm run prisma:seed --workspace api
    ```
-5. Launch the API with `npm run dev:api` (it now requires a reachable `DATABASE_URL`).
+4. Launch the API with `npm run dev:api`.
 
 ### Web client environment
 1. `cd apps/web`
@@ -58,23 +80,29 @@ npm run dev:web                # starts Next.js client on http://localhost:3000
 
 The API exposes seed endpoints:
 - `GET /api/services` – streaming catalog
-- `GET /api/subscriptions` (plus CRUD) – in-memory subscription store
-- `POST /api/integrations/:provider/connect` – stub handshake
-- `POST /api/ingest/email` – placeholder email webhook
+- `GET /api/subscriptions` (plus CRUD) – SQLite-backed subscription store
+- `GET /api/dashboard/summary` – computed dashboard metrics from local data
+- `GET /api/integrations` / `POST /api/integrations/:provider/connect` – locally persisted provider connection state
+- `POST /api/ingest/email` – billing email import that creates or updates local subscriptions
 
-The web client currently reflects mock data for dashboard KPIs, connection cards, and settings forms.
+The desktop client now persists subscriptions, connection state, and settings locally through the packaged API. OAuth provider links are still simulated local connections rather than real third-party auth flows, but email import and dashboard calculations are backed by SQLite.
+
+`docker-compose.yml` is legacy and is not required for local development anymore.
 
 ## Scripts
 | Command | Description |
 | --- | --- |
 | `npm run dev:api` | Watch-mode Nest server |
 | `npm run dev:web` | Next.js dev server |
+| `npm run dev:desktop` | Launch the Electron desktop shell |
 | `npm run lint` | Lints every workspace |
 | `npm run test` | Runs workspace test placeholders |
 | `npm run format` | Prettier across workspaces |
 | `npm run build --workspace <name>` | Build a specific workspace (e.g., types, api, web) |
-| `npm run prisma:migrate --workspace api` | Apply Prisma migrations (requires DATABASE_URL) |
-| `npm run prisma:seed --workspace api` | Seed Postgres with streaming services |
+| `npm run build:desktop` | Build API/web and stage the Electron runtime |
+| `npm run dist:desktop` | Build the Windows portable `.exe` |
+| `npm run prisma:migrate --workspace api` | Apply Prisma migrations to the local SQLite database |
+| `npm run prisma:seed --workspace api` | Seed SQLite with streaming services |
 
 ## Documentation
 High-level architecture, data model, and wireframes live under [`docs/`](docs/):

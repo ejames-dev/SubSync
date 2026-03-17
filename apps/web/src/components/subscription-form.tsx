@@ -4,9 +4,11 @@ import { ServiceProvider, Subscription } from '@subscription-tracker/types';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://127.0.0.1:43100/api';
 
 interface Props {
   services: ServiceProvider[];
@@ -20,16 +22,6 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
     'idle',
   );
   const [error, setError] = useState<string | null>(null);
-
-  if (!API_BASE) {
-    return (
-      <Card>
-        <CardContent className="py-6 text-sm text-red-600">
-          NEXT_PUBLIC_API_URL is not configured.
-        </CardContent>
-      </Card>
-    );
-  }
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

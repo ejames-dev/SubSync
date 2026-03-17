@@ -1,19 +1,42 @@
 {
   "name": "subscription-tracker",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "description": "SubSync desktop-packaged subscription tracker",
+  "author": "Evan Newman",
+  "main": "desktop/main.cjs",
   "packageManager": "npm@10.8.1",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev:api": "npm run start:dev --workspace api",
-    "dev:web": "npm run dev --workspace web",
-    "build": "npm run build --workspaces",
-    "lint": "npm run lint --workspaces",
-    "test": "npm run test --workspaces",
-    "format": "npm run format --workspaces"
+    "dev:api": "set API_PORT=43100&& npm run start:dev --workspace api",
+    "dev:web": "set NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:43100/api&& npm run dev --workspace web",
+    "dev:desktop": "electron .",
+    "build": "npm run build --workspace @subscription-tracker/types && npm run build --workspace api && npm run build --workspace web",
+    "build:desktop": "npm run build && node ./desktop/prepare-dist.mjs",
+    "dist:desktop": "npm run build:desktop && electron-builder --win portable",
+    "lint": "npm run lint --workspace @subscription-tracker/types && npm run lint --workspace api && npm run lint --workspace web",
+    "test": "npm run test --workspace @subscription-tracker/types && npm run test --workspace api && npm run test --workspace web",
+    "format": "npm run format --workspace @subscription-tracker/types && npm run format --workspace api && npm run format --workspace web"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/mapped-types": "^2.1.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/schedule": "^6.1.1",
+    "@prisma/client": "^5.20.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "reflect-metadata": "^0.2.0",
+    "rxjs": "^7.8.1",
+    "uuid": "^11.0.3"
+  },
+  "overrides": {
+    "file-type": "21.3.3",
+    "multer": "2.1.1"
   },
   "eslintConfig": {
     "root": true,
@@ -32,5 +55,27 @@
     "singleQuote": true,
     "semi": true,
     "trailingComma": "es5"
+  },
+  "build": {
+    "appId": "com.evannewman.subsync",
+    "productName": "SubSync",
+    "directories": {
+      "app": "desktop/app",
+      "output": "release"
+    },
+    "asarUnpack": [
+      "runtime/api/prisma/generated/client/*.node",
+      "runtime/api/prisma/generated/client/*.dll.node"
+    ],
+    "win": {
+      "icon": "desktop/app/icon.ico",
+      "target": [
+        "portable"
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1"
   }
 }

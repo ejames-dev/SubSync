@@ -1,4 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
+import { EmailIngestResult } from '@subscription-tracker/types';
 import {
   IsISO8601,
   IsNotEmpty,
@@ -6,6 +7,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+import { EmailIngestService } from './email-ingest.service';
 
 export class EmailIngestPayload {
   @IsString()
@@ -28,21 +30,10 @@ export class EmailIngestPayload {
 
 @Controller('ingest/email')
 export class EmailIngestController {
-  @Post()
-  ingest(@Body() payload: EmailIngestPayload) {
-    return {
-      status: 'queued',
-      inferredProvider: this.detectProvider(payload.subject),
-      receivedAt: payload.receivedAt,
-    };
-  }
+  constructor(private readonly ingestService: EmailIngestService) {}
 
-  private detectProvider(subject: string) {
-    if (!subject) return 'unknown';
-    const normalized = subject.toLowerCase();
-    if (normalized.includes('netflix')) return 'Netflix';
-    if (normalized.includes('disney')) return 'Disney+';
-    if (normalized.includes('hulu')) return 'Hulu';
-    return 'unknown';
+  @Post()
+  ingest(@Body() payload: EmailIngestPayload): Promise<EmailIngestResult> {
+    return this.ingestService.ingest(payload);
   }
 }

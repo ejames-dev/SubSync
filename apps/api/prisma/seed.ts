@@ -129,7 +129,7 @@ async function seedNotificationPreferences() {
     create: {
       id: 'default',
       leadTimeDays: 7,
-      channels: ['email'],
+      channels: JSON.stringify(['email']),
     },
   });
 }
@@ -139,7 +139,7 @@ async function seedSubscriptions() {
     const baseData = {
       planName: sample.planName,
       status: sample.status,
-      billingAmount: sample.billingAmount,
+      billingAmountCents: Math.round(sample.billingAmount * 100),
       billingCurrency: sample.billingCurrency,
       billingInterval: sample.billingInterval,
       nextRenewal: sample.nextRenewal,
@@ -147,6 +147,7 @@ async function seedSubscriptions() {
       paymentLast4: sample.paymentLast4,
       notes: sample.notes,
       autoImportSource: 'manual',
+      nextRenewalReminderSent: false,
       statusChangedAt: sample.statusChangedAt,
     } as const;
 
@@ -154,28 +155,43 @@ async function seedSubscriptions() {
       where: { id: sample.id },
       update: {
         ...baseData,
-        serviceId: sample.serviceId,
+        service: {
+          connect: { id: sample.serviceId },
+        },
       },
       create: {
         id: sample.id,
-        serviceId: sample.serviceId,
         ...baseData,
+        service: {
+          connect: { id: sample.serviceId },
+        },
       },
     });
 
     await prisma.subscriptionEvent.deleteMany({ where: { subscriptionId: sample.id } });
     if (sample.events.length > 0) {
-      await prisma.subscriptionEvent.createMany({
-        data: sample.events.map((event) => ({
-          id: event.id,
-          subscriptionId: sample.id,
-          eventType: event.eventType,
-          status: event.status,
-          occurredAt: event.occurredAt,
-          notes: event.notes,
-        })),
-        skipDuplicates: true,
-      });
+      for (const event of sample.events) {
+        await prisma.subscriptionEvent.upsert({
+          where: { id: event.id },
+          update: {
+            subscriptionId: sample.id,
+            eventType: event.eventType,
+            status: event.status,
+            occurredAt: event.occurredAt,
+            notes: event.notes,
+          },
+          create: {
+            id: event.id,
+            subscription: {
+              connect: { id: sample.id },
+            },
+            eventType: event.eventType,
+            status: event.status,
+            occurredAt: event.occurredAt,
+            notes: event.notes,
+          },
+        });
+      }
     }
   }
 }

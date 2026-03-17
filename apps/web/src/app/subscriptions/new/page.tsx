@@ -13,7 +13,7 @@ export default async function NewSubscriptionPage() {
         <CardHeader>
           <CardTitle>Add subscription</CardTitle>
           <p className="text-sm text-slate-500">
-            Persisted directly to Postgres via the Nest API.
+            Persisted directly to the local SQLite-backed API.
           </p>
         </CardHeader>
         <CardContent>

@@ -15,7 +15,7 @@ OAuth providers ─────────▶│ Workers      │
                                  │
                                  ▼
                           ┌──────────────┐
-                          │ Postgres     │
+                          │ SQLite       │
                           └──────────────┘
                                  │
                                  ▼
@@ -42,7 +42,7 @@ OAuth providers ─────────▶│ Workers      │
 - **Security:** JWT access tokens, short-lived; refresh tokens stored httpOnly. Rate limiting per user.
 
 ## Data Storage
-- **Postgres:** Core relational data. Use Prisma or TypeORM.
+- **SQLite:** Core local relational data. Use Prisma or TypeORM.
 - **Redis:** Cache service catalog + OAuth state, also for job deduplication.
 - **Blob Storage (S3/Azure):** Optional for storing raw email bodies before parsing.
 
@@ -69,7 +69,7 @@ OAuth providers ─────────▶│ Workers      │
 - **Hosting:**
   - Frontend: Vercel/Netlify (web), Expo EAS (mobile builds).
   - Backend: Fly.io/Render or AWS ECS Fargate.
-  - DB: Managed Postgres (Neon/Supabase/AWS RDS).
+  - DB: Local SQLite file bundled with the app.
 - **Secrets:** Managed via platform secrets or Vault. Rotated automatically.
 - **Observability:**
   - Logging: Structured JSON logs aggregated in Logtail/Datadog.

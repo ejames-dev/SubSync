@@ -1,16 +1,34 @@
 import { cache } from 'react';
-import type { RequestInit } from 'next/dist/server/web/spec-extension/request';
-import {
+import type {
+  BillingInterval,
+  DashboardSummary,
+  EmailIngestResult,
+  IntegrationConnection,
   NotificationPreference,
   ServiceProvider,
   Subscription,
   SubscriptionEvent,
+  UserSettings,
 } from '@subscription-tracker/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:43100/api';
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+type ApiRequestOptions = {
+  body?: string;
+  headers?: Record<string, string>;
+  method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+};
+
+export function getApiBaseUrl() {
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    DEFAULT_API_BASE_URL
+  );
+}
+
+async function apiRequest<T>(path: string, init?: ApiRequestOptions): Promise<T> {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -20,34 +38,113 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`API ${response.status}: ${await response.text()}`);
+    const message = await response.text();
+    throw new Error(message || `Request failed with ${response.status}`);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
   }
 
   return (await response.json()) as T;
 }
 
-export const getSubscriptions = cache(() => request<Subscription[]>('/subscriptions'));
-export const getServices = cache(() => request<ServiceProvider[]>('/services'));
-export const getSubscription = (id: string) => request<Subscription>(`/subscriptions/${id}`);
+export const getSubscriptions = cache(() => apiRequest<Subscription[]>('/subscriptions'));
+export const getServices = cache(() => apiRequest<ServiceProvider[]>('/services'));
+export const getSubscription = (id: string) =>
+  apiRequest<Subscription>(`/subscriptions/${id}`);
 export const getSubscriptionEvents = (id: string) =>
-  request<SubscriptionEvent[]>(`/subscriptions/${id}/events`);
+  apiRequest<SubscriptionEvent[]>(`/subscriptions/${id}/events`);
 export const getRecentSubscriptionEvents = (limit = 5) =>
-  request<SubscriptionEvent[]>(`/subscriptions/events/recent?limit=${limit}`);
-
-export const createSubscription = (payload: unknown) =>
-  request('/subscriptions', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-
+  apiRequest<SubscriptionEvent[]>(`/subscriptions/events/recent?limit=${limit}`);
 export const getNotificationPreference = () =>
-  request<NotificationPreference>('/notifications/preferences');
-
+  apiRequest<NotificationPreference>('/notifications/preferences');
 export const updateNotificationPreference = (payload: {
   leadTimeDays: number;
   channels: Array<'email' | 'push'>;
 }) =>
-  request<NotificationPreference>('/notifications/preferences', {
+  apiRequest<NotificationPreference>('/notifications/preferences', {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+
+export function listServices() {
+  return getServices();
+}
+
+export function listSubscriptions() {
+  return getSubscriptions();
+}
+
+export function getDashboardSummary() {
+  return apiRequest<DashboardSummary>('/dashboard/summary');
+}
+
+export function createSubscription(payload: CreateSubscriptionPayload) {
+  return apiRequest<Subscription>('/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSubscription(id: string) {
+  return apiRequest<void>(`/subscriptions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export function connectIntegration(
+  provider: string,
+  payload: Record<string, string>,
+) {
+  return apiRequest<{
+    connection: IntegrationConnection;
+    message: string;
+  }>(`/integrations/${provider}/connect`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listIntegrations() {
+  return apiRequest<IntegrationConnection[]>('/integrations');
+}
+
+export function getSettings() {
+  return apiRequest<UserSettings>('/settings');
+}
+
+export function updateSettings(payload: {
+  leadTimeDays: number;
+  channels: Array<'email' | 'push'>;
+}) {
+  return apiRequest<UserSettings>('/settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function ingestEmail(payload: {
+  sender: string;
+  subject: string;
+  receivedAt: string;
+  body?: string;
+}) {
+  return apiRequest<EmailIngestResult>('/ingest/email', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+type CreateSubscriptionPayload = {
+  serviceId: string;
+  planName: string;
+  billingAmount: number;
+  billingCurrency: string;
+  billingInterval: BillingInterval;
+  nextRenewal: string;
+  paymentSource?: Subscription['paymentSource'];
+  paymentLast4?: string;
+  autoImportSource?: Subscription['autoImportSource'];
+  notes?: string;
+  status?: Subscription['status'];
+};

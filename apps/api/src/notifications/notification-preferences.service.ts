@@ -18,7 +18,7 @@ export class NotificationPreferencesService {
       const created = await this.prisma.notificationPreference.create({
         data: {
           id: DEFAULT_ID,
-          channels: ['email'],
+          channels: JSON.stringify(['email']),
         },
       });
       return this.toDto(created);
@@ -34,12 +34,12 @@ export class NotificationPreferencesService {
       where: { id: DEFAULT_ID },
       update: {
         leadTimeDays: dto.leadTimeDays,
-        channels: dto.channels,
+        channels: JSON.stringify(dto.channels),
       },
       create: {
         id: DEFAULT_ID,
         leadTimeDays: dto.leadTimeDays,
-        channels: dto.channels,
+        channels: JSON.stringify(dto.channels),
       },
     });
 
@@ -49,13 +49,27 @@ export class NotificationPreferencesService {
   private toDto(record: {
     id: string;
     leadTimeDays: number;
-    channels: unknown;
+    channels: string;
     updatedAt: Date;
   }): NotificationPreference {
+    let channels: Array<'email' | 'push'> = ['email'];
+
+    try {
+      const parsed = JSON.parse(record.channels);
+      if (Array.isArray(parsed)) {
+        channels = parsed.filter(
+          (value): value is 'email' | 'push' =>
+            value === 'email' || value === 'push',
+        );
+      }
+    } catch {
+      channels = ['email'];
+    }
+
     return {
       id: record.id,
       leadTimeDays: record.leadTimeDays,
-      channels: (record.channels as Array<'email' | 'push'>) ?? ['email'],
+      channels,
       updatedAt: record.updatedAt.toISOString(),
     };
   }

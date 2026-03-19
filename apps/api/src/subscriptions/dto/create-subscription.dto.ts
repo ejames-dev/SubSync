@@ -5,14 +5,17 @@ import {
   IsISO8601,
   Min,
   IsIn,
+  MaxLength,
 } from 'class-validator';
 import { BillingInterval, Subscription } from '@subscription-tracker/types';
 
 export class CreateSubscriptionDto {
   @IsString()
+  @MaxLength(100)
   serviceId!: string;
 
   @IsString()
+  @MaxLength(150)
   planName!: string;
 
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -20,6 +23,7 @@ export class CreateSubscriptionDto {
   billingAmount!: number;
 
   @IsString()
+  @MaxLength(3)
   billingCurrency!: string;
 
   @IsIn(['monthly', 'yearly', 'quarterly', 'custom'])
@@ -29,11 +33,12 @@ export class CreateSubscriptionDto {
   nextRenewal!: string;
 
   @IsOptional()
-  @IsString()
+  @IsIn(['card', 'paypal', 'gift', 'other'])
   paymentSource?: 'card' | 'paypal' | 'gift' | 'other';
 
   @IsOptional()
   @IsString()
+  @MaxLength(4)
   paymentLast4?: string;
 
   @IsOptional()
@@ -42,5 +47,6 @@ export class CreateSubscriptionDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   notes?: string;
 }

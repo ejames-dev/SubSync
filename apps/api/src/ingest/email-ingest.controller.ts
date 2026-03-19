@@ -25,6 +25,7 @@ export class EmailIngestPayload {
 
   @IsOptional()
   @IsString()
+  @MaxLength(50000)
   body?: string;
 }
 

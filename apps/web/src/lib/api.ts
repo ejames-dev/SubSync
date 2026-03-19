@@ -87,6 +87,16 @@ export function createSubscription(payload: CreateSubscriptionPayload) {
   });
 }
 
+export function updateSubscription(
+  id: string,
+  payload: Partial<CreateSubscriptionPayload>,
+) {
+  return apiRequest<Subscription>(`/subscriptions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function deleteSubscription(id: string) {
   return apiRequest<void>(`/subscriptions/${id}`, {
     method: 'DELETE',

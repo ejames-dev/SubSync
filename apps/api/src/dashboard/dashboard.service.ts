@@ -21,6 +21,11 @@ export class DashboardService {
     const ordered = subscriptions
       .slice()
       .sort((a, b) => a.nextRenewal.localeCompare(b.nextRenewal));
+
+    const billableSubscriptions = subscriptions.filter(
+      (s) => s.status !== 'canceled_pending',
+    );
+
     const sourceBreakdown: DashboardSummary['sourceBreakdown'] = {
       manual: 0,
       email: 0,
@@ -33,7 +38,7 @@ export class DashboardService {
     }
 
     const spendByCategoryMap = new Map<string, number>();
-    for (const subscription of subscriptions) {
+    for (const subscription of billableSubscriptions) {
       const category =
         servicesById[subscription.serviceId]?.category ?? 'other';
       spendByCategoryMap.set(
@@ -53,7 +58,7 @@ export class DashboardService {
 
     return {
       monthlyEquivalentSpend: this.roundCurrency(
-        subscriptions.reduce(
+        billableSubscriptions.reduce(
           (sum, subscription) => sum + this.toMonthlyEquivalent(subscription),
           0,
         ),

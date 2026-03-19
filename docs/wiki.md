@@ -188,7 +188,7 @@ SubSync/
    npm run prisma:seed --workspace api
    ```
 
-3. **Start the API** (watch mode on `http://127.0.0.1:43100/api`):
+3. **Start the API** (watch mode — default port `3000`, or set `API_PORT`):
 
    ```bash
    npm run dev:api
@@ -319,12 +319,15 @@ The NestJS API exposes the following REST endpoints (all prefixed with `/api`):
 | --- | --- | --- |
 | `DATABASE_URL` | `file:./dev.db` | SQLite database file path (Prisma connection string) |
 | `CORS_ORIGIN` | `http://localhost:3000` | Allowed CORS origins (comma-separated for multiple) |
+| `API_PORT` | `3000` | Port the NestJS API listens on in development |
 
 #### Web Client (`apps/web/.env`)
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | `http://localhost:3001/api` | API base URL for the web client |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:3001/api` | API base URL for the web client (adjust to match your `API_PORT`) |
+
+> **Note:** In local development the API listens on the port set by `API_PORT` (default `3000`). The desktop Electron build uses hardcoded port `43100`. Make sure `NEXT_PUBLIC_API_URL` matches the port your API is actually running on.
 
 #### Desktop (Electron)
 

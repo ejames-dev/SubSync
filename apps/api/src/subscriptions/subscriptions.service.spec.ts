@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
-import { Prisma } from '../../prisma/generated/client';
 import { SubscriptionsService } from './subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
 
 type PrismaMock = {
   subscription: {
@@ -20,6 +20,7 @@ type PrismaMock = {
 describe('SubscriptionsService', () => {
   let service: SubscriptionsService;
   let prisma: PrismaMock;
+  let serviceCatalog: jest.Mocked<Pick<ServiceCatalogService, 'ensureExists'>>;
 
   beforeEach(() => {
     prisma = {
@@ -36,7 +37,14 @@ describe('SubscriptionsService', () => {
       },
     };
 
-    service = new SubscriptionsService(prisma as unknown as PrismaService);
+    serviceCatalog = {
+      ensureExists: jest.fn().mockResolvedValue({ id: 'svc_spotify', name: 'Spotify' }),
+    };
+
+    service = new SubscriptionsService(
+      prisma as unknown as PrismaService,
+      serviceCatalog as unknown as ServiceCatalogService,
+    );
   });
 
   const subscriptionEntity = () => ({
@@ -44,7 +52,7 @@ describe('SubscriptionsService', () => {
     serviceId: 'svc_spotify',
     planName: 'Premium',
     status: 'active',
-    billingAmount: new Prisma.Decimal(15),
+    billingAmountCents: 1500,
     billingCurrency: 'USD',
     billingInterval: 'monthly',
     nextRenewal: new Date('2026-04-01T00:00:00.000Z'),
@@ -88,6 +96,7 @@ describe('SubscriptionsService', () => {
     });
     expect(result.id).toBe('sub_1');
     expect(result.status).toBe('active');
+    expect(result.billingAmount).toBe(15);
   });
 
   it('records a status change event during update', async () => {
@@ -185,3 +194,4 @@ describe('SubscriptionsService', () => {
     await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
   });
 });
+

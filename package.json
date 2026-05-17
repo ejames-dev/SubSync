@@ -11,8 +11,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:api": "set API_PORT=43100&& npm run start:dev --workspace api",
-    "dev:web": "set NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:43100/api&& npm run dev --workspace web",
+    "dev:api": "cross-env API_PORT=43100 npm run start:dev --workspace api",
+    "dev:web": "cross-env NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:43100/api npm run dev --workspace web",
     "dev:desktop": "electron .",
     "build": "npm run build --workspace @subscription-tracker/types && npm run build --workspace api && npm run build --workspace web",
     "build:desktop": "npm run build && node ./desktop/prepare-dist.mjs",
@@ -75,6 +75,7 @@
     }
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "electron": "^41.0.2",
     "electron-builder": "^26.8.1"
   }

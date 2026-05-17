@@ -5,10 +5,11 @@
 - Run `npm run test:e2e --workspace api`
 - Run `npm run build:desktop`
 - Run `npm run dist:desktop`
-- Smoke-test the generated `release/SubSync 1.0.0.exe`
+- Smoke-test the generated `release/SubSync ${VERSION}.exe`
+- Update `CHANGELOG.md` with the new version's entry and move planned items out of `[Unreleased]`
 
 ## Release contents
-- Upload `release/SubSync 1.0.0.exe` to GitHub Releases
+- Upload `release/SubSync ${VERSION}.exe` to GitHub Releases
 - Include release notes that mention:
   - local SQLite storage
   - dashboard summary metrics

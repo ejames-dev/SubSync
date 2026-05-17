@@ -4,11 +4,11 @@ import { ServiceProvider, Subscription } from '@subscription-tracker/types';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from './ui/button';
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  'http://127.0.0.1:43100/api';
+import {
+  createSubscription,
+  deleteSubscription,
+  updateSubscription,
+} from '../lib/api';
 
 interface Props {
   services: ServiceProvider[];
@@ -30,31 +30,23 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
 
     const formData = new FormData(event.currentTarget);
     const payload = {
-      serviceId: formData.get('serviceId'),
-      planName: formData.get('planName'),
+      serviceId: formData.get('serviceId') as string,
+      planName: formData.get('planName') as string,
       billingAmount: Number(formData.get('billingAmount')),
-      billingCurrency: formData.get('billingCurrency'),
-      billingInterval: formData.get('billingInterval'),
-      nextRenewal: formData.get('nextRenewal'),
-      paymentSource: formData.get('paymentSource') || undefined,
-      paymentLast4: formData.get('paymentLast4') || undefined,
-      notes: formData.get('notes') || undefined,
-      status: formData.get('status') || undefined,
+      billingCurrency: formData.get('billingCurrency') as string,
+      billingInterval: formData.get('billingInterval') as Subscription['billingInterval'],
+      nextRenewal: `${formData.get('nextRenewal') as string}T00:00:00.000Z`,
+      paymentSource: (formData.get('paymentSource') as Subscription['paymentSource']) || undefined,
+      paymentLast4: (formData.get('paymentLast4') as string) || undefined,
+      notes: (formData.get('notes') as string) || undefined,
+      status: (formData.get('status') as Subscription['status']) || undefined,
     };
 
-    const url =
-      mode === 'edit' && initial
-        ? `${API_BASE}/subscriptions/${initial.id}`
-        : `${API_BASE}/subscriptions`;
-
     try {
-      const response = await fetch(url, {
-        method: mode === 'edit' ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
+      if (mode === 'edit' && initial) {
+        await updateSubscription(initial.id, payload);
+      } else {
+        await createSubscription(payload);
       }
       setStatus('success');
       router.push('/dashboard');
@@ -70,12 +62,7 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
     if (!confirm('Delete this subscription?')) return;
 
     try {
-      const response = await fetch(`${API_BASE}/subscriptions/${initial.id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
+      await deleteSubscription(initial.id);
       router.push('/dashboard');
       router.refresh();
     } catch (err) {
@@ -133,6 +120,7 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
             name="billingCurrency"
             defaultValue={initial?.billingCurrency ?? 'USD'}
             required
+            maxLength={3}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
           />
         </div>

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { NotificationPoller } from './notification-poller';
 import { cn } from '../lib/utils';
 
 const navLinks = [
@@ -17,6 +18,7 @@ export const SiteShell = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <NotificationPoller />
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>

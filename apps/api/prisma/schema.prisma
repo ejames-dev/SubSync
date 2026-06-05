@@ -53,8 +53,21 @@ model Subscription {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  service Service             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  events  SubscriptionEvent[]
+  service              Service                @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  events               SubscriptionEvent[]
+  pendingNotifications PendingNotification[]
+}
+
+model PendingNotification {
+  id             String    @id @default(uuid())
+  subscriptionId String
+  channel        String
+  title          String
+  body           String
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
 model SubscriptionEvent {

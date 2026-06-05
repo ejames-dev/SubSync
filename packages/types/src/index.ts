@@ -37,11 +37,22 @@ export interface SubscriptionEvent {
   occurredAt: string;
 }
 
+export type NotificationChannel = 'email' | 'push';
+
 export interface NotificationPreference {
   id: string;
   leadTimeDays: number;
-  channels: Array<'email' | 'push'>;
+  channels: Array<NotificationChannel>;
   updatedAt?: string;
+}
+
+export interface PendingRenewalNotification {
+  id: string;
+  subscriptionId: string;
+  channel: NotificationChannel;
+  title: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface UserSettings {

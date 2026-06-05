@@ -5,6 +5,7 @@ import type {
   EmailIngestResult,
   IntegrationConnection,
   NotificationPreference,
+  PendingRenewalNotification,
   ServiceProvider,
   Subscription,
   SubscriptionEvent,
@@ -143,6 +144,18 @@ export function ingestEmail(payload: {
   return apiRequest<EmailIngestResult>('/ingest/email', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function getPendingNotifications(channel: 'push' | 'email' = 'push') {
+  return apiRequest<PendingRenewalNotification[]>(
+    `/notifications/pending?channel=${channel}`,
+  );
+}
+
+export function acknowledgeNotification(id: string) {
+  return apiRequest<PendingRenewalNotification>(`/notifications/${id}/ack`, {
+    method: 'POST',
   });
 }
 type CreateSubscriptionPayload = {

@@ -3,6 +3,9 @@ import type {
   BillingInterval,
   DashboardSummary,
   EmailIngestResult,
+  GmailAuthUrlResponse,
+  GmailConnectionStatus,
+  GmailSyncResult,
   IntegrationConnection,
   NotificationPreference,
   ServiceProvider,
@@ -143,6 +146,26 @@ export function ingestEmail(payload: {
   return apiRequest<EmailIngestResult>('/ingest/email', {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+export function getGmailStatus() {
+  return apiRequest<GmailConnectionStatus>('/gmail/status');
+}
+
+export function getGmailAuthUrl() {
+  return apiRequest<GmailAuthUrlResponse>('/gmail/auth-url');
+}
+
+export function disconnectGmail() {
+  return apiRequest<GmailConnectionStatus>('/gmail/disconnect', {
+    method: 'POST',
+  });
+}
+
+export function syncGmailBillingEmails() {
+  return apiRequest<GmailSyncResult>('/gmail/sync', {
+    method: 'POST',
   });
 }
 type CreateSubscriptionPayload = {

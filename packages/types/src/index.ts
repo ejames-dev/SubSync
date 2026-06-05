@@ -93,3 +93,25 @@ export interface EmailIngestResult {
   message: string;
   receivedAt: string;
 }
+
+export interface GmailConnectionStatus {
+  connected: boolean;
+  email?: string;
+  connectedAt?: string;
+  lastSyncedAt?: string;
+  configured: boolean;
+}
+
+export interface GmailAuthUrlResponse {
+  authUrl: string;
+  state: string;
+}
+
+export interface GmailSyncResult {
+  scanned: number;
+  imported: number;
+  skipped: number;
+  failed: number;
+  results: EmailIngestResult[];
+  syncedAt: string;
+}

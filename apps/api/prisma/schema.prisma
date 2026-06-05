@@ -76,3 +76,27 @@ model NotificationPreference {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+model GmailConnection {
+  id              String    @id @default("default")
+  email           String?
+  accessTokenEnc  String
+  refreshTokenEnc String
+  tokenExpiry     DateTime?
+  scopes          String
+  connectedAt     DateTime  @default(now())
+  lastSyncedAt    DateTime?
+  updatedAt       DateTime  @updatedAt
+}
+
+model OAuthState {
+  state     String   @id
+  provider  String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model ProcessedGmailMessage {
+  messageId   String   @id
+  processedAt DateTime @default(now())
+}

@@ -1,18 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type {
+  GmailConnectionStatus,
   IntegrationConnection,
   ServiceProvider,
   UserSettings,
 } from '@subscription-tracker/types';
-import { CheckCircle2, PlugZap } from 'lucide-react';
+import { CheckCircle2, Mail, PlugZap, RefreshCw } from 'lucide-react';
 import {
   connectIntegration,
+  disconnectGmail,
+  getGmailAuthUrl,
+  getGmailStatus,
   getSettings,
   ingestEmail,
   listIntegrations,
   listServices,
+  syncGmailBillingEmails,
 } from '../lib/api';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -26,26 +32,65 @@ type EmailDraft = {
 };
 
 export function ConnectClient() {
+  const searchParams = useSearchParams();
   const [services, setServices] = useState<ServiceProvider[]>([]);
   const [connectionState, setConnectionState] = useState<ConnectionState>({});
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const [gmailStatus, setGmailStatus] = useState<GmailConnectionStatus | null>(null);
   const [emailDraft, setEmailDraft] = useState<EmailDraft>({
     sender: 'billing@netflix.com',
     subject: 'Netflix Standard plan renews Apr 16, 2026',
     body: 'Amount: $15.49 billed monthly to card ending in 4242',
   });
   const [importingEmail, setImportingEmail] = useState(false);
+  const [connectingGmail, setConnectingGmail] = useState(false);
+  const [syncingGmail, setSyncingGmail] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  async function refreshGmailStatus() {
+    const status = await getGmailStatus();
+    setGmailStatus(status);
+    return status;
+  }
+
   useEffect(() => {
-    void Promise.all([listServices(), listIntegrations(), getSettings()]).then(
-      ([serviceData, connections, currentSettings]) => {
-        setServices(serviceData);
-        setSettings(currentSettings);
-        setConnectionState(buildConnectionState(serviceData, connections));
-      },
-    );
+    void Promise.all([
+      listServices(),
+      listIntegrations(),
+      getSettings(),
+      getGmailStatus(),
+    ]).then(([serviceData, connections, currentSettings, gmail]) => {
+      setServices(serviceData);
+      setSettings(currentSettings);
+      setGmailStatus(gmail);
+      setConnectionState(buildConnectionState(serviceData, connections));
+    });
   }, []);
+
+  useEffect(() => {
+    const gmailResult = searchParams.get('gmail');
+    if (!gmailResult) {
+      return;
+    }
+
+    if (gmailResult === 'connected') {
+      const email = searchParams.get('email');
+      void refreshGmailStatus().then(() => {
+        setStatusMessage(
+          email
+            ? `Gmail connected as ${email}. Billing emails will sync automatically.`
+            : 'Gmail connected. Billing emails will sync automatically.',
+        );
+      });
+      return;
+    }
+
+    if (gmailResult === 'error') {
+      setStatusMessage(
+        searchParams.get('message') ?? 'Gmail authorization failed.',
+      );
+    }
+  }, [searchParams]);
 
   async function handleConnect(service: ServiceProvider) {
     setStatusMessage(null);
@@ -63,6 +108,55 @@ export function ConnectClient() {
     } catch (error) {
       setConnectionState((current) => ({ ...current, [service.id]: 'idle' }));
       setStatusMessage(error instanceof Error ? error.message : 'Connection failed.');
+    }
+  }
+
+  async function handleConnectGmail() {
+    setConnectingGmail(true);
+    setStatusMessage(null);
+    try {
+      const { authUrl } = await getGmailAuthUrl();
+      window.open(authUrl, '_blank', 'noopener,noreferrer');
+      setStatusMessage(
+        'Complete Gmail authorization in your browser, then return here.',
+      );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Failed to start Gmail OAuth.',
+      );
+    } finally {
+      setConnectingGmail(false);
+    }
+  }
+
+  async function handleDisconnectGmail() {
+    setStatusMessage(null);
+    try {
+      const status = await disconnectGmail();
+      setGmailStatus(status);
+      setStatusMessage('Gmail disconnected.');
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Failed to disconnect Gmail.',
+      );
+    }
+  }
+
+  async function handleSyncGmail() {
+    setSyncingGmail(true);
+    setStatusMessage(null);
+    try {
+      const result = await syncGmailBillingEmails();
+      await refreshGmailStatus();
+      setStatusMessage(
+        `Gmail sync complete: imported ${result.imported}, skipped ${result.skipped}, failed ${result.failed}.`,
+      );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Gmail sync failed.',
+      );
+    } finally {
+      setSyncingGmail(false);
     }
   }
 
@@ -98,6 +192,81 @@ export function ConnectClient() {
         </p>
       </div>
       {statusMessage ? <p className="text-sm text-slate-600">{statusMessage}</p> : null}
+      <Card className="border-sky-200 bg-sky-50/40">
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Mail className="h-8 w-8 text-sky-600" />
+              <div>
+                <CardTitle>Gmail billing import</CardTitle>
+                <p className="text-sm text-slate-600">
+                  Connect Gmail to automatically scan recent billing and subscription
+                  emails from supported streaming providers.
+                </p>
+              </div>
+            </div>
+            {gmailStatus?.connected ? (
+              <Badge variant="success">Connected</Badge>
+            ) : gmailStatus?.configured === false ? (
+              <Badge variant="warning">Not configured</Badge>
+            ) : (
+              <Badge>Ready</Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1 text-sm text-slate-600">
+            {gmailStatus?.connected ? (
+              <>
+                <p>
+                  Signed in as{' '}
+                  <span className="font-medium text-slate-900">
+                    {gmailStatus.email ?? 'your Gmail account'}
+                  </span>
+                </p>
+                <p>
+                  Last synced:{' '}
+                  {gmailStatus.lastSyncedAt
+                    ? new Date(gmailStatus.lastSyncedAt).toLocaleString()
+                    : 'Not yet synced'}
+                </p>
+              </>
+            ) : gmailStatus?.configured === false ? (
+              <p>
+                Add <code className="text-xs">GOOGLE_OAUTH_CLIENT_ID</code> and{' '}
+                <code className="text-xs">GOOGLE_OAUTH_CLIENT_SECRET</code> to enable
+                Gmail OAuth in the local API.
+              </p>
+            ) : (
+              <p>Read-only Gmail access is used to import billing emails locally.</p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {gmailStatus?.connected ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => void handleSyncGmail()}
+                  disabled={syncingGmail}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {syncingGmail ? 'Syncing...' : 'Sync now'}
+                </Button>
+                <Button variant="outline" onClick={() => void handleDisconnectGmail()}>
+                  Disconnect
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={() => void handleConnectGmail()}
+                disabled={connectingGmail || gmailStatus?.configured === false}
+              >
+                {connectingGmail ? 'Opening browser...' : 'Connect Gmail'}
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-4 md:grid-cols-2">
         {services.map((service) => {
           const state = connectionState[service.id] ?? 'idle';

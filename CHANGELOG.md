@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Real Gmail OAuth with read-only access for automatic billing email import.
+- Gmail sync API (`POST /api/gmail/sync`) and scheduled background sync every 6 hours.
+- Connect page UI for linking Gmail, manual sync, and disconnect.
+
 ### Planned for v1.1.0
-- Real OAuth integration for at least one provider (Gmail billing import is the highest-leverage target).
 - Auto-update via `electron-updater` so portable users have a real upgrade path.
 - macOS and Linux desktop builds.
 - CSV / JSON export of subscriptions.

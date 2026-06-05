@@ -9,5 +9,6 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
   imports: [ServiceCatalogModule, SubscriptionsModule, IntegrationsModule],
   controllers: [EmailIngestController],
   providers: [EmailIngestService],
+  exports: [EmailIngestService],
 })
 export class IngestModule {}

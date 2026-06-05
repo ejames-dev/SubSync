@@ -35,6 +35,21 @@ describe('App (e2e)', () => {
       create: jest.fn(),
       findMany: jest.fn(),
     },
+    gmailConnection: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    oAuthState: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+    processedGmailMessage: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -148,6 +163,15 @@ describe('App (e2e)', () => {
       createdAt: new Date('2026-03-17T00:00:00.000Z'),
     });
     prismaMock.subscriptionEvent.findMany.mockResolvedValue([]);
+    prismaMock.gmailConnection.findUnique.mockResolvedValue(null);
+    prismaMock.oAuthState.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        state: data.state,
+        provider: data.provider,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+        expiresAt: data.expiresAt,
+      }),
+    );
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -298,6 +322,21 @@ describe('App (e2e)', () => {
         },
       }),
     );
+  });
+
+  it('/api/gmail/status (GET) reports disconnected when Gmail is not linked', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/gmail/status')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      connected: false,
+      configured: false,
+    });
+  });
+
+  it('/api/gmail/auth-url (GET) requires OAuth configuration', async () => {
+    await request(app.getHttpServer()).get('/api/gmail/auth-url').expect(503);
   });
 
   it('/api/settings (GET/PUT) reads and updates notification preferences', async () => {

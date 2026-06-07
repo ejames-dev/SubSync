@@ -170,15 +170,6 @@ describe('App (e2e)', () => {
       createdAt: new Date('2026-03-17T00:00:00.000Z'),
     });
     prismaMock.subscriptionEvent.findMany.mockResolvedValue([]);
-<<<<<<< HEAD
-    prismaMock.gmailConnection.findUnique.mockResolvedValue(null);
-    prismaMock.oAuthState.create.mockImplementation(({ data }) =>
-      Promise.resolve({
-        state: data.state,
-        provider: data.provider,
-        createdAt: new Date('2026-03-17T00:00:00.000Z'),
-        expiresAt: data.expiresAt,
-=======
     prismaMock.subscription.updateMany.mockResolvedValue({ count: 0 });
     prismaMock.pendingNotification.findMany.mockResolvedValue([]);
     prismaMock.pendingNotification.create.mockImplementation(({ data }) =>
@@ -210,7 +201,15 @@ describe('App (e2e)', () => {
         body: 'Standard renews soon',
         deliveredAt: data.deliveredAt,
         createdAt: new Date('2026-03-17T00:00:00.000Z'),
->>>>>>> origin/cursor/renewal-os-notifications-c6d8
+      }),
+    );
+    prismaMock.gmailConnection.findUnique.mockResolvedValue(null);
+    prismaMock.oAuthState.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        state: data.state,
+        provider: data.provider,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+        expiresAt: data.expiresAt,
       }),
     );
 
@@ -430,6 +429,43 @@ describe('App (e2e)', () => {
       leadTimeDays: 7,
       channels: ['email', 'push'],
     });
+  });
+
+  it('/api/data/export/subscriptions (GET) exports JSON subscriptions', async () => {
+    prismaMock.subscription.findMany.mockResolvedValueOnce([
+      {
+        id: 'sub_netflix',
+        serviceId: 'svc_netflix',
+        planName: 'Standard',
+        status: 'active',
+        billingAmountCents: 1549,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+        paymentSource: 'card',
+        paymentLast4: '4242',
+        autoImportSource: 'manual',
+        notes: null,
+        statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+        service: { name: 'Netflix' },
+      },
+    ]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/data/export/subscriptions?format=json')
+      .expect(200);
+
+    expect(response.headers['content-type']).toContain('application/json');
+    expect(response.body.subscriptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          serviceName: 'Netflix',
+          billingAmount: 15.49,
+        }),
+      ]),
+    );
   });
 
   it('/api/settings (GET/PUT) reads and updates notification preferences', async () => {

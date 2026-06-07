@@ -126,3 +126,42 @@ export interface GmailSyncResult {
   results: EmailIngestResult[];
   syncedAt: string;
 }
+
+export interface ExportedSubscription {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  planName: string;
+  status: string;
+  billingAmount: number;
+  billingCurrency: string;
+  billingInterval: string;
+  nextRenewal: string;
+  paymentSource?: string;
+  paymentLast4?: string;
+  autoImportSource?: string;
+  notes?: string;
+  statusChangedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubscriptionExportPayload {
+  exportedAt: string;
+  version: string;
+  subscriptions: ExportedSubscription[];
+}
+
+export interface DataBackupInfo {
+  fileName: string;
+  filePath: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface DataRestoreResult {
+  restoredAt: string;
+  sourceName: string;
+  safetyBackupFileName: string;
+  message: string;
+}

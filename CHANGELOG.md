@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Browser notification polling for local web development when push alerts are enabled.
 - Pending notification queue API (`GET /api/notifications/pending`, `POST /api/notifications/:id/ack`).
 - Unified notification preferences so Settings and the reminder worker share `UserSettings`.
+- CSV and JSON export of subscriptions (`GET /api/data/export/subscriptions`).
+- SQLite backup and restore APIs with automatic safety backup before restore.
+- Settings UI for export, backup download, restore from file, and restore from local backups.
 
 ### Planned for v1.1.0
 - macOS and Linux desktop builds.

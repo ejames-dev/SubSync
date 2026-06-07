@@ -25,6 +25,7 @@ export interface Subscription {
   autoImportSource?: 'oauth' | 'email' | 'manual';
   notes?: string;
   nextRenewalReminderSent?: boolean;
+  snoozedUntil?: string;
   statusChangedAt: string;
 }
 
@@ -37,11 +38,22 @@ export interface SubscriptionEvent {
   occurredAt: string;
 }
 
+export type NotificationChannel = 'email' | 'push';
+
 export interface NotificationPreference {
   id: string;
   leadTimeDays: number;
-  channels: Array<'email' | 'push'>;
+  channels: Array<NotificationChannel>;
   updatedAt?: string;
+}
+
+export interface PendingRenewalNotification {
+  id: string;
+  subscriptionId: string;
+  channel: NotificationChannel;
+  title: string;
+  body: string;
+  createdAt: string;
 }
 
 export interface UserSettings {
@@ -86,10 +98,89 @@ export interface DashboardSummary {
   duplicateSubscriptions: DashboardDuplicateGroup[];
 }
 
+export type AppUpdateState =
+  | 'disabled'
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'up-to-date'
+  | 'downloading'
+  | 'downloaded'
+  | 'error';
+
+export interface AppUpdateStatus {
+  state: AppUpdateState;
+  currentVersion: string;
+  availableVersion?: string;
+  percent?: number;
+  message?: string;
+}
+
 export interface EmailIngestResult {
   status: 'created' | 'updated';
   inferredProvider: string;
   subscription: Subscription;
   message: string;
   receivedAt: string;
+}
+
+export interface GmailConnectionStatus {
+  connected: boolean;
+  email?: string;
+  connectedAt?: string;
+  lastSyncedAt?: string;
+  configured: boolean;
+}
+
+export interface GmailAuthUrlResponse {
+  authUrl: string;
+  state: string;
+}
+
+export interface GmailSyncResult {
+  scanned: number;
+  imported: number;
+  skipped: number;
+  failed: number;
+  results: EmailIngestResult[];
+  syncedAt: string;
+}
+
+export interface ExportedSubscription {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  planName: string;
+  status: string;
+  billingAmount: number;
+  billingCurrency: string;
+  billingInterval: string;
+  nextRenewal: string;
+  paymentSource?: string;
+  paymentLast4?: string;
+  autoImportSource?: string;
+  notes?: string;
+  statusChangedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubscriptionExportPayload {
+  exportedAt: string;
+  version: string;
+  subscriptions: ExportedSubscription[];
+}
+
+export interface DataBackupInfo {
+  fileName: string;
+  filePath: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface DataRestoreResult {
+  restoredAt: string;
+  sourceName: string;
+  safetyBackupFileName: string;
+  message: string;
 }

@@ -110,6 +110,7 @@ async function seedServices() {
         category: service.category,
         supportsOAuth: service.supportsOAuth,
         description: service.description,
+        logoUrl: service.logoUrl ?? null,
       },
       create: {
         id: service.id,
@@ -117,6 +118,7 @@ async function seedServices() {
         category: service.category,
         supportsOAuth: service.supportsOAuth,
         description: service.description,
+        logoUrl: service.logoUrl ?? null,
       },
     });
   }

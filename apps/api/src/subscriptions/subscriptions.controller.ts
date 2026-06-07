@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import { SnoozeSubscriptionDto } from './dto/snooze-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { Subscription, SubscriptionEvent } from '@subscription-tracker/types';
 
@@ -51,6 +52,14 @@ export class SubscriptionsController {
     @Body() dto: UpdateSubscriptionDto,
   ): Promise<Subscription> {
     return this.subscriptions.update(id, dto);
+  }
+
+  @Post(':id/snooze')
+  async snooze(
+    @Param('id') id: string,
+    @Body() dto: SnoozeSubscriptionDto,
+  ): Promise<Subscription> {
+    return this.subscriptions.snoozeRenewal(id, dto.days ?? 7);
   }
 
   @Delete(':id')

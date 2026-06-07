@@ -1,13 +1,20 @@
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, Notification, ipcMain } = require('electron');
 const {
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
 } = require('node:fs');
-const { resolve, dirname } = require('node:path');
+const { resolve } = require('node:path');
 const net = require('node:net');
 const { DatabaseSync } = require('node:sqlite');
+const {
+  setupUpdater,
+  getUpdateStatus,
+  checkForUpdates,
+  downloadUpdate,
+  quitAndInstall,
+} = require('./updater.cjs');
 
 const API_PORT = 43100;
 const WEB_PORT = 43101;
@@ -15,6 +22,7 @@ const HOST = '127.0.0.1';
 const STARTUP_TIMEOUT_MS = 15000;
 
 let mainWindow = null;
+let notificationPollTimer = null;
 let startupUrl = `http://${HOST}:${WEB_PORT}/dashboard`;
 
 function getRuntimePath(...parts) {
@@ -26,6 +34,17 @@ function getRuntimePath(...parts) {
   }
 
   return resolve(appPath, 'desktop', 'runtime', ...parts);
+}
+
+function getPreloadPath() {
+  const appPath = app.getAppPath();
+  const packagedPreload = resolve(appPath, 'preload.cjs');
+
+  if (existsSync(packagedPreload)) {
+    return packagedPreload;
+  }
+
+  return resolve(appPath, 'desktop', 'preload.cjs');
 }
 
 function getIconPath() {
@@ -97,6 +116,7 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
+      preload: getPreloadPath(),
     },
   });
 
@@ -156,6 +176,54 @@ async function waitForServer(url, label) {
   );
 }
 
+async function pollRenewalNotifications() {
+  try {
+    const response = await fetch(
+      `http://${HOST}:${API_PORT}/api/notifications/pending?channel=push`,
+    );
+    if (!response.ok) {
+      return;
+    }
+
+    const pending = await response.json();
+    for (const item of pending) {
+      if (Notification.isSupported()) {
+        const notification = new Notification({
+          title: item.title,
+          body: item.body,
+        });
+        notification.show();
+      }
+
+      await fetch(`http://${HOST}:${API_PORT}/api/notifications/${item.id}/ack`, {
+        method: 'POST',
+      });
+    }
+  } catch {
+    // Ignore transient API errors during startup or shutdown.
+  }
+}
+
+function startNotificationPolling() {
+  if (notificationPollTimer) {
+    return;
+  }
+
+  void pollRenewalNotifications();
+  notificationPollTimer = setInterval(() => {
+    void pollRenewalNotifications();
+  }, 60_000);
+}
+
+function stopNotificationPolling() {
+  if (!notificationPollTimer) {
+    return;
+  }
+
+  clearInterval(notificationPollTimer);
+  notificationPollTimer = null;
+}
+
 async function initializeDesktopRuntime() {
   await assertPortAvailable(API_PORT, 'API');
   await assertPortAvailable(WEB_PORT, 'Web UI');
@@ -164,9 +232,20 @@ async function initializeDesktopRuntime() {
   await waitForServer(`http://${HOST}:${API_PORT}/api/services`, 'API');
   startWeb();
   await waitForServer(startupUrl, 'Web UI');
+  startNotificationPolling();
   if (mainWindow) {
     await mainWindow.loadURL(startupUrl);
   }
+}
+
+function registerDesktopBridge() {
+  ipcMain.handle('subsync:get-app-version', () => app.getVersion());
+  ipcMain.handle('subsync:get-update-status', () => getUpdateStatus());
+  ipcMain.handle('subsync:check-for-updates', () => checkForUpdates());
+  ipcMain.handle('subsync:download-update', () => downloadUpdate());
+  ipcMain.handle('subsync:quit-and-install', () => {
+    quitAndInstall();
+  });
 }
 
 const singleInstance = app.requestSingleInstanceLock();
@@ -186,6 +265,8 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   try {
+    registerDesktopBridge();
+    setupUpdater();
     createWindow();
     void initializeDesktopRuntime().catch((error) => {
       dialog.showErrorBox(
@@ -204,6 +285,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  stopNotificationPolling();
   if (process.platform !== 'darwin') {
     app.quit();
   }

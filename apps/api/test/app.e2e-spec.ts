@@ -15,6 +15,8 @@ describe('App (e2e)', () => {
     integrationConnection: {
       findMany: jest.fn(),
       upsert: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
     },
     userSettings: {
       upsert: jest.fn(),
@@ -30,10 +32,32 @@ describe('App (e2e)', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    pendingNotification: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
     subscriptionEvent: {
       create: jest.fn(),
       findMany: jest.fn(),
+    },
+    gmailConnection: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
+    oAuthState: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+    processedGmailMessage: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
     },
   };
 
@@ -148,6 +172,48 @@ describe('App (e2e)', () => {
       createdAt: new Date('2026-03-17T00:00:00.000Z'),
     });
     prismaMock.subscriptionEvent.findMany.mockResolvedValue([]);
+    prismaMock.subscription.updateMany.mockResolvedValue({ count: 0 });
+    prismaMock.pendingNotification.findMany.mockResolvedValue([]);
+    prismaMock.pendingNotification.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: 'notif_1',
+        subscriptionId: data.subscriptionId,
+        channel: data.channel,
+        title: data.title,
+        body: data.body,
+        deliveredAt: null,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      }),
+    );
+    prismaMock.pendingNotification.findUnique.mockResolvedValue({
+      id: 'notif_1',
+      subscriptionId: 'sub_netflix',
+      channel: 'push',
+      title: 'Netflix renews soon',
+      body: 'Standard renews soon',
+      deliveredAt: null,
+      createdAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+    prismaMock.pendingNotification.update.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: 'notif_1',
+        subscriptionId: 'sub_netflix',
+        channel: 'push',
+        title: 'Netflix renews soon',
+        body: 'Standard renews soon',
+        deliveredAt: data.deliveredAt,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      }),
+    );
+    prismaMock.gmailConnection.findUnique.mockResolvedValue(null);
+    prismaMock.oAuthState.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        state: data.state,
+        provider: data.provider,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+        expiresAt: data.expiresAt,
+      }),
+    );
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -297,6 +363,184 @@ describe('App (e2e)', () => {
           oauth: 0,
         },
       }),
+    );
+  });
+
+  it('/api/gmail/status (GET) reports disconnected when Gmail is not linked', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/gmail/status')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      connected: false,
+      configured: false,
+    });
+  });
+
+  it('/api/gmail/auth-url (GET) requires OAuth configuration', async () => {
+    await request(app.getHttpServer()).get('/api/gmail/auth-url').expect(503);
+  });
+
+  it('/api/notifications/pending (GET) returns undelivered push notifications', async () => {
+    prismaMock.pendingNotification.findMany.mockResolvedValueOnce([
+      {
+        id: 'notif_1',
+        subscriptionId: 'sub_netflix',
+        channel: 'push',
+        title: 'Netflix renews soon',
+        body: 'Standard renews on Mar 18, 2026 for USD 15.49.',
+        deliveredAt: null,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      },
+    ]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/notifications/pending')
+      .expect(200);
+
+    expect(response.body).toEqual([
+      expect.objectContaining({
+        id: 'notif_1',
+        channel: 'push',
+        title: 'Netflix renews soon',
+      }),
+    ]);
+  });
+
+  it('/api/notifications/:id/ack (POST) marks a notification as delivered', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/notifications/notif_1/ack')
+      .expect(201);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: 'notif_1',
+        channel: 'push',
+      }),
+    );
+    expect(prismaMock.pendingNotification.update).toHaveBeenCalled();
+  });
+
+  it('/api/notifications/preferences (GET) reads unified user settings', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/notifications/preferences')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      id: 'default',
+      leadTimeDays: 7,
+      channels: ['email', 'push'],
+    });
+  });
+
+  it('/api/integrations/:provider (DELETE) removes a provider connection', async () => {
+    prismaMock.integrationConnection.findUnique.mockResolvedValueOnce({
+      providerId: 'svc_spotify',
+      status: 'connected',
+      source: 'oauth',
+      connectedAt: new Date('2026-03-17T00:00:00.000Z'),
+      lastSyncedAt: new Date('2026-03-17T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .delete('/api/integrations/svc_spotify')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      message: 'Disconnected svc_spotify.',
+    });
+    expect(prismaMock.integrationConnection.delete).toHaveBeenCalled();
+  });
+
+  it('/api/subscriptions/:id/snooze (POST) snoozes an upcoming renewal', async () => {
+    prismaMock.subscription.findUnique.mockResolvedValueOnce({
+      id: 'sub_netflix',
+      serviceId: 'svc_netflix',
+      planName: 'Standard',
+      status: 'active',
+      billingAmountCents: 1549,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+      paymentSource: 'card',
+      paymentLast4: '4242',
+      autoImportSource: 'manual',
+      notes: null,
+      nextRenewalReminderSent: false,
+      snoozedUntil: null,
+      statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+      createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+    prismaMock.subscription.update.mockResolvedValueOnce({
+      id: 'sub_netflix',
+      serviceId: 'svc_netflix',
+      planName: 'Standard',
+      status: 'active',
+      billingAmountCents: 1549,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+      paymentSource: 'card',
+      paymentLast4: '4242',
+      autoImportSource: 'manual',
+      notes: null,
+      nextRenewalReminderSent: false,
+      snoozedUntil: new Date('2026-03-24T00:00:00.000Z'),
+      statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+      createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/subscriptions/sub_netflix/snooze')
+      .send({ days: 7 })
+      .expect(201);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: 'sub_netflix',
+        snoozedUntil: expect.any(String),
+      }),
+    );
+    expect(prismaMock.subscriptionEvent.create).toHaveBeenCalled();
+  });
+
+  it('/api/data/export/subscriptions (GET) exports JSON subscriptions', async () => {
+    prismaMock.subscription.findMany.mockResolvedValueOnce([
+      {
+        id: 'sub_netflix',
+        serviceId: 'svc_netflix',
+        planName: 'Standard',
+        status: 'active',
+        billingAmountCents: 1549,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+        paymentSource: 'card',
+        paymentLast4: '4242',
+        autoImportSource: 'manual',
+        notes: null,
+        statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+        service: { name: 'Netflix' },
+      },
+    ]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/data/export/subscriptions?format=json')
+      .expect(200);
+
+    expect(response.headers['content-type']).toContain('application/json');
+    expect(response.body.subscriptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          serviceName: 'Netflix',
+          billingAmount: 15.49,
+        }),
+      ]),
     );
   });
 

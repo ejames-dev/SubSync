@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import {
   IntegrationConnection,
   IntegrationSource,
@@ -25,5 +25,12 @@ export class IntegrationsController {
         : 'manual';
 
     return this.integrations.connect(provider, source);
+  }
+
+  @Delete(':provider')
+  async disconnect(
+    @Param('provider') provider: string,
+  ): Promise<{ message: string }> {
+    return this.integrations.disconnect(provider);
   }
 }

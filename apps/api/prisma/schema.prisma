@@ -14,6 +14,7 @@ model Service {
   category      String
   supportsOAuth Boolean                 @default(false)
   description   String?
+  logoUrl       String?
   subscriptions Subscription[]
   integration   IntegrationConnection?
 }
@@ -49,12 +50,26 @@ model Subscription {
   autoImportSource        String?
   notes                   String?
   nextRenewalReminderSent Boolean  @default(false)
+  snoozedUntil            DateTime?
   statusChangedAt         DateTime @default(now())
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  service Service             @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  events  SubscriptionEvent[]
+  service              Service                @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  events               SubscriptionEvent[]
+  pendingNotifications PendingNotification[]
+}
+
+model PendingNotification {
+  id             String    @id @default(uuid())
+  subscriptionId String
+  channel        String
+  title          String
+  body           String
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
 model SubscriptionEvent {
@@ -75,4 +90,28 @@ model NotificationPreference {
   channels     String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model GmailConnection {
+  id              String    @id @default("default")
+  email           String?
+  accessTokenEnc  String
+  refreshTokenEnc String
+  tokenExpiry     DateTime?
+  scopes          String
+  connectedAt     DateTime  @default(now())
+  lastSyncedAt    DateTime?
+  updatedAt       DateTime  @updatedAt
+}
+
+model OAuthState {
+  state     String   @id
+  provider  String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model ProcessedGmailMessage {
+  messageId   String   @id
+  processedAt DateTime @default(now())
 }

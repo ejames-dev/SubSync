@@ -7,13 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v1.1.0
-- Real OAuth integration for at least one provider (Gmail billing import is the highest-leverage target).
-- Auto-update via `electron-updater` so portable users have a real upgrade path.
+### Planned
 - macOS and Linux desktop builds.
-- CSV / JSON export of subscriptions.
-- Backup and restore of the local SQLite database.
-- Notification worker wired up to the existing reminder preferences.
+
+## [1.1.0] - 2026-06-05
+
+See [`docs/release-notes-v1.1.0.md`](docs/release-notes-v1.1.0.md) for the full notes.
+
+### Added
+- Real Gmail OAuth with read-only access for automatic billing email import.
+- Gmail sync API (`POST /api/gmail/sync`) and scheduled background sync every 6 hours.
+- Connect page UI for linking Gmail, manual sync, and disconnect.
+- Renewal reminder delivery via OS notifications in the Electron desktop app.
+- Browser notification polling for local web development when push alerts are enabled.
+- Pending notification queue API (`GET /api/notifications/pending`, `POST /api/notifications/:id/ack`).
+- Unified notification preferences so Settings and the reminder worker share `UserSettings`.
+- CSV and JSON export of subscriptions (`GET /api/data/export/subscriptions`).
+- SQLite backup and restore APIs with automatic safety backup before restore.
+- Settings UI for export, backup download, restore from file, and restore from local backups.
+- Desktop auto-update via `electron-updater` with GitHub Releases publishing.
+- Settings UI for checking, downloading, and installing portable desktop updates.
+- `npm run dist:desktop:publish` release script and `docs/desktop-auto-update.md`.
+- Richer dashboard subscriptions grid with search, status filters, and service logos.
+- Recent activity feed for subscription events.
+- Renewal snooze (7-day) from the upcoming renewals list.
+- Multi-currency formatting via `Intl.NumberFormat`.
+- Provider disconnect (`DELETE /api/integrations/:provider`).
+- Persisted `logoUrl` on the service catalog.
+- Rewritten README covering Gmail OAuth, renewal notifications, and developer setup.
+
+### Changed
+- Provider `Connect` actions now include real Gmail OAuth in addition to local connection state.
 
 ## [1.0.1] - TBD
 

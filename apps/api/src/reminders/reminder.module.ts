@@ -5,5 +5,6 @@ import { NotificationPreferencesModule } from '../notifications/notification-pre
 @Module({
   imports: [NotificationPreferencesModule],
   providers: [ReminderService],
+  exports: [ReminderService],
 })
 export class ReminderModule {}

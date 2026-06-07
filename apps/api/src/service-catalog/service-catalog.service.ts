@@ -16,6 +16,7 @@ export class ServiceCatalogService {
         category: service.category as ServiceProvider['category'],
         supportsOAuth: service.supportsOAuth,
         description: service.description ?? undefined,
+        logoUrl: service.logoUrl ?? undefined,
       }));
     }
     await this.seedDefaults();
@@ -66,6 +67,7 @@ export class ServiceCatalogService {
       category: service.category,
       supportsOAuth: service.supportsOAuth,
       description: service.description ?? null,
+      logoUrl: service.logoUrl ?? null,
     };
   }
 }

@@ -8,6 +8,7 @@ import type {
   GmailSyncResult,
   IntegrationConnection,
   NotificationPreference,
+  PendingRenewalNotification,
   ServiceProvider,
   Subscription,
   SubscriptionEvent,
@@ -165,6 +166,18 @@ export function disconnectGmail() {
 
 export function syncGmailBillingEmails() {
   return apiRequest<GmailSyncResult>('/gmail/sync', {
+    method: 'POST',
+  });
+}
+
+export function getPendingNotifications(channel: 'push' | 'email' = 'push') {
+  return apiRequest<PendingRenewalNotification[]>(
+    `/notifications/pending?channel=${channel}`,
+  );
+}
+
+export function acknowledgeNotification(id: string) {
+  return apiRequest<PendingRenewalNotification>(`/notifications/${id}/ack`, {
     method: 'POST',
   });
 }

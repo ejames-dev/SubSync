@@ -91,7 +91,7 @@ export function SettingsClient() {
                   checked={pushEnabled}
                   onChange={(event) => setPushEnabled(event.target.checked)}
                 />{' '}
-                Push
+                Desktop / browser notifications
               </label>
             </div>
             {statusMessage ? <p className="text-sm text-slate-600">{statusMessage}</p> : null}

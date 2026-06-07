@@ -30,6 +30,13 @@ describe('App (e2e)', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
+    },
+    pendingNotification: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
     subscriptionEvent: {
       create: jest.fn(),
@@ -163,6 +170,7 @@ describe('App (e2e)', () => {
       createdAt: new Date('2026-03-17T00:00:00.000Z'),
     });
     prismaMock.subscriptionEvent.findMany.mockResolvedValue([]);
+<<<<<<< HEAD
     prismaMock.gmailConnection.findUnique.mockResolvedValue(null);
     prismaMock.oAuthState.create.mockImplementation(({ data }) =>
       Promise.resolve({
@@ -170,6 +178,39 @@ describe('App (e2e)', () => {
         provider: data.provider,
         createdAt: new Date('2026-03-17T00:00:00.000Z'),
         expiresAt: data.expiresAt,
+=======
+    prismaMock.subscription.updateMany.mockResolvedValue({ count: 0 });
+    prismaMock.pendingNotification.findMany.mockResolvedValue([]);
+    prismaMock.pendingNotification.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: 'notif_1',
+        subscriptionId: data.subscriptionId,
+        channel: data.channel,
+        title: data.title,
+        body: data.body,
+        deliveredAt: null,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      }),
+    );
+    prismaMock.pendingNotification.findUnique.mockResolvedValue({
+      id: 'notif_1',
+      subscriptionId: 'sub_netflix',
+      channel: 'push',
+      title: 'Netflix renews soon',
+      body: 'Standard renews soon',
+      deliveredAt: null,
+      createdAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+    prismaMock.pendingNotification.update.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: 'notif_1',
+        subscriptionId: 'sub_netflix',
+        channel: 'push',
+        title: 'Netflix renews soon',
+        body: 'Standard renews soon',
+        deliveredAt: data.deliveredAt,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+>>>>>>> origin/cursor/renewal-os-notifications-c6d8
       }),
     );
 
@@ -337,6 +378,58 @@ describe('App (e2e)', () => {
 
   it('/api/gmail/auth-url (GET) requires OAuth configuration', async () => {
     await request(app.getHttpServer()).get('/api/gmail/auth-url').expect(503);
+  });
+
+  it('/api/notifications/pending (GET) returns undelivered push notifications', async () => {
+    prismaMock.pendingNotification.findMany.mockResolvedValueOnce([
+      {
+        id: 'notif_1',
+        subscriptionId: 'sub_netflix',
+        channel: 'push',
+        title: 'Netflix renews soon',
+        body: 'Standard renews on Mar 18, 2026 for USD 15.49.',
+        deliveredAt: null,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      },
+    ]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/notifications/pending')
+      .expect(200);
+
+    expect(response.body).toEqual([
+      expect.objectContaining({
+        id: 'notif_1',
+        channel: 'push',
+        title: 'Netflix renews soon',
+      }),
+    ]);
+  });
+
+  it('/api/notifications/:id/ack (POST) marks a notification as delivered', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/notifications/notif_1/ack')
+      .expect(201);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: 'notif_1',
+        channel: 'push',
+      }),
+    );
+    expect(prismaMock.pendingNotification.update).toHaveBeenCalled();
+  });
+
+  it('/api/notifications/preferences (GET) reads unified user settings', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/notifications/preferences')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      id: 'default',
+      leadTimeDays: 7,
+      channels: ['email', 'push'],
+    });
   });
 
   it('/api/settings (GET/PUT) reads and updates notification preferences', async () => {

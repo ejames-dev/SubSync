@@ -11,13 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Real Gmail OAuth with read-only access for automatic billing email import.
 - Gmail sync API (`POST /api/gmail/sync`) and scheduled background sync every 6 hours.
 - Connect page UI for linking Gmail, manual sync, and disconnect.
+- Renewal reminder delivery via OS notifications in the Electron desktop app.
+- Browser notification polling for local web development when push alerts are enabled.
+- Pending notification queue API (`GET /api/notifications/pending`, `POST /api/notifications/:id/ack`).
+- Unified notification preferences so Settings and the reminder worker share `UserSettings`.
 
 ### Planned for v1.1.0
-- Auto-update via `electron-updater` so portable users have a real upgrade path.
 - macOS and Linux desktop builds.
-- CSV / JSON export of subscriptions.
-- Backup and restore of the local SQLite database.
-- Notification worker wired up to the existing reminder preferences.
 
 ## [1.0.1] - TBD
 

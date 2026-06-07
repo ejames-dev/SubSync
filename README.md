@@ -1,113 +1,264 @@
 # SubSync
 
-SubSync keeps every streaming, productivity, and media subscription in one command center. It ingests a structured service catalog, lets you create or edit subscriptions by hand, and tracks each plan’s status, billing cadence, and renewal history. The dashboard highlights monthly spend, near-term renewals, and recent status changes, while the active-subscriptions grid supports search + status filters so you can zero in on exactly what needs attention.
+**A local-first subscription command center for streaming, music, gaming, and media services.**
 
-### Highlights
-- **End-to-end subscription lifecycle:** manual creation flow, edit/delete, and Prisma-backed `SubscriptionEvent` logging for every status change.
-- **Renewal awareness:** upcoming-renewals stack with snooze/review actions, plus reminder preferences (lead time + channels) ready for the notification worker.
-- **Context in-line:** service logos, note snippets, status badges, and a timeline component when you drill into an individual subscription.
-- **Modern dashboard UX:** KPI strip, status-change feed, filterable grid, and URL-synced filters/search so views are shareable and refresh-safe.
+SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a Windows portable desktop app.
 
-### Stack
-- **API:** NestJS 10 + Prisma 5 on Postgres (Dockerized), with modular controllers for subscriptions, service catalog, integrations, ingest, and notifications.
-- **Web:** Next.js 14 App Router + Tailwind UI components, speaking to the API via typed fetch helpers.
-- **Shared types:** `@subscription-tracker/types` package keeps DTOs/models consistent across the monorepo.
+**Current version:** 1.0.1 · **Platform:** Windows portable (macOS/Linux planned)
 
-## Repository layout
-```
-projects/subscription-tracker
-├── apps
-│   ├── api          # NestJS 10 REST API (service catalog, subscriptions, ingest stubs)
-│   └── web          # Next.js 14 App Router client (dashboard, connect, settings)
-├── packages
-│   └── types        # Shared TypeScript interfaces (ServiceProvider, Subscription, etc.)
-└── docs             # Strategy + architecture notes captured earlier
-```
+---
 
-## Getting started
+## Why SubSync?
+
+Most subscription trackers assume a hosted backend. SubSync is built for people who want full control of their data:
+
+- **Local-only storage** — subscriptions, settings, and import history stay in a SQLite file on your device
+- **No login required** — single-user desktop workflow with no external auth dependency
+- **Automatic imports** — connect Gmail to pull billing emails, or paste/import receipts manually
+- **Renewal awareness** — dashboard KPIs, upcoming renewals, and OS notification reminders
+
+---
+
+## Features
+
+### Dashboard
+- Monthly equivalent spend and spend-by-category breakdown
+- Upcoming renewals list sorted by date
+- Active subscription count and duplicate-plan detection
+- Inline add/delete and quick navigation to subscription details
+
+### Subscription management
+- Full CRUD for subscriptions (plan, amount, currency, interval, renewal date, payment method)
+- `SubscriptionEvent` audit log per subscription (created, status changed, renewal)
+- Pre-seeded catalog for Spotify, YouTube Premium, Netflix, Disney+, and Hulu
+
+### Import & connections
+- **Gmail OAuth** *(v1.1)* — read-only access to scan billing and subscription emails automatically
+- **Manual email import** — paste billing email content to create or update subscriptions via heuristic parsing
+- **Provider connect** — persist connection state for OAuth-capable and email-based providers
+- Scheduled Gmail sync every 6 hours when connected
+
+### Renewal reminders *(v1.1)*
+- Configurable lead time (days before renewal)
+- **Desktop / browser push notifications** delivered through the Electron shell or web client
+- Hourly background worker queues reminders for active and trial subscriptions
+- Unified notification preferences in Settings (shared by the UI and reminder worker)
+
+### Desktop app
+- Single portable `.exe` — no installer required
+- Bundles API (`127.0.0.1:43100`) and web UI (`127.0.0.1:43101`)
+- Applies SQLite migrations automatically on first launch
+- Native OS notification polling while the app is running
+
+---
+
+## Quick start (desktop)
+
+1. Download the latest `SubSync *.exe` from [GitHub Releases](https://github.com/ejames-dev/SubSync/releases).
+2. Double-click to launch. Windows SmartScreen may warn because the build is unsigned — see [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md).
+3. Open **Dashboard** to review spend and renewals.
+4. Open **Connections** to link Gmail or import billing emails.
+5. Open **Settings** to set reminder lead time and enable desktop notifications.
+
+---
+
+## Developer setup
+
+### Prerequisites
+- Node.js 20+
+- npm 10+
+
+### Install and run
+
 ```bash
-npm install --workspaces       # installs all workspaces and links shared types
-npm run dev:api                # starts NestJS API on http://localhost:3001/api
-npm run dev:web                # starts Next.js client on http://localhost:3000
+git clone https://github.com/ejames-dev/SubSync.git
+cd SubSync
+npm install --workspaces
 ```
 
-## Desktop app
-SubSync now has an Electron desktop target for Windows packaging.
+Copy environment variables and initialize the database:
 
 ```bash
-npm run build:desktop          # builds API + web and prepares the desktop runtime
-npm run dev:desktop            # launches the Electron shell locally
-npm run dist:desktop           # creates a Windows portable executable in release/
+cp .env.example .env
+npm run prisma:migrate --workspace api
+npm run prisma:generate --workspace api
+npm run prisma:seed --workspace api
 ```
 
-The portable Windows build is written to:
+Start the API and web UI (in separate terminals):
 
-```text
-release/SubSync 1.0.0.exe
+```bash
+npm run dev:api    # http://127.0.0.1:43100/api
+npm run dev:web    # http://127.0.0.1:43101
 ```
 
-`npm run dist:desktop` now stages a dedicated Electron app directory under `desktop/app/`, installs only the runtime dependencies needed for packaging, and applies all bundled SQLite migrations on first launch.
+Or launch the full Electron shell:
 
-For GitHub distribution, see:
-- `docs/windows-portable-quickstart.md`
-- `docs/release-checklist.md`
+```bash
+npm run build:desktop
+npm run dev:desktop
+```
 
-The desktop runtime starts:
-- the Nest API locally on `http://127.0.0.1:43100/api`
-- the Next.js frontend locally on `http://127.0.0.1:43101`
-- a local SQLite database under the app user-data directory
+### Gmail OAuth (optional, for billing import)
 
-### Database (SQLite + Prisma)
-1. Copy the sample env and adjust credentials as needed:
-   ```bash
-   cp .env.example .env
-   ```
-2. Apply migrations + generate the Prisma client:
-   ```bash
-   npm run prisma:migrate --workspace api
-   npm run prisma:generate --workspace api
-   ```
-3. Seed the service catalog:
-   ```bash
-   npm run prisma:seed --workspace api
-   ```
-4. Launch the API with `npm run dev:api`.
+Gmail integration requires Google Cloud OAuth credentials. Configure:
 
-### Web client environment
-1. `cd apps/web`
-2. `cp .env.example .env` and ensure `NEXT_PUBLIC_API_URL` points at the API base URL (default `http://localhost:3001/api`).
-3. Run `npm run dev:web` from the repo root to load the dashboard against live data.
+```env
+GOOGLE_OAUTH_CLIENT_ID="your-client-id"
+GOOGLE_OAUTH_CLIENT_SECRET="your-client-secret"
+GOOGLE_OAUTH_REDIRECT_URI="http://127.0.0.1:43100/api/gmail/callback"
+```
 
-The API exposes seed endpoints:
-- `GET /api/services` – streaming catalog
-- `GET /api/subscriptions` (plus CRUD) – SQLite-backed subscription store
-- `GET /api/dashboard/summary` – computed dashboard metrics from local data
-- `GET /api/integrations` / `POST /api/integrations/:provider/connect` – locally persisted provider connection state
-- `POST /api/ingest/email` – billing email import that creates or updates local subscriptions
+Authorized redirect URI in Google Console must match `GOOGLE_OAUTH_REDIRECT_URI`.
 
-The desktop client now persists subscriptions, connection state, and settings locally through the packaged API. OAuth provider links are still simulated local connections rather than real third-party auth flows, but email import and dashboard calculations are backed by SQLite.
+---
 
-`docker-compose.yml` is legacy and is not required for local development anymore.
+## Project structure
+
+```
+SubSync/
+├── apps/
+│   ├── api/          # NestJS 10 REST API (Prisma + SQLite)
+│   └── web/          # Next.js 14 App Router UI
+├── desktop/
+│   ├── main.cjs      # Electron entry — starts API, web, notifications
+│   └── prepare-dist.mjs
+├── packages/
+│   └── types/        # Shared TypeScript contracts (@subscription-tracker/types)
+└── docs/             # Architecture, roadmap, release notes
+```
+
+---
+
+## API overview
+
+All routes are prefixed with `/api`.
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/services` | Streaming service catalog |
+| `GET` | `/subscriptions` | List subscriptions |
+| `POST` | `/subscriptions` | Create subscription |
+| `PATCH` | `/subscriptions/:id` | Update subscription |
+| `DELETE` | `/subscriptions/:id` | Delete subscription |
+| `GET` | `/subscriptions/:id/events` | Subscription event timeline |
+| `GET` | `/subscriptions/events/recent` | Recent status changes |
+| `GET` | `/dashboard/summary` | Dashboard KPIs and breakdowns |
+| `GET` | `/integrations` | List provider connections |
+| `POST` | `/integrations/:provider/connect` | Connect or save a provider |
+| `POST` | `/ingest/email` | Import subscription from billing email content |
+| `GET` | `/settings` | Reminder preferences and email alias |
+| `PUT` | `/settings` | Update reminder preferences |
+| `GET` | `/notifications/preferences` | Notification preferences (unified with settings) |
+| `PUT` | `/notifications/preferences` | Update notification preferences |
+| `GET` | `/notifications/pending` | Undelivered push notifications |
+| `POST` | `/notifications/:id/ack` | Mark notification as delivered |
+| `GET` | `/gmail/status` | Gmail connection status *(v1.1)* |
+| `GET` | `/gmail/auth-url` | Start Gmail OAuth *(v1.1)* |
+| `GET` | `/gmail/callback` | Gmail OAuth redirect handler *(v1.1)* |
+| `POST` | `/gmail/sync` | Sync billing emails from Gmail *(v1.1)* |
+| `POST` | `/gmail/disconnect` | Disconnect Gmail *(v1.1)* |
+
+---
+
+## Configuration
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | `file:./dev.db` | SQLite database path |
+| `API_PORT` | `43100` | NestJS API port |
+| `CORS_ORIGIN` | `http://127.0.0.1:43101` | Allowed web UI origin(s) |
+| `NEXT_PUBLIC_API_BASE_URL` | `http://127.0.0.1:43100/api` | API base URL for the web client |
+| `GOOGLE_OAUTH_CLIENT_ID` | — | Gmail OAuth client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | — | Gmail OAuth client secret |
+| `OAUTH_TOKEN_ENCRYPTION_KEY` | derived | Base64 32-byte key for token encryption |
+
+See [.env.example](.env.example) for the full list.
+
+---
 
 ## Scripts
+
 | Command | Description |
 | --- | --- |
-| `npm run dev:api` | Watch-mode Nest server |
-| `npm run dev:web` | Next.js dev server |
-| `npm run dev:desktop` | Launch the Electron desktop shell |
-| `npm run lint` | Lints every workspace |
-| `npm run test` | Runs workspace test placeholders |
+| `npm run dev:api` | NestJS API in watch mode on port 43100 |
+| `npm run dev:web` | Next.js dev server on port 43101 |
+| `npm run dev:desktop` | Launch Electron shell |
+| `npm run build` | Build types, API, and web |
+| `npm run build:desktop` | Build and stage Electron runtime |
+| `npm run dist:desktop` | Produce Windows portable `.exe` in `release/` |
+| `npm run test` | Run workspace tests |
+| `npm run lint` | Lint all workspaces |
 | `npm run format` | Prettier across workspaces |
-| `npm run build --workspace <name>` | Build a specific workspace (e.g., types, api, web) |
-| `npm run build:desktop` | Build API/web and stage the Electron runtime |
-| `npm run dist:desktop` | Build the Windows portable `.exe` |
-| `npm run prisma:migrate --workspace api` | Apply Prisma migrations to the local SQLite database |
-| `npm run prisma:seed --workspace api` | Seed SQLite with streaming services |
+| `npm run prisma:migrate --workspace api` | Apply SQLite migrations |
+| `npm run prisma:seed --workspace api` | Seed service catalog |
+
+---
+
+## Building the Windows portable
+
+```bash
+npm run dist:desktop
+```
+
+Output:
+
+```text
+release/SubSync 1.0.1.exe
+```
+
+Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
+
+---
 
 ## Documentation
-High-level architecture, data model, and wireframes live under [`docs/`](docs/):
-- `data-model-and-integrations.md`
-- `wireframes.md`
-- `architecture.md`
 
-Use those references for future backend integrations (OAuth/email ingestion) and UI expansion.
+| Doc | Contents |
+| --- | --- |
+| [docs/release-roadmap.md](docs/release-roadmap.md) | v1.1+ feature plan |
+| [docs/architecture.md](docs/architecture.md) | System design and long-term vision |
+| [docs/data-model-and-integrations.md](docs/data-model-and-integrations.md) | Schema and provider integration notes |
+| [docs/wireframes.md](docs/wireframes.md) | UI wireframes |
+| [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md) | End-user desktop guide |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| Desktop | Electron 41, electron-builder |
+| API | NestJS 10, Prisma 5, SQLite |
+| Web | Next.js 14, React 18, Tailwind CSS |
+| Shared types | TypeScript monorepo package |
+| Scheduling | `@nestjs/schedule` (reminders, Gmail sync) |
+
+`docker-compose.yml` is legacy (Postgres) and is not required for local development.
+
+---
+
+## Roadmap (v1.1+)
+
+- Auto-update via `electron-updater`
+- CSV / JSON export and SQLite backup/restore
+- macOS and Linux desktop builds
+- Richer dashboard grid, service logos, multi-currency display
+- Expanded provider catalog and stronger email parsing
+
+Full plan: [docs/release-roadmap.md](docs/release-roadmap.md)
+
+---
+
+## Known limitations
+
+- Windows portable only today; unsigned executable may trigger SmartScreen
+- Per-provider Spotify/YouTube OAuth is simulated — Gmail is the first real OAuth integration
+- Email-channel reminders are logged but not sent (no SMTP); push/desktop notifications are the working path
+- No cloud sync or multi-user support
+
+---
+
+## Author
+
+Evan Newman · [GitHub](https://github.com/ejames-dev/SubSync)

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Richer dashboard subscriptions grid with search, status filters, and service logos.
+- Recent activity feed for subscription events.
+- Renewal snooze (7-day) from the upcoming renewals list.
+- Multi-currency formatting via `Intl.NumberFormat`.
+- Provider disconnect (`DELETE /api/integrations/:provider`).
+- Persisted `logoUrl` on the service catalog.
+
 ### Planned for v1.1.0
 - Real OAuth integration for at least one provider (Gmail billing import is the highest-leverage target).
 - Auto-update via `electron-updater` so portable users have a real upgrade path.

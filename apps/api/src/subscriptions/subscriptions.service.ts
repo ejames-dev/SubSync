@@ -75,6 +75,26 @@ export class SubscriptionsService {
     await this.prisma.subscription.delete({ where: { id } });
   }
 
+  async snoozeRenewal(id: string, days = 7): Promise<Subscription> {
+    await this.getEntityOrThrow(id);
+    const snoozedUntil = new Date();
+    snoozedUntil.setDate(snoozedUntil.getDate() + days);
+
+    const updated = await this.prisma.subscription.update({
+      where: { id },
+      data: { snoozedUntil },
+    });
+
+    await this.recordEvent(
+      id,
+      'renewal',
+      this.toStatus(updated.status),
+      `Renewal snoozed until ${snoozedUntil.toISOString()}`,
+    );
+
+    return this.toDomain(updated);
+  }
+
   async listEvents(subscriptionId: string): Promise<SubscriptionEvent[]> {
     await this.getEntityOrThrow(subscriptionId);
     const events = await this.prisma.subscriptionEvent.findMany({
@@ -254,6 +274,7 @@ export class SubscriptionsService {
       autoImportSource: this.toAutoImportSource(sub.autoImportSource),
       notes: sub.notes ?? undefined,
       nextRenewalReminderSent: sub.nextRenewalReminderSent,
+      snoozedUntil: sub.snoozedUntil?.toISOString(),
       statusChangedAt: sub.statusChangedAt.toISOString(),
     };
   }

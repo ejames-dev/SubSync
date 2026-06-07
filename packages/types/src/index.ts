@@ -25,6 +25,7 @@ export interface Subscription {
   autoImportSource?: 'oauth' | 'email' | 'manual';
   notes?: string;
   nextRenewalReminderSent?: boolean;
+  snoozedUntil?: string;
   statusChangedAt: string;
 }
 

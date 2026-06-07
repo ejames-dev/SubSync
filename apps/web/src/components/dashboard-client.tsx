@@ -1,22 +1,27 @@
 'use client';
 
-import { type FormEvent, useEffect, useState } from 'react';
+import { Suspense, type FormEvent, useEffect, useState } from 'react';
+import Image from 'next/image';
 import type {
   DashboardSummary,
   ServiceProvider,
   Subscription,
 } from '@subscription-tracker/types';
 import { Pause, Trash2 } from 'lucide-react';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import {
   createSubscription,
   deleteSubscription,
   getDashboardSummary,
   listServices,
   listSubscriptions,
+  snoozeSubscription,
 } from '../lib/api';
+import { formatCurrency, isRenewalSnoozed } from '../lib/utils';
+import { RecentActivityFeed } from './recent-activity-feed';
+import { SubscriptionsGrid } from './subscriptions-grid';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 type DraftSubscription = {
   serviceId: string;
@@ -80,6 +85,7 @@ export function DashboardClient() {
 
   const servicesById = Object.fromEntries(services.map((service) => [service.id, service]));
   const upcomingRenewals = subscriptions
+    .filter((subscription) => !isRenewalSnoozed(subscription))
     .slice()
     .sort((a, b) => a.nextRenewal.localeCompare(b.nextRenewal))
     .slice(0, 3);
@@ -117,6 +123,18 @@ export function DashboardClient() {
     }
   }
 
+  async function handleSnooze(id: string) {
+    setError(null);
+    try {
+      await snoozeSubscription(id, 7);
+      await loadData();
+    } catch (snoozeError) {
+      setError(
+        snoozeError instanceof Error ? snoozeError.message : 'Failed to snooze renewal.',
+      );
+    }
+  }
+
   async function handleDelete(id: string) {
     setError(null);
     try {
@@ -138,7 +156,7 @@ export function DashboardClient() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-semibold text-slate-900">
-              ${(summary?.monthlyEquivalentSpend ?? 0).toFixed(2)}
+              {formatCurrency(summary?.monthlyEquivalentSpend ?? 0)}
             </p>
             <p className="text-xs text-slate-500">Normalized monthly equivalent</p>
           </CardContent>
@@ -228,16 +246,38 @@ export function DashboardClient() {
                   return (
                     <Card key={renewal.id} className="flex items-center justify-between">
                       <CardContent className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-6">
-                        <div>
-                          <p className="font-medium text-slate-900">
-                            {service?.name ?? renewal.serviceId}
-                          </p>
-                          <p className="text-sm text-slate-500">{renewal.planName}</p>
+                        <div className="flex items-center gap-3">
+                          {service?.logoUrl ? (
+                            <Image
+                              src={service.logoUrl}
+                              alt={service.name}
+                              width={32}
+                              height={32}
+                              className="h-8 w-8 rounded-full border border-slate-200 object-cover"
+                            />
+                          ) : null}
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {service?.name ?? renewal.serviceId}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                              {renewal.planName} ·{' '}
+                              {formatCurrency(
+                                renewal.billingAmount,
+                                renewal.billingCurrency,
+                              )}
+                            </p>
+                          </div>
                         </div>
                         <Badge variant="warning">Due {renewal.nextRenewal.slice(0, 10)}</Badge>
                       </CardContent>
                       <div className="flex gap-2 pr-4">
-                        <Button variant="ghost" size="icon" aria-label="Refresh reminder">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Snooze renewal for 7 days"
+                          onClick={() => void handleSnooze(renewal.id)}
+                        >
                           <Pause className="h-4 w-4" />
                         </Button>
                         <Button
@@ -269,7 +309,7 @@ export function DashboardClient() {
                       className="flex items-center justify-between text-sm text-slate-700"
                     >
                       <span className="capitalize">{entry.category}</span>
-                      <span>${entry.monthlyEquivalentSpend.toFixed(2)}/mo</span>
+                      <span>{formatCurrency(entry.monthlyEquivalentSpend)}/mo</span>
                     </div>
                   ))
                 ) : (
@@ -300,53 +340,28 @@ export function DashboardClient() {
             </Card>
           </div>
 
+          <RecentActivityFeed />
+
           <div>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Active subscriptions
               </h2>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {subscriptions.map((subscription) => {
-                const service = servicesById[subscription.serviceId];
-                return (
-                  <Card key={subscription.id}>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle>{service?.name ?? subscription.serviceId}</CardTitle>
-                        <p className="text-sm text-slate-500">{subscription.planName}</p>
-                      </div>
-                      <Badge
-                        variant={
-                          subscription.autoImportSource === 'oauth'
-                            ? 'success'
-                            : subscription.autoImportSource === 'email'
-                              ? 'warning'
-                              : 'default'
-                        }
-                      >
-                        {subscription.autoImportSource ?? 'manual'}
-                      </Badge>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-between">
-                      <div>
-                        <p className="text-2xl font-semibold text-slate-900">
-                          ${subscription.billingAmount.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-slate-500">/{subscription.billingInterval}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleDelete(subscription.id)}
-                      >
-                        Remove
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+            <Suspense
+              fallback={
+                <Card>
+                  <CardContent className="py-6 text-sm text-slate-500">
+                    Loading subscriptions...
+                  </CardContent>
+                </Card>
+              }
+            >
+              <SubscriptionsGrid
+                subscriptions={subscriptions}
+                servicesById={servicesById}
+              />
+            </Suspense>
           </div>
         </div>
 

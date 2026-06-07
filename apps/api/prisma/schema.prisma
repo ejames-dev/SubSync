@@ -14,6 +14,7 @@ model Service {
   category      String
   supportsOAuth Boolean                 @default(false)
   description   String?
+  logoUrl       String?
   subscriptions Subscription[]
   integration   IntegrationConnection?
 }
@@ -49,6 +50,7 @@ model Subscription {
   autoImportSource        String?
   notes                   String?
   nextRenewalReminderSent Boolean  @default(false)
+  snoozedUntil            DateTime?
   statusChangedAt         DateTime @default(now())
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt

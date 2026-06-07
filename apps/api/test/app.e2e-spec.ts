@@ -15,6 +15,8 @@ describe('App (e2e)', () => {
     integrationConnection: {
       findMany: jest.fn(),
       upsert: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
     },
     userSettings: {
       upsert: jest.fn(),
@@ -298,6 +300,80 @@ describe('App (e2e)', () => {
         },
       }),
     );
+  });
+
+  it('/api/integrations/:provider (DELETE) removes a provider connection', async () => {
+    prismaMock.integrationConnection.findUnique.mockResolvedValueOnce({
+      providerId: 'svc_spotify',
+      status: 'connected',
+      source: 'oauth',
+      connectedAt: new Date('2026-03-17T00:00:00.000Z'),
+      lastSyncedAt: new Date('2026-03-17T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .delete('/api/integrations/svc_spotify')
+      .expect(200);
+
+    expect(response.body).toEqual({
+      message: 'Disconnected svc_spotify.',
+    });
+    expect(prismaMock.integrationConnection.delete).toHaveBeenCalled();
+  });
+
+  it('/api/subscriptions/:id/snooze (POST) snoozes an upcoming renewal', async () => {
+    prismaMock.subscription.findUnique.mockResolvedValueOnce({
+      id: 'sub_netflix',
+      serviceId: 'svc_netflix',
+      planName: 'Standard',
+      status: 'active',
+      billingAmountCents: 1549,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+      paymentSource: 'card',
+      paymentLast4: '4242',
+      autoImportSource: 'manual',
+      notes: null,
+      nextRenewalReminderSent: false,
+      snoozedUntil: null,
+      statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+      createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+    prismaMock.subscription.update.mockResolvedValueOnce({
+      id: 'sub_netflix',
+      serviceId: 'svc_netflix',
+      planName: 'Standard',
+      status: 'active',
+      billingAmountCents: 1549,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+      paymentSource: 'card',
+      paymentLast4: '4242',
+      autoImportSource: 'manual',
+      notes: null,
+      nextRenewalReminderSent: false,
+      snoozedUntil: new Date('2026-03-24T00:00:00.000Z'),
+      statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+      createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/subscriptions/sub_netflix/snooze')
+      .send({ days: 7 })
+      .expect(201);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        id: 'sub_netflix',
+        snoozedUntil: expect.any(String),
+      }),
+    );
+    expect(prismaMock.subscriptionEvent.create).toHaveBeenCalled();
   });
 
   it('/api/settings (GET/PUT) reads and updates notification preferences', async () => {

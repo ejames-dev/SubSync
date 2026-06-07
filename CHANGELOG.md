@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV and JSON export of subscriptions (`GET /api/data/export/subscriptions`).
 - SQLite backup and restore APIs with automatic safety backup before restore.
 - Settings UI for export, backup download, restore from file, and restore from local backups.
+- Desktop auto-update via `electron-updater` with GitHub Releases publishing.
+- Settings UI for checking, downloading, and installing portable desktop updates.
+- `npm run dist:desktop:publish` release script and `docs/desktop-auto-update.md`.
 
 ### Planned for v1.1.0
 - macOS and Linux desktop builds.

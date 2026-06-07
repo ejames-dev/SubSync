@@ -58,6 +58,8 @@ for (const target of copyTargets) {
 }
 
 copyFileSync(resolve(rootDir, 'desktop', 'main.cjs'), resolve(appDir, 'main.cjs'));
+copyFileSync(resolve(rootDir, 'desktop', 'preload.cjs'), resolve(appDir, 'preload.cjs'));
+copyFileSync(resolve(rootDir, 'desktop', 'updater.cjs'), resolve(appDir, 'updater.cjs'));
 copyFileSync(
   resolve(rootDir, 'apps', 'web', 'src', 'app', 'favicon.ico'),
   resolve(appDir, 'icon.ico'),
@@ -75,6 +77,11 @@ writeFileSync(
       author: rootPackageJson.author,
       dependencies: rootPackageJson.dependencies,
       overrides: rootPackageJson.overrides,
+      build: {
+        appId: rootPackageJson.build.appId,
+        productName: rootPackageJson.build.productName,
+        publish: rootPackageJson.build.publish,
+      },
     },
     null,
     2,

@@ -9,7 +9,7 @@
 - Update `CHANGELOG.md` with the new version's entry and move planned items out of `[Unreleased]`
 
 ## Release contents
-- Upload `release/SubSync ${VERSION}.exe` to GitHub Releases
+- Publish with `npm run dist:desktop:publish` (requires `GH_TOKEN`) or upload `release/SubSync ${VERSION}.exe` and `release/latest.yml` to GitHub Releases manually
 - Include release notes that mention:
   - local SQLite storage
   - dashboard summary metrics
@@ -18,6 +18,7 @@
 - Link the Windows quickstart guide in `docs/windows-portable-quickstart.md`
 
 ## Manual checks
+- In the packaged app, open Settings and verify **Check for updates** reports the current version
 - Launch on a clean Windows user profile if available
 - Create one manual subscription
 - Import one billing email

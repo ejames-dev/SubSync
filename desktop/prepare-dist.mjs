@@ -77,11 +77,6 @@ writeFileSync(
       author: rootPackageJson.author,
       dependencies: rootPackageJson.dependencies,
       overrides: rootPackageJson.overrides,
-      build: {
-        appId: rootPackageJson.build.appId,
-        productName: rootPackageJson.build.productName,
-        publish: rootPackageJson.build.publish,
-      },
     },
     null,
     2,

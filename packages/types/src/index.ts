@@ -86,6 +86,24 @@ export interface DashboardSummary {
   duplicateSubscriptions: DashboardDuplicateGroup[];
 }
 
+export type AppUpdateState =
+  | 'disabled'
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'up-to-date'
+  | 'downloading'
+  | 'downloaded'
+  | 'error';
+
+export interface AppUpdateStatus {
+  state: AppUpdateState;
+  currentVersion: string;
+  availableVersion?: string;
+  percent?: number;
+  message?: string;
+}
+
 export interface EmailIngestResult {
   status: 'created' | 'updated';
   inferredProvider: string;

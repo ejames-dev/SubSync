@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import type { UserSettings } from '@subscription-tracker/types';
 import { getSettings, updateSettings } from '../lib/api';
+import { DesktopUpdateCard } from './desktop-update-card';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
@@ -101,6 +102,8 @@ export function SettingsClient() {
           </form>
         </CardContent>
       </Card>
+
+      <DesktopUpdateCard />
 
       <Card>
         <CardHeader>

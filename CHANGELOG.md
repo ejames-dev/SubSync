@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Desktop auto-update via `electron-updater` with GitHub Releases publishing.
+- Settings UI for checking, downloading, and installing portable desktop updates.
+- `npm run dist:desktop:publish` release script and `docs/desktop-auto-update.md`.
+
 ### Planned for v1.1.0
 - Real OAuth integration for at least one provider (Gmail billing import is the highest-leverage target).
-- Auto-update via `electron-updater` so portable users have a real upgrade path.
 - macOS and Linux desktop builds.
 - CSV / JSON export of subscriptions.
 - Backup and restore of the local SQLite database.

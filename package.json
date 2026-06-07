@@ -17,6 +17,7 @@
     "build": "npm run build --workspace @subscription-tracker/types && npm run build --workspace api && npm run build --workspace web",
     "build:desktop": "npm run build && node ./desktop/prepare-dist.mjs",
     "dist:desktop": "npm run build:desktop && electron-builder --win portable",
+    "dist:desktop:publish": "npm run build:desktop && electron-builder --win portable --publish always",
     "lint": "npm run lint --workspace @subscription-tracker/types && npm run lint --workspace api && npm run lint --workspace web",
     "test": "npm run test --workspace @subscription-tracker/types && npm run test --workspace api && npm run test --workspace web",
     "format": "npm run format --workspace @subscription-tracker/types && npm run format --workspace api && npm run format --workspace web"
@@ -30,6 +31,7 @@
     "@prisma/client": "^5.20.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "electron-updater": "^6.8.9",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
     "uuid": "^11.0.3"
@@ -67,11 +69,20 @@
       "runtime/api/prisma/generated/client/*.node",
       "runtime/api/prisma/generated/client/*.dll.node"
     ],
+    "artifactName": "SubSync ${version}.${ext}",
+    "publish": {
+      "provider": "github",
+      "owner": "ejames-dev",
+      "repo": "SubSync"
+    },
     "win": {
       "icon": "desktop/app/icon.ico",
       "target": [
         "portable"
       ]
+    },
+    "portable": {
+      "artifactName": "SubSync ${version}.exe"
     }
   },
   "devDependencies": {

@@ -9,6 +9,7 @@ import { NotificationPreferencesModule } from './notifications/notification-pref
 import { ReminderModule } from './reminders/reminder.module';
 import { SettingsModule } from './settings/settings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { DataModule } from './data/data.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     DashboardModule,
     IntegrationsModule,
     IngestModule,
+    DataModule,
     NotificationPreferencesModule,
     ReminderModule,
     SettingsModule,

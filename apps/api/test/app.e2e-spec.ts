@@ -300,6 +300,43 @@ describe('App (e2e)', () => {
     );
   });
 
+  it('/api/data/export/subscriptions (GET) exports JSON subscriptions', async () => {
+    prismaMock.subscription.findMany.mockResolvedValueOnce([
+      {
+        id: 'sub_netflix',
+        serviceId: 'svc_netflix',
+        planName: 'Standard',
+        status: 'active',
+        billingAmountCents: 1549,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+        paymentSource: 'card',
+        paymentLast4: '4242',
+        autoImportSource: 'manual',
+        notes: null,
+        statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-17T00:00:00.000Z'),
+        service: { name: 'Netflix' },
+      },
+    ]);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/data/export/subscriptions?format=json')
+      .expect(200);
+
+    expect(response.headers['content-type']).toContain('application/json');
+    expect(response.body.subscriptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          serviceName: 'Netflix',
+          billingAmount: 15.49,
+        }),
+      ]),
+    );
+  });
+
   it('/api/settings (GET/PUT) reads and updates notification preferences', async () => {
     const initial = await request(app.getHttpServer())
       .get('/api/settings')

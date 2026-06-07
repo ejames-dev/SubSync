@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- CSV and JSON export of subscriptions (`GET /api/data/export/subscriptions`).
+- SQLite backup and restore APIs with automatic safety backup before restore.
+- Settings UI for export, backup download, restore from file, and restore from local backups.
+
 ### Planned for v1.1.0
 - Real OAuth integration for at least one provider (Gmail billing import is the highest-leverage target).
 - Auto-update via `electron-updater` so portable users have a real upgrade path.
 - macOS and Linux desktop builds.
-- CSV / JSON export of subscriptions.
-- Backup and restore of the local SQLite database.
 - Notification worker wired up to the existing reminder preferences.
 
 ## [1.0.1] - TBD

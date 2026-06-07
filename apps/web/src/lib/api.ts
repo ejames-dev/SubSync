@@ -109,6 +109,13 @@ export function deleteSubscription(id: string) {
   });
 }
 
+export function snoozeSubscription(id: string, days = 7) {
+  return apiRequest<Subscription>(`/subscriptions/${id}/snooze`, {
+    method: 'POST',
+    body: JSON.stringify({ days }),
+  });
+}
+
 export function connectIntegration(
   provider: string,
   payload: Record<string, string>,
@@ -124,6 +131,12 @@ export function connectIntegration(
 
 export function listIntegrations() {
   return apiRequest<IntegrationConnection[]>('/integrations');
+}
+
+export function disconnectIntegration(provider: string) {
+  return apiRequest<{ message: string }>(`/integrations/${provider}`, {
+    method: 'DELETE',
+  });
 }
 
 export function getSettings() {

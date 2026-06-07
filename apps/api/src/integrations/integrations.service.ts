@@ -62,6 +62,28 @@ export class IntegrationsService {
     };
   }
 
+  async disconnect(providerId: string): Promise<{ message: string }> {
+    const exists = await this.serviceCatalog.ensureExists(providerId);
+    if (!exists) {
+      throw new NotFoundException(`Unknown provider "${providerId}"`);
+    }
+
+    const connection = await this.prisma.integrationConnection.findUnique({
+      where: { providerId },
+    });
+    if (!connection) {
+      throw new NotFoundException(`No connection found for "${providerId}"`);
+    }
+
+    await this.prisma.integrationConnection.delete({
+      where: { providerId },
+    });
+
+    return {
+      message: `Disconnected ${providerId}.`,
+    };
+  }
+
   async recordSync(
     providerId: string,
     source: IntegrationSource,

@@ -8,6 +8,7 @@ import { ServiceProvider, Subscription, SubscriptionStatus } from '@subscription
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { formatCurrency } from '../lib/utils';
 import { StatusBadge } from './status-badge';
 
 interface Props {
@@ -222,7 +223,10 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
                 <CardContent className="flex items-center justify-between">
                   <div>
                     <p className="text-2xl font-semibold text-slate-900">
-                      ${subscription.billingAmount.toFixed(2)}
+                      {formatCurrency(
+                        subscription.billingAmount,
+                        subscription.billingCurrency,
+                      )}
                     </p>
                     <p className="text-xs text-slate-500">/{subscription.billingInterval}</p>
                   </div>

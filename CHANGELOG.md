@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Desktop auto-update via `electron-updater` with GitHub Releases publishing.
 - Settings UI for checking, downloading, and installing portable desktop updates.
 - `npm run dist:desktop:publish` release script and `docs/desktop-auto-update.md`.
+- Richer dashboard subscriptions grid with search, status filters, and service logos.
+- Recent activity feed for subscription events.
+- Renewal snooze (7-day) from the upcoming renewals list.
+- Multi-currency formatting via `Intl.NumberFormat`.
+- Provider disconnect (`DELETE /api/integrations/:provider`).
+- Persisted `logoUrl` on the service catalog.
 
 ### Planned for v1.1.0
 - macOS and Linux desktop builds.

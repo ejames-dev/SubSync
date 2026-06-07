@@ -12,6 +12,7 @@ import { CheckCircle2, Mail, PlugZap, RefreshCw } from 'lucide-react';
 import {
   connectIntegration,
   disconnectGmail,
+  disconnectIntegration,
   getGmailAuthUrl,
   getGmailStatus,
   getSettings,
@@ -160,6 +161,23 @@ export function ConnectClient() {
     }
   }
 
+  async function handleDisconnect(service: ServiceProvider) {
+    setStatusMessage(null);
+    setConnectionState((current) => ({ ...current, [service.id]: 'pending' }));
+
+    try {
+      const result = await disconnectIntegration(service.id);
+      setConnectionState((current) => ({
+        ...current,
+        [service.id]: service.supportsOAuth ? 'idle' : 'manual',
+      }));
+      setStatusMessage(result.message);
+    } catch (error) {
+      setConnectionState((current) => ({ ...current, [service.id]: 'connected' }));
+      setStatusMessage(error instanceof Error ? error.message : 'Disconnect failed.');
+    }
+  }
+
   async function handleEmailImport() {
     setImportingEmail(true);
     setStatusMessage(null);
@@ -304,13 +322,24 @@ export function ConnectClient() {
                       : 'Save a manual or email-based import source'}
                   </p>
                 )}
-                <Button
-                  variant={isConnected ? 'outline' : 'default'}
-                  onClick={() => void handleConnect(service)}
-                  disabled={state === 'pending'}
-                >
-                  {isConnected ? 'Reconnect' : isManual ? 'Queue import' : 'Connect'}
-                </Button>
+                <div className="flex gap-2">
+                  {isConnected || isManual ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => void handleDisconnect(service)}
+                      disabled={connectionState[service.id] === 'pending'}
+                    >
+                      Disconnect
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant={isConnected ? 'outline' : 'default'}
+                    onClick={() => void handleConnect(service)}
+                    disabled={connectionState[service.id] === 'pending'}
+                  >
+                    {isConnected ? 'Reconnect' : isManual ? 'Queue import' : 'Connect'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );

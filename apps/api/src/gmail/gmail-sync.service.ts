@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { EmailIngestResult, GmailSyncResult } from '@subscription-tracker/types';
+import {
+  EmailIngestResult,
+  GmailSyncResult,
+} from '@subscription-tracker/types';
 import { EmailIngestService } from '../ingest/email-ingest.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { GmailOAuthService } from './gmail-oauth.service';
@@ -64,9 +67,10 @@ export class GmailSyncService {
 
       for (const messageId of messageIds) {
         scanned += 1;
-        const alreadyProcessed = await this.prisma.processedGmailMessage.findUnique({
-          where: { messageId },
-        });
+        const alreadyProcessed =
+          await this.prisma.processedGmailMessage.findUnique({
+            where: { messageId },
+          });
         if (alreadyProcessed) {
           skipped += 1;
           continue;
@@ -173,7 +177,9 @@ export class GmailSyncService {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`Gmail message fetch failed (${response.status}): ${body}`);
+      throw new Error(
+        `Gmail message fetch failed (${response.status}): ${body}`,
+      );
     }
 
     return (await response.json()) as GmailApiMessage;

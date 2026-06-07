@@ -32,7 +32,10 @@ export class DataBackupService {
     }
 
     return readdirSync(backupDir)
-      .filter((name) => name.startsWith(BACKUP_PREFIX) && name.endsWith(BACKUP_SUFFIX))
+      .filter(
+        (name) =>
+          name.startsWith(BACKUP_PREFIX) && name.endsWith(BACKUP_SUFFIX),
+      )
       .map((fileName) => {
         const filePath = join(backupDir, fileName);
         const stats = statSync(filePath);

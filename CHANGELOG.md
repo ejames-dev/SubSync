@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+- macOS and Linux desktop builds.
+
+## [1.1.0] - 2026-06-05
+
+See [`docs/release-notes-v1.1.0.md`](docs/release-notes-v1.1.0.md) for the full notes.
+
 ### Added
 - Real Gmail OAuth with read-only access for automatic billing email import.
 - Gmail sync API (`POST /api/gmail/sync`) and scheduled background sync every 6 hours.
@@ -27,9 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-currency formatting via `Intl.NumberFormat`.
 - Provider disconnect (`DELETE /api/integrations/:provider`).
 - Persisted `logoUrl` on the service catalog.
+- Rewritten README covering Gmail OAuth, renewal notifications, and developer setup.
 
-### Planned for v1.1.0
-- macOS and Linux desktop builds.
+### Changed
+- Provider `Connect` actions now include real Gmail OAuth in addition to local connection state.
 
 ## [1.0.1] - TBD
 

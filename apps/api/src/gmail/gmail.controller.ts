@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Query,
-  Res,
-} from '@nestjs/common';
+import { Controller, Get, Post, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
 import {
   GmailAuthUrlResponse,

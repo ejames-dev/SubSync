@@ -39,7 +39,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         }
       }
     } else {
-      const err = exception instanceof Error ? exception : new Error(String(exception));
+      const err =
+        exception instanceof Error ? exception : new Error(String(exception));
       this.logger.error(err.message, err.stack);
     }
 

@@ -4,7 +4,9 @@ describe('TokenCryptoService', () => {
   const previousKey = process.env.OAUTH_TOKEN_ENCRYPTION_KEY;
 
   beforeEach(() => {
-    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
+    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString(
+      'base64',
+    );
   });
 
   afterEach(() => {

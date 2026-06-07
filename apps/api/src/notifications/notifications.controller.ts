@@ -19,9 +19,7 @@ export class NotificationsController {
   }
 
   @Post(':id/ack')
-  acknowledge(
-    @Param('id') id: string,
-  ): Promise<PendingRenewalNotification> {
+  acknowledge(@Param('id') id: string): Promise<PendingRenewalNotification> {
     return this.delivery.acknowledge(id);
   }
 }

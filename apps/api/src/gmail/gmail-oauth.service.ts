@@ -39,7 +39,7 @@ export class GmailOAuthService {
   isConfigured(): boolean {
     return Boolean(
       process.env.GOOGLE_OAUTH_CLIENT_ID?.trim() &&
-        process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim(),
+      process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim(),
     );
   }
 
@@ -116,8 +116,12 @@ export class GmailOAuthService {
       throw new BadRequestException('Invalid OAuth state.');
     }
     if (oauthState.expiresAt.getTime() < Date.now()) {
-      await this.prisma.oAuthState.delete({ where: { state } }).catch(() => undefined);
-      throw new BadRequestException('OAuth state expired. Try connecting again.');
+      await this.prisma.oAuthState
+        .delete({ where: { state } })
+        .catch(() => undefined);
+      throw new BadRequestException(
+        'OAuth state expired. Try connecting again.',
+      );
     }
 
     await this.prisma.oAuthState.delete({ where: { state } });
@@ -169,7 +173,9 @@ export class GmailOAuthService {
 
     if (connection) {
       try {
-        const refreshToken = this.tokenCrypto.decrypt(connection.refreshTokenEnc);
+        const refreshToken = this.tokenCrypto.decrypt(
+          connection.refreshTokenEnc,
+        );
         await this.revokeToken(refreshToken);
       } catch (error) {
         this.logger.warn(
@@ -267,7 +273,9 @@ export class GmailOAuthService {
     return (await response.json()) as GoogleTokenResponse;
   }
 
-  private async fetchGoogleEmail(accessToken: string): Promise<string | undefined> {
+  private async fetchGoogleEmail(
+    accessToken: string,
+  ): Promise<string | undefined> {
     const response = await fetch(
       'https://www.googleapis.com/oauth2/v2/userinfo',
       {
@@ -284,10 +292,13 @@ export class GmailOAuthService {
   }
 
   private async revokeToken(token: string): Promise<void> {
-    await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+    await fetch(
+      `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      },
+    );
   }
 
   private assertConfigured(): void {

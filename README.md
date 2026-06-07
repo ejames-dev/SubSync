@@ -4,7 +4,7 @@
 
 SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a Windows portable desktop app.
 
-**Current version:** 1.0.1 · **Platform:** Windows portable (macOS/Linux planned)
+**Current version:** 1.1.0 · **Platform:** Windows portable (macOS/Linux planned)
 
 ---
 
@@ -33,12 +33,12 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 - Pre-seeded catalog for Spotify, YouTube Premium, Netflix, Disney+, and Hulu
 
 ### Import & connections
-- **Gmail OAuth** *(v1.1)* — read-only access to scan billing and subscription emails automatically
+- **Gmail OAuth** — read-only access to scan billing and subscription emails automatically
 - **Manual email import** — paste billing email content to create or update subscriptions via heuristic parsing
 - **Provider connect** — persist connection state for OAuth-capable and email-based providers
 - Scheduled Gmail sync every 6 hours when connected
 
-### Renewal reminders *(v1.1)*
+### Renewal reminders
 - Configurable lead time (days before renewal)
 - **Desktop / browser push notifications** delivered through the Electron shell or web client
 - Hourly background worker queues reminders for active and trial subscriptions
@@ -204,7 +204,7 @@ npm run dist:desktop
 Output:
 
 ```text
-release/SubSync 1.0.1.exe
+release/SubSync 1.1.0.exe
 ```
 
 Release checklist: [docs/release-checklist.md](docs/release-checklist.md)

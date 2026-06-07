@@ -12,10 +12,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { memoryStorage } from 'multer';
-import {
-  DataBackupInfo,
-  DataRestoreResult,
-} from '@subscription-tracker/types';
+import { DataBackupInfo, DataRestoreResult } from '@subscription-tracker/types';
 import { DataBackupService } from './data-backup.service';
 import { DataExportService } from './data-export.service';
 

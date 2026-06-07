@@ -38,7 +38,9 @@ describe('SubscriptionsService', () => {
     };
 
     serviceCatalog = {
-      ensureExists: jest.fn().mockResolvedValue({ id: 'svc_spotify', name: 'Spotify' }),
+      ensureExists: jest
+        .fn()
+        .mockResolvedValue({ id: 'svc_spotify', name: 'Spotify' }),
     };
 
     service = new SubscriptionsService(
@@ -194,4 +196,3 @@ describe('SubscriptionsService', () => {
     await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
   });
 });
-

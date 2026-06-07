@@ -69,7 +69,9 @@ export class ReminderService {
       data: { nextRenewalReminderSent: true },
     });
 
-    this.logger.log(`Queued renewal reminders for ${dueSubscriptions.length} subscriptions`);
+    this.logger.log(
+      `Queued renewal reminders for ${dueSubscriptions.length} subscriptions`,
+    );
     return dueSubscriptions.length;
   }
 }

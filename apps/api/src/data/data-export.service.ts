@@ -14,7 +14,7 @@ export class DataExportService {
 
     return {
       exportedAt: new Date().toISOString(),
-      version: process.env.npm_package_version ?? '1.0.1',
+      version: process.env.npm_package_version ?? '1.1.0',
       subscriptions: records.map((record) => ({
         id: record.id,
         serviceId: record.serviceId,

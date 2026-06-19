@@ -9,5 +9,6 @@ release/
 desktop/app/
 desktop/runtime/
 .DS_Store
+*.tsbuildinfo
 apps/api/prisma/generated/
 apps/api/prisma/*.db

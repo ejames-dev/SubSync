@@ -50,13 +50,12 @@ DATABASE_URL="file:./dev.db" npm run prisma:seed
 
 ### Running dev servers
 
-**API** — `npm run dev:api` (`nest start --watch`) currently fails at runtime because compiled output under `dist/src/` cannot resolve `../../prisma/generated/client`. Until that is fixed, start the API with:
+**API** — `npm run dev:api` (`nest start --watch`). Ensure the env files and database are set up first (see above):
 
 ```bash
-cd apps/api
 DATABASE_URL="file:./dev.db" API_PORT=43100 \
   CORS_ORIGIN="http://127.0.0.1:3000,http://localhost:3000" \
-  npx ts-node -r tsconfig-paths/register src/main.ts
+  npm run dev:api
 ```
 
 **Web** — from repo root:

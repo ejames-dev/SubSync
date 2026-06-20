@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - macOS and Linux desktop builds.
 
+## [1.1.1] - 2026-06-20
+
+### Fixed
+- API now builds to `dist/` root so the Prisma client path resolves at runtime
+  (`nest start` and the packaged desktop runtime no longer fail to find the
+  generated client).
+- Desktop packaging no longer breaks on rebuilds: the API's incremental
+  `tsbuildinfo` now lives inside `dist/` so Nest's `deleteOutDir` clears it each
+  build, preventing empty output and the `Missing build artifact: apps/api/dist`
+  failure in `prepare-dist.mjs`.
+
+### Changed
+- `*.tsbuildinfo` build artifacts are gitignored.
+- AGENTS.md drops the obsolete `ts-node` dev-server workaround.
+
 ## [1.1.0] - 2026-06-05
 
 See [`docs/release-notes-v1.1.0.md`](docs/release-notes-v1.1.0.md) for the full notes.
@@ -39,7 +54,7 @@ See [`docs/release-notes-v1.1.0.md`](docs/release-notes-v1.1.0.md) for the full 
 ### Changed
 - Provider `Connect` actions now include real Gmail OAuth in addition to local connection state.
 
-## [1.0.1] - TBD
+## [1.0.1] - 2026-05-17
 
 See [`docs/release-notes-v1.0.1.md`](docs/release-notes-v1.0.1.md) for the full notes.
 

@@ -75,7 +75,7 @@ function startApi(databasePath) {
   process.env.HOST = HOST;
   process.env.API_PORT = String(API_PORT);
   process.env.DATABASE_URL = toSqliteUrl(databasePath);
-  require(getRuntimePath('api', 'dist', 'src', 'main.js'));
+  require(getRuntimePath('api', 'dist', 'main.js'));
 }
 
 function startWeb() {

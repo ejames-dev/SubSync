@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import {
   BillingInterval,
   EmailIngestResult,
@@ -71,6 +75,11 @@ export class EmailIngestService {
 
     const billingCurrency = this.detectCurrency(haystack);
     const billingAmount = this.detectAmount(haystack);
+    if (billingAmount === null) {
+      throw new UnprocessableEntityException(
+        'Could not find a billing amount in the email. Add the subscription manually instead.',
+      );
+    }
     const billingInterval = this.detectInterval(haystack);
     const nextRenewal = this.detectRenewalDate(
       haystack,
@@ -114,13 +123,13 @@ export class EmailIngestService {
     return 'USD';
   }
 
-  private detectAmount(content: string): number {
+  private detectAmount(content: string): number | null {
     const amountMatch =
       content.match(/(?:USD|EUR|GBP|\$|€|£)\s?(\d+(?:\.\d{2})?)/i) ??
       content.match(/\b(\d+(?:\.\d{2})?)\s?(?:USD|EUR|GBP)\b/i) ??
       content.match(/\bamount[:\s]+(\d+(?:\.\d{2})?)\b/i);
 
-    return amountMatch ? Number(amountMatch[1]) : 9.99;
+    return amountMatch ? Number(amountMatch[1]) : null;
   }
 
   private detectInterval(content: string): BillingInterval {

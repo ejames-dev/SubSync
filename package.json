@@ -19,7 +19,8 @@
     "dist:desktop": "npm run build:desktop && electron-builder --win portable",
     "dist:desktop:publish": "npm run build:desktop && electron-builder --win portable --publish always",
     "lint": "npm run lint --workspace @subscription-tracker/types && npm run lint --workspace api && npm run lint --workspace web",
-    "test": "npm run test --workspace @subscription-tracker/types && npm run test --workspace api && npm run test --workspace web",
+    "test": "npm run test --workspace @subscription-tracker/types && npm run test --workspace api && npm run test --workspace web && npm run test:desktop",
+    "test:desktop": "node --test desktop/migrations.test.mjs",
     "format": "npm run format --workspace @subscription-tracker/types && npm run format --workspace api && npm run format --workspace web"
   },
   "dependencies": {

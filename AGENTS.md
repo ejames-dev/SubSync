@@ -24,26 +24,14 @@ Use plain `npm install` at the repo root (not only `npm install --workspaces`) s
 
 ### Database bootstrap (first-time / fresh clone)
 
-`npm run prisma:migrate --workspace api` applies migrations in **timestamp order**, but `20260317174500_init_sqlite` must run **before** earlier-dated migrations that alter `Subscription`. On a fresh DB, apply in this order:
+`npm run prisma:migrate --workspace api` runs the shared migration runner
+(`desktop/migrations.cjs`): migrations apply in timestamp order, are recorded in
+a `_migrations` ledger table, and re-running is a no-op — safe on fresh and
+existing databases alike.
 
 ```bash
 cd apps/api
-node --input-type=module -e "
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
-const order = [
-  '20260317174500_init_sqlite',
-  '20260312134500_notifications',
-  '20260313140000_subscription_events',
-  '20260317183000_user_settings',
-  '20260317193000_integration_connections',
-];
-const db = new DatabaseSync('prisma/dev.db');
-db.exec('PRAGMA foreign_keys = ON;');
-for (const m of order) db.exec(readFileSync(resolve('prisma/migrations', m, 'migration.sql'), 'utf8'));
-db.close();
-"
+DATABASE_URL="file:./dev.db" npm run prisma:migrate
 DATABASE_URL="file:./dev.db" npm run prisma:generate
 DATABASE_URL="file:./dev.db" npm run prisma:seed
 ```

@@ -1,13 +1,8 @@
 const { app, BrowserWindow, dialog, Notification, ipcMain } = require('electron');
-const {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-} = require('node:fs');
+const { existsSync, mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const net = require('node:net');
-const { DatabaseSync } = require('node:sqlite');
+const { applyMigrations } = require('./migrations.cjs');
 const {
   setupUpdater,
   getUpdateStatus,
@@ -73,22 +68,7 @@ function ensureLocalDatabase() {
     throw new Error(`Missing SQLite migrations at ${migrationsDir}`);
   }
 
-  const migrationFiles = readdirSync(migrationsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => resolve(migrationsDir, entry.name, 'migration.sql'))
-    .filter((migrationPath) => existsSync(migrationPath))
-    .sort();
-
-  const db = new DatabaseSync(databasePath);
-  db.exec('PRAGMA foreign_keys = ON;');
-
-  for (const migrationFile of migrationFiles) {
-    db.exec(readFileSync(migrationFile, 'utf8'));
-  }
-
-  db.close();
-
-  return databasePath;
+  return applyMigrations(databasePath, migrationsDir);
 }
 
 function startApi(databasePath) {

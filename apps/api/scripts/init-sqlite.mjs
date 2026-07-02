@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { applyMigrations } from '../../../desktop/migrations.cjs';
 
 const prismaDir = resolve(import.meta.dirname, '../prisma');
 const migrationsDir = resolve(prismaDir, 'migrations');
@@ -15,23 +15,6 @@ if (!databaseUrl.startsWith('file:')) {
 const databasePath = resolve(prismaDir, databaseUrl.slice('file:'.length));
 mkdirSync(resolve(databasePath, '..'), { recursive: true });
 
-const migrationFiles = readdirSync(migrationsDir, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => resolve(migrationsDir, entry.name, 'migration.sql'))
-  .filter((migrationPath) => existsSync(migrationPath))
-  .sort();
-
-if (migrationFiles.length === 0) {
-  throw new Error(`No SQLite migrations found in ${migrationsDir}.`);
-}
-
-const db = new DatabaseSync(databasePath);
-db.exec('PRAGMA foreign_keys = ON;');
-
-for (const migrationFile of migrationFiles) {
-  db.exec(readFileSync(migrationFile, 'utf8'));
-}
-
-db.close();
+applyMigrations(databasePath, migrationsDir);
 
 console.log(`Initialized SQLite database at ${databasePath}`);

@@ -61,6 +61,10 @@ copyFileSync(resolve(rootDir, 'desktop', 'main.cjs'), resolve(appDir, 'main.cjs'
 copyFileSync(resolve(rootDir, 'desktop', 'preload.cjs'), resolve(appDir, 'preload.cjs'));
 copyFileSync(resolve(rootDir, 'desktop', 'updater.cjs'), resolve(appDir, 'updater.cjs'));
 copyFileSync(
+  resolve(rootDir, 'desktop', 'migrations.cjs'),
+  resolve(appDir, 'migrations.cjs'),
+);
+copyFileSync(
   resolve(rootDir, 'apps', 'web', 'src', 'app', 'favicon.ico'),
   resolve(appDir, 'icon.ico'),
 );

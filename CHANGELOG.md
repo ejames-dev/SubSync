@@ -10,6 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - macOS and Linux desktop builds.
 
+## [1.1.2] - 2026-07-02
+
+### Fixed
+- Fresh installs no longer crash on first launch: SQLite migrations now apply
+  in dependency order and are recorded in a `_migrations` ledger so each one
+  runs exactly once. Existing databases are baselined in place with no data
+  loss, which also removes the relaunch crash from re-running non-idempotent
+  `ALTER TABLE` migrations.
+- Email import no longer invents a $9.99 price when no billing amount can be
+  parsed from the email; the import is rejected with a clear message instead.
+  Manual imports surface it on the Connect page, and Gmail sync counts the
+  message as failed and retries it on a later sync.
+- The packaged desktop app loads the API from its post-1.1.1 build location
+  (`dist/main.js`). Desktop builds made from v1.1.1 would have failed at
+  startup; no such build was ever published.
+
+### Changed
+- `npm run prisma:migrate --workspace api` uses the same migration runner as
+  the desktop app, so the manual migration-ordering workaround for fresh dev
+  databases is no longer needed.
+- `npm test` now also runs the desktop migration-runner tests
+  (`npm run test:desktop`).
+
 ## [1.1.1] - 2026-06-20
 
 ### Fixed

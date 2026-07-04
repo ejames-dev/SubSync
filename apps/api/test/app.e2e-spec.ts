@@ -555,7 +555,7 @@ describe('App (e2e)', () => {
         leadTimeDays: 7,
         channels: ['email', 'push'],
       },
-      emailForwardingAlias: 'subs+general@beacon.app',
+      emailForwardingAlias: 'subs+general@subsync.app',
     });
 
     const updated = await request(app.getHttpServer())
@@ -572,7 +572,7 @@ describe('App (e2e)', () => {
         leadTimeDays: 3,
         channels: ['email'],
       },
-      emailForwardingAlias: 'subs+general@beacon.app',
+      emailForwardingAlias: 'subs+general@subsync.app',
     });
   });
 });

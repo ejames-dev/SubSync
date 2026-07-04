@@ -7,7 +7,7 @@ import { SiteShell } from '../components/site-shell';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Beacon | Subscription Tracker',
+  title: 'SubSync | Subscription Tracker',
   description: 'Track streaming & media subscriptions in one place.',
 };
 

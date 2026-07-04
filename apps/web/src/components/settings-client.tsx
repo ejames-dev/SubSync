@@ -291,13 +291,13 @@ export function SettingsClient() {
         </CardHeader>
         <CardContent className="space-y-3">
           <code className="block rounded-md bg-slate-900 px-4 py-2 text-sm text-white">
-            {settings?.emailForwardingAlias ?? 'subs+general@beacon.app'}
+            {settings?.emailForwardingAlias ?? 'subs+general@subsync.app'}
           </code>
           <Button
             variant="outline"
             onClick={() =>
               navigator.clipboard.writeText(
-                settings?.emailForwardingAlias ?? 'subs+general@beacon.app',
+                settings?.emailForwardingAlias ?? 'subs+general@subsync.app',
               )
             }
           >

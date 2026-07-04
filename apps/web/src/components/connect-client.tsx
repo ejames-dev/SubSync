@@ -353,7 +353,7 @@ export function ConnectClient() {
             <p className="text-sm text-slate-500">
               Send streaming invoices to{' '}
               <span className="font-mono text-slate-800">
-                {settings?.emailForwardingAlias ?? 'subs+general@beacon.app'}
+                {settings?.emailForwardingAlias ?? 'subs+general@subsync.app'}
               </span>
             </p>
           </div>
@@ -363,7 +363,7 @@ export function ConnectClient() {
             variant="outline"
             onClick={() =>
               navigator.clipboard.writeText(
-                settings?.emailForwardingAlias ?? 'subs+general@beacon.app',
+                settings?.emailForwardingAlias ?? 'subs+general@subsync.app',
               )
             }
           >

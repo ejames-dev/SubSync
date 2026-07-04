@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 const SETTINGS_ID = 'default';
-const EMAIL_FORWARDING_ALIAS = 'subs+general@beacon.app';
+const EMAIL_FORWARDING_ALIAS = 'subs+general@subsync.app';
 
 @Injectable()
 export class SettingsService {

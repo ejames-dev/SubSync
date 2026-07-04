@@ -1,10 +1,12 @@
 # SubSync
 
+[![CI](https://github.com/ejames-dev/SubSync/actions/workflows/ci.yml/badge.svg)](https://github.com/ejames-dev/SubSync/actions/workflows/ci.yml)
+
 **A local-first subscription command center for streaming, music, gaming, and media services.**
 
 SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a Windows portable desktop app.
 
-**Current version:** 1.1.0 · **Platform:** Windows portable (macOS/Linux planned)
+**Current version:** 1.1.2 · **Platform:** Windows portable (macOS/Linux planned)
 
 ---
 
@@ -23,8 +25,9 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 
 ### Dashboard
 - Monthly equivalent spend and spend-by-category breakdown
-- Upcoming renewals list sorted by date
+- Upcoming renewals list sorted by date, with per-subscription snooze
 - Active subscription count and duplicate-plan detection
+- Recent activity feed of subscription status changes
 - Inline add/delete and quick navigation to subscription details
 
 ### Subscription management
@@ -44,10 +47,15 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 - Hourly background worker queues reminders for active and trial subscriptions
 - Unified notification preferences in Settings (shared by the UI and reminder worker)
 
+### Data & backup
+- CSV / JSON export of subscriptions (`/api/data/export/subscriptions`)
+- One-click SQLite backup and restore from Settings
+
 ### Desktop app
 - Single portable `.exe` — no installer required
+- In-app auto-update from GitHub Releases (`electron-updater`)
 - Bundles API (`127.0.0.1:43100`) and web UI (`127.0.0.1:43101`)
-- Applies SQLite migrations automatically on first launch
+- Applies SQLite migrations automatically on first launch (tracked in a `_migrations` ledger)
 - Native OS notification polling while the app is running
 
 ---
@@ -65,7 +73,7 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 ## Developer setup
 
 ### Prerequisites
-- Node.js 20+
+- Node.js 22+ (the desktop migration tests use the built-in `node:sqlite` module)
 - npm 10+
 
 ### Install and run
@@ -141,12 +149,20 @@ All routes are prefixed with `/api`.
 | `POST` | `/subscriptions` | Create subscription |
 | `PATCH` | `/subscriptions/:id` | Update subscription |
 | `DELETE` | `/subscriptions/:id` | Delete subscription |
+| `POST` | `/subscriptions/:id/snooze` | Snooze an upcoming renewal |
 | `GET` | `/subscriptions/:id/events` | Subscription event timeline |
 | `GET` | `/subscriptions/events/recent` | Recent status changes |
 | `GET` | `/dashboard/summary` | Dashboard KPIs and breakdowns |
 | `GET` | `/integrations` | List provider connections |
 | `POST` | `/integrations/:provider/connect` | Connect or save a provider |
+| `DELETE` | `/integrations/:provider` | Disconnect a provider |
 | `POST` | `/ingest/email` | Import subscription from billing email content |
+| `GET` | `/data/export/subscriptions` | Export subscriptions (`?format=json\|csv`) |
+| `GET` | `/data/backups` | List SQLite backups |
+| `POST` | `/data/backup` | Create a SQLite backup |
+| `GET` | `/data/backup/:fileName` | Download a backup file |
+| `POST` | `/data/restore` | Restore from an uploaded backup |
+| `POST` | `/data/restore/:fileName` | Restore from an existing backup |
 | `GET` | `/settings` | Reminder preferences and email alias |
 | `PUT` | `/settings` | Update reminder preferences |
 | `GET` | `/notifications/preferences` | Notification preferences (unified with settings) |
@@ -204,7 +220,7 @@ npm run dist:desktop
 Output:
 
 ```text
-release/SubSync 1.1.0.exe
+release/SubSync 1.1.2.exe
 ```
 
 Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
@@ -238,13 +254,13 @@ Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
 ---
 
-## Roadmap (v1.1+)
+## Roadmap (v1.2+)
 
-- Auto-update via `electron-updater`
-- CSV / JSON export and SQLite backup/restore
 - macOS and Linux desktop builds
-- Richer dashboard grid, service logos, multi-currency display
-- Expanded provider catalog and stronger email parsing
+- Code signing for the Windows executable
+- Spend-by-category chart on the dashboard
+- Expanded provider catalog and provider-specific email parsers
+- Budget alerts and spend forecasting
 
 Full plan: [docs/release-roadmap.md](docs/release-roadmap.md)
 

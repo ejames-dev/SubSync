@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- macOS and Linux desktop builds.
+### Added
+- macOS (Apple Silicon) and Linux (AppImage) desktop builds. `npm run
+  dist:desktop` now packages the current platform's target, CI packages all
+  three platforms on main, and a tag-triggered Release workflow builds and
+  publishes Windows, macOS, and Linux artifacts to a draft GitHub Release.
+- Linux AppImage builds auto-update through the existing Settings flow.
+  Automatic updates stay disabled on macOS until builds are signed; Settings
+  explains this and points to GitHub Releases.
 
 ## [1.1.2] - 2026-07-02
 

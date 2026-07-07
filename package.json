@@ -16,8 +16,8 @@
     "dev:desktop": "electron .",
     "build": "npm run build --workspace @subscription-tracker/types && npm run build --workspace api && npm run build --workspace web",
     "build:desktop": "npm run build && node ./desktop/prepare-dist.mjs",
-    "dist:desktop": "npm run build:desktop && electron-builder --win portable",
-    "dist:desktop:publish": "npm run build:desktop && electron-builder --win portable --publish always",
+    "dist:desktop": "npm run build:desktop && electron-builder",
+    "dist:desktop:publish": "npm run build:desktop && electron-builder --publish always",
     "lint": "npm run lint --workspace @subscription-tracker/types && npm run lint --workspace api && npm run lint --workspace web",
     "test": "npm run test --workspace @subscription-tracker/types && npm run test --workspace api && npm run test --workspace web && npm run test:desktop",
     "test:desktop": "node --test desktop/migrations.test.mjs",
@@ -84,6 +84,20 @@
     },
     "portable": {
       "artifactName": "SubSync ${version}.exe"
+    },
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "category": "Office",
+      "target": [
+        "AppImage"
+      ],
+      "artifactName": "SubSync-${version}.${ext}"
     }
   },
   "devDependencies": {

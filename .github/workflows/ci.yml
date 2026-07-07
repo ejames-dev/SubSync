@@ -39,10 +39,10 @@ jobs:
       - name: Build desktop bundle
         run: npm run build:desktop
 
+  # The package-* jobs guard the release path: the same electron-builder
+  # invocations as dist:desktop, minus publishing. They run on main and on
+  # demand, not on every PR, because packaged runner builds are slow.
   package-windows:
-    # Guards the release path: the same electron-builder invocation as
-    # dist:desktop, minus publishing. Runs on main and on demand, not on
-    # every PR, because the Windows runner build is slow.
     if: github.event_name != 'pull_request'
     runs-on: windows-latest
     steps:
@@ -67,4 +67,64 @@ jobs:
         with:
           name: subsync-windows-portable
           path: release/*.exe
+          retention-days: 14
+
+  package-macos:
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    env:
+      # No signing certificate is configured; build an unsigned app instead of
+      # failing identity auto-discovery.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace api
+
+      - name: Build macOS app
+        run: npm run build:desktop && npx electron-builder --mac --publish never
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: subsync-macos
+          path: |
+            release/*.dmg
+            release/*.zip
+          retention-days: 14
+
+  package-linux:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace api
+
+      - name: Build Linux AppImage
+        run: npm run build:desktop && npx electron-builder --linux --publish never
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: subsync-linux-appimage
+          path: release/*.AppImage
           retention-days: 14

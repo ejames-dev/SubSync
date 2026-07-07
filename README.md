@@ -6,7 +6,7 @@
 
 SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a Windows portable desktop app.
 
-**Current version:** 1.1.2 · **Platform:** Windows portable (macOS/Linux planned)
+**Current version:** 1.1.2 · **Platforms:** Windows portable · macOS (Apple Silicon) · Linux AppImage
 
 ---
 
@@ -52,8 +52,8 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 - One-click SQLite backup and restore from Settings
 
 ### Desktop app
-- Single portable `.exe` — no installer required
-- In-app auto-update from GitHub Releases (`electron-updater`)
+- Windows portable `.exe` (no installer required), macOS `.dmg` (Apple Silicon), and Linux AppImage
+- In-app auto-update from GitHub Releases (`electron-updater`) on Windows and Linux; disabled on macOS until builds are signed
 - Bundles API (`127.0.0.1:43100`) and web UI (`127.0.0.1:43101`)
 - Applies SQLite migrations automatically on first launch (tracked in a `_migrations` ledger)
 - Native OS notification polling while the app is running
@@ -62,8 +62,8 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 
 ## Quick start (desktop)
 
-1. Download the latest `SubSync *.exe` from [GitHub Releases](https://github.com/ejames-dev/SubSync/releases).
-2. Double-click to launch. Windows SmartScreen may warn because the build is unsigned — see [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md).
+1. Download the build for your platform from [GitHub Releases](https://github.com/ejames-dev/SubSync/releases): `SubSync *.exe` (Windows), `SubSync *.dmg` (macOS, Apple Silicon), or `SubSync-*.AppImage` (Linux, `chmod +x` before launching).
+2. Launch it. The builds are unsigned, so Windows SmartScreen may warn (see [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md)) and macOS Gatekeeper requires right-click → Open on first launch.
 3. Open **Dashboard** to review spend and renewals.
 4. Open **Connections** to link Gmail or import billing emails.
 5. Open **Settings** to set reminder lead time and enable desktop notifications.
@@ -202,7 +202,7 @@ See [.env.example](.env.example) for the full list.
 | `npm run dev:desktop` | Launch Electron shell |
 | `npm run build` | Build types, API, and web |
 | `npm run build:desktop` | Build and stage Electron runtime |
-| `npm run dist:desktop` | Produce Windows portable `.exe` in `release/` |
+| `npm run dist:desktop` | Package the current platform's desktop build into `release/` |
 | `npm run test` | Run workspace tests |
 | `npm run lint` | Lint all workspaces |
 | `npm run format` | Prettier across workspaces |
@@ -211,17 +211,22 @@ See [.env.example](.env.example) for the full list.
 
 ---
 
-## Building the Windows portable
+## Building the desktop app
 
 ```bash
 npm run dist:desktop
 ```
 
-Output:
+This packages the platform you run it on:
 
 ```text
-release/SubSync 1.1.2.exe
+release/SubSync 1.1.2.exe        # Windows (portable)
+release/SubSync 1.1.2.dmg        # macOS (native arch of the build machine)
+release/SubSync-1.1.2.AppImage   # Linux
 ```
+
+The Release GitHub workflow builds all three platforms and publishes them to a
+draft GitHub Release when a `v*` tag is pushed.
 
 Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
@@ -256,8 +261,8 @@ Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
 ## Roadmap (v1.2+)
 
-- macOS and Linux desktop builds
-- Code signing for the Windows executable
+- Code signing for the Windows and macOS builds (also unlocks macOS auto-update)
+- Intel macOS builds
 - Spend-by-category chart on the dashboard
 - Expanded provider catalog and provider-specific email parsers
 - Budget alerts and spend forecasting
@@ -268,7 +273,9 @@ Full plan: [docs/release-roadmap.md](docs/release-roadmap.md)
 
 ## Known limitations
 
-- Windows portable only today; unsigned executable may trigger SmartScreen
+- Builds are unsigned: Windows SmartScreen may warn, and macOS requires right-click → Open on first launch
+- macOS builds are Apple Silicon only and do not auto-update yet
+
 - Per-provider Spotify/YouTube OAuth is simulated — Gmail is the first real OAuth integration
 - Email-channel reminders are logged but not sent (no SMTP); push/desktop notifications are the working path
 - No cloud sync or multi-user support

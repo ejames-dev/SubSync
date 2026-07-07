@@ -92,7 +92,9 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 720,
     backgroundColor: '#f8fafc',
-    icon: getIconPath(),
+    // The .ico only decodes on Windows; macOS ignores the option and Linux
+    // AppImage gets its icon from the packaged desktop entry instead.
+    icon: process.platform === 'win32' ? getIconPath() : undefined,
     webPreferences: {
       contextIsolation: true,
       sandbox: true,

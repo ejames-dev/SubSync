@@ -9,6 +9,13 @@ let status = {
 
 let updaterConfigured = false;
 
+// electron-updater refuses to install updates into an unsigned app on macOS,
+// so surface a clear disabled state instead of a code-signature error at
+// download time. Revisit once macOS builds are signed.
+const UPDATES_SUPPORTED = process.platform !== 'darwin';
+const MACOS_UPDATES_MESSAGE =
+  'Automatic updates require a signed macOS build. Download new versions from GitHub Releases.';
+
 function getUpdateStatus() {
   return { ...status, currentVersion: app.getVersion() };
 }
@@ -24,6 +31,11 @@ function setStatus(patch) {
 function setupUpdater() {
   if (!app.isPackaged) {
     setStatus({ state: 'disabled', message: 'Updates are only available in packaged builds.' });
+    return;
+  }
+
+  if (!UPDATES_SUPPORTED) {
+    setStatus({ state: 'disabled', message: MACOS_UPDATES_MESSAGE });
     return;
   }
 
@@ -87,7 +99,7 @@ function setupUpdater() {
 async function checkForUpdates() {
   setupUpdater();
 
-  if (!app.isPackaged) {
+  if (!app.isPackaged || !UPDATES_SUPPORTED) {
     return getUpdateStatus();
   }
 
@@ -107,7 +119,7 @@ async function checkForUpdates() {
 async function downloadUpdate() {
   setupUpdater();
 
-  if (!app.isPackaged) {
+  if (!app.isPackaged || !UPDATES_SUPPORTED) {
     return getUpdateStatus();
   }
 

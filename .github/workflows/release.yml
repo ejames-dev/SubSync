@@ -1,0 +1,57 @@
+name: Release
+
+# Builds and publishes desktop artifacts for all platforms to a draft GitHub
+# Release named after the package.json version. Publish the draft manually
+# after running the checks in docs/release-checklist.md.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DATABASE_URL: 'file:./dev.db'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --win
+          - os: macos-latest
+            args: --mac
+          - os: ubuntu-latest
+            args: --linux
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # No macOS signing certificate is configured; build unsigned instead of
+      # failing identity auto-discovery.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace api
+
+      - name: Build desktop bundle
+        run: npm run build:desktop
+
+      - name: Package and publish
+        run: npx electron-builder ${{ matrix.args }} --publish always

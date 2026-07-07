@@ -1,6 +1,18 @@
 # SubSync Release Checklist
 
-## Windows build environment (first-time setup)
+## Platform builds
+Each platform's build must be produced **on that platform**: `prepare-dist.mjs`
+runs `npm install` for the runtime bundle on the build machine, so the Prisma
+query engine and any native modules only match the OS/arch they were installed
+on. The **Release** GitHub workflow (`.github/workflows/release.yml`) handles
+this — pushing a `v{version}` tag (or dispatching the workflow manually) builds
+Windows, macOS (Apple Silicon), and Linux artifacts and uploads them to a draft
+GitHub Release.
+
+Local packaging (`npm run dist:desktop`) produces the current platform's build
+only.
+
+## Windows build environment (first-time setup, local builds only)
 The desktop `.exe` (`electron-builder --win portable`) must be built on **native
 Windows** — it cannot be produced from WSL/Linux. `desktop/prepare-dist.mjs`
 shells out to `cmd.exe` for its `npm install` step, so a real Windows host is
@@ -24,7 +36,8 @@ required. Git Bash, PowerShell, or `cmd` all work; the commands below use Git Ba
 - Update `CHANGELOG.md` with the new version's entry and move planned items out of `[Unreleased]`
 
 ## Release contents
-- Publish with `npm run dist:desktop:publish` (requires `GH_TOKEN`) or upload `release/SubSync ${VERSION}.exe` and `release/latest.yml` to GitHub Releases manually
+- Push the `v${VERSION}` tag (or dispatch the **Release** workflow) so CI publishes all three platforms to a draft release; alternatively publish the current platform with `npm run dist:desktop:publish` (requires `GH_TOKEN`) or upload the `release/` artifacts and update manifests manually
+- Verify the draft release contains: `SubSync ${VERSION}.exe` + `latest.yml`, `SubSync ${VERSION}.dmg` + `SubSync ${VERSION}.zip` + `latest-mac.yml`, and `SubSync-${VERSION}.AppImage` + `latest-linux.yml`, then publish it
 - Include release notes that mention:
   - local SQLite storage
   - dashboard summary metrics

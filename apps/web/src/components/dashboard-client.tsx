@@ -47,6 +47,41 @@ const emptyDraft: DraftSubscription = {
   notes: '',
 };
 
+type SpendCategory = DashboardSummary['spendByCategory'][number]['category'];
+
+const categoryLabels: Record<SpendCategory, string> = {
+  streaming: 'Streaming',
+  music: 'Music',
+  gaming: 'Gaming',
+  other: 'Other',
+};
+
+const categoryStyles: Record<
+  SpendCategory,
+  { bar: string; bg: string; dot: string }
+> = {
+  streaming: {
+    bar: 'bg-cyan-500',
+    bg: 'bg-cyan-50',
+    dot: 'bg-cyan-500',
+  },
+  music: {
+    bar: 'bg-emerald-500',
+    bg: 'bg-emerald-50',
+    dot: 'bg-emerald-500',
+  },
+  gaming: {
+    bar: 'bg-amber-500',
+    bg: 'bg-amber-50',
+    dot: 'bg-amber-500',
+  },
+  other: {
+    bar: 'bg-slate-500',
+    bg: 'bg-slate-100',
+    dot: 'bg-slate-500',
+  },
+};
+
 export function DashboardClient() {
   const [services, setServices] = useState<ServiceProvider[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
@@ -301,20 +336,8 @@ export function DashboardClient() {
               <CardHeader>
                 <CardTitle>Spend by Category</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {summary?.spendByCategory.length ? (
-                  summary.spendByCategory.map((entry) => (
-                    <div
-                      key={entry.category}
-                      className="flex items-center justify-between text-sm text-slate-700"
-                    >
-                      <span className="capitalize">{entry.category}</span>
-                      <span>{formatCurrency(entry.monthlyEquivalentSpend)}/mo</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-slate-500">No category spend yet.</p>
-                )}
+              <CardContent>
+                <SpendByCategoryChart entries={summary?.spendByCategory ?? []} />
               </CardContent>
             </Card>
             <Card>
@@ -499,6 +522,90 @@ export function DashboardClient() {
           </CardContent>
         </Card>
       </section>
+    </div>
+  );
+}
+
+function SpendByCategoryChart({
+  entries,
+}: {
+  entries: DashboardSummary['spendByCategory'];
+}) {
+  const positiveEntries = entries.filter((entry) => entry.monthlyEquivalentSpend > 0);
+  const total = positiveEntries.reduce(
+    (sum, entry) => sum + entry.monthlyEquivalentSpend,
+    0,
+  );
+  const maxSpend = Math.max(
+    ...positiveEntries.map((entry) => entry.monthlyEquivalentSpend),
+    0,
+  );
+
+  if (!positiveEntries.length || total <= 0 || maxSpend <= 0) {
+    return <p className="text-sm text-slate-500">No category spend yet.</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <p className="text-sm text-slate-500">Monthly category mix</p>
+          <p className="text-sm font-medium text-slate-700">{formatCurrency(total)}/mo</p>
+        </div>
+        <div
+          className="flex h-3 overflow-hidden rounded-full bg-slate-100"
+          aria-label={`Monthly category spend totals ${formatCurrency(total)}`}
+        >
+          {positiveEntries.map((entry) => {
+            const percent = (entry.monthlyEquivalentSpend / total) * 100;
+            return (
+              <div
+                key={entry.category}
+                className={categoryStyles[entry.category].bar}
+                style={{ width: `${Math.max(percent, 3)}%` }}
+                title={`${categoryLabels[entry.category]}: ${formatCurrency(
+                  entry.monthlyEquivalentSpend,
+                )}/mo`}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {positiveEntries.map((entry) => {
+          const percentOfTotal = Math.round(
+            (entry.monthlyEquivalentSpend / total) * 100,
+          );
+          const percentOfMax = (entry.monthlyEquivalentSpend / maxSpend) * 100;
+          const styles = categoryStyles[entry.category];
+
+          return (
+            <div key={entry.category} className="space-y-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${styles.dot}`} />
+                  <span className="truncate font-medium text-slate-800">
+                    {categoryLabels[entry.category]}
+                  </span>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-medium text-slate-900">
+                    {formatCurrency(entry.monthlyEquivalentSpend)}/mo
+                  </p>
+                  <p className="text-xs text-slate-500">{percentOfTotal}%</p>
+                </div>
+              </div>
+              <div className={`h-2 overflow-hidden rounded-full ${styles.bg}`}>
+                <div
+                  className={`h-full rounded-full ${styles.bar}`}
+                  style={{ width: `${Math.max(percentOfMax, 4)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

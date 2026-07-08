@@ -97,8 +97,10 @@ Start the API and web UI (in separate terminals):
 
 ```bash
 npm run dev:api    # http://127.0.0.1:43100/api
-npm run dev:web    # http://127.0.0.1:43101
+npm run dev:web    # http://127.0.0.1:3000
 ```
+
+Open `http://127.0.0.1:3000/dashboard` for local web development. The packaged desktop app still uses `127.0.0.1:43101` for its bundled web server.
 
 Or launch the full Electron shell:
 
@@ -183,10 +185,11 @@ All routes are prefixed with `/api`.
 | --- | --- | --- |
 | `DATABASE_URL` | `file:./dev.db` | SQLite database path |
 | `API_PORT` | `43100` | NestJS API port |
-| `CORS_ORIGIN` | `http://127.0.0.1:43101` | Allowed web UI origin(s) |
+| `CORS_ORIGIN` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed local web UI origin(s) |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://127.0.0.1:43100/api` | API base URL for the web client |
 | `GOOGLE_OAUTH_CLIENT_ID` | — | Gmail OAuth client ID |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | — | Gmail OAuth client secret |
+| `GMAIL_OAUTH_RETURN_URL` | `http://127.0.0.1:3000/connect` | Web URL used after Gmail OAuth in local development |
 | `OAUTH_TOKEN_ENCRYPTION_KEY` | derived | Base64 32-byte key for token encryption |
 
 See [.env.example](.env.example) for the full list.
@@ -198,7 +201,7 @@ See [.env.example](.env.example) for the full list.
 | Command | Description |
 | --- | --- |
 | `npm run dev:api` | NestJS API in watch mode on port 43100 |
-| `npm run dev:web` | Next.js dev server on port 43101 |
+| `npm run dev:web` | Next.js dev server on port 3000 |
 | `npm run dev:desktop` | Launch Electron shell |
 | `npm run build` | Build types, API, and web |
 | `npm run build:desktop` | Build and stage Electron runtime |

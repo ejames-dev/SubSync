@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Automatic updates stay disabled on macOS until builds are signed; Settings
   explains this and points to GitHub Releases.
 
+### Changed
+- `docs/release-roadmap.md` rewritten for the post-v1.1.2 state: the June 2026
+  plan (largely shipped in v1.1.0–v1.1.2) is replaced with themed releases
+  through v2.0.0 — v1.2.0 "Cross-platform", v1.2.x signing patches, v1.3.0
+  "Smarter imports", v1.4.0 "Money awareness", and v2.0.0 "Beyond one
+  machine".
+
 ## [1.1.2] - 2026-07-02
 
 ### Fixed

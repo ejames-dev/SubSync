@@ -63,7 +63,7 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 
 ## Quick start (desktop)
 
-1. Download the latest build for your platform from [GitHub Releases](https://github.com/ejames-dev/SubSync/releases): `SubSync *.exe` for Windows, `SubSync *.dmg` for macOS Apple Silicon, or `SubSync-*.AppImage` for Linux.
+1. Download the latest build for your platform from [GitHub Releases](https://github.com/ejames-dev/SubSync/releases): `SubSync *.exe` for Windows, `SubSync *-arm64.dmg` for macOS Apple Silicon, or `SubSync-*.AppImage` for Linux.
 2. Launch it. Windows users should read [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md); macOS and Linux users should read [docs/macos-linux-desktop-quickstart.md](docs/macos-linux-desktop-quickstart.md).
 3. Open **Dashboard** to review spend and renewals.
 4. Open **Connections** to link Gmail or import billing emails.
@@ -226,11 +226,11 @@ Local packaging produces the current platform's artifact:
 
 ```text
 release/SubSync 1.1.2.exe        # Windows portable
-release/SubSync 1.1.2.dmg        # macOS on the build machine's architecture
+release/SubSync 1.1.2-arm64.dmg  # macOS Apple Silicon
 release/SubSync-1.1.2.AppImage   # Linux
 ```
 
-The `Release` GitHub workflow builds Windows, macOS, and Linux artifacts on the matching hosted runners and uploads them to a draft GitHub Release when a `v*` tag is pushed or the workflow is dispatched manually.
+The `Release` GitHub workflow builds Windows, macOS Apple Silicon, and Linux artifacts on matching hosted runners and uploads them to a draft GitHub Release when a `v*` tag is pushed or the workflow is dispatched manually.
 
 Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 

@@ -6,7 +6,7 @@ Each desktop artifact must be produced on its matching OS runner. `desktop/prepa
 The **Release** GitHub workflow (`.github/workflows/release.yml`) handles this for v1.2.0:
 
 - Windows runner: `SubSync ${VERSION}.exe`
-- macOS runner: `SubSync ${VERSION}.dmg`, `SubSync ${VERSION}.zip`
+- macOS Apple Silicon runner: `SubSync ${VERSION}-arm64.dmg`, `SubSync ${VERSION}-arm64.zip`
 - Linux runner: `SubSync-${VERSION}.AppImage`
 
 Local `npm run dist:desktop` packages only the platform you are currently running.
@@ -40,7 +40,7 @@ required. Git Bash, PowerShell, or `cmd` all work; the commands below use Git Ba
 - Confirm the workflow uploads artifacts to a draft GitHub Release.
 - Verify the draft release contains:
   - Windows: `SubSync ${VERSION}.exe`, `latest.yml`
-  - macOS: `SubSync ${VERSION}.dmg`, `SubSync ${VERSION}.zip`, `latest-mac.yml`
+  - macOS Apple Silicon: `SubSync ${VERSION}-arm64.dmg`, `SubSync ${VERSION}-arm64.zip`, `latest-mac.yml`
   - Linux: `SubSync-${VERSION}.AppImage`, `latest-linux.yml`
 - Publish the draft only after smoke tests pass.
 - Include release notes that mention:

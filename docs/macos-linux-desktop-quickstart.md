@@ -3,7 +3,7 @@
 ## Download
 1. Open the latest GitHub Release for SubSync.
 2. Download the artifact for your platform:
-   - macOS Apple Silicon: `SubSync {version}.dmg`
+   - macOS Apple Silicon: `SubSync {version}-arm64.dmg`
    - Linux: `SubSync-{version}.AppImage`
 3. Do not run builds from mirrors, email attachments, or unexpected download prompts.
 

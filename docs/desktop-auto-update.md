@@ -23,7 +23,7 @@ Auto-update is disabled when running `npm run dev:desktop` because `app.isPackag
 
 1. Bump `version` in the root `package.json`.
 2. Run the release checklist in `docs/release-checklist.md`.
-3. Push a `v{version}` tag or dispatch the **Release** workflow manually. The workflow builds on Windows, macOS, and Linux hosted runners and uploads artifacts to a draft GitHub Release.
+3. Push a `v{version}` tag or dispatch the **Release** workflow manually. The workflow builds on Windows, macOS Apple Silicon, and Linux hosted runners and uploads artifacts to a draft GitHub Release.
 
    Alternatively, publish the current platform from a machine with GitHub credentials available to `electron-builder`:
 
@@ -34,7 +34,7 @@ npm run dist:desktop:publish
 
 4. Verify the generated assets in the draft GitHub Release before publishing it:
    - Windows: `SubSync {version}.exe`, `latest.yml`
-   - macOS: `SubSync {version}.dmg`, `SubSync {version}.zip`, `latest-mac.yml`
+   - macOS Apple Silicon: `SubSync {version}-arm64.dmg`, `SubSync {version}-arm64.zip`, `latest-mac.yml`
    - Linux: `SubSync-{version}.AppImage`, `latest-linux.yml`
 
 ## GitHub configuration

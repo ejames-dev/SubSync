@@ -23,8 +23,10 @@ Copy `.env.example` to `.env` in the repo root (or set env vars for the API proc
 GOOGLE_OAUTH_CLIENT_ID="your-client-id"
 GOOGLE_OAUTH_CLIENT_SECRET="your-client-secret"
 GOOGLE_OAUTH_REDIRECT_URI="http://127.0.0.1:43100/api/gmail/callback"
-GMAIL_OAUTH_RETURN_URL="http://127.0.0.1:43101/connect"
+GMAIL_OAUTH_RETURN_URL="http://127.0.0.1:3000/connect"
 ```
+
+For the packaged desktop app, the bundled web UI runs on `127.0.0.1:43101`; local `npm run dev:web` uses Next.js on `127.0.0.1:3000`.
 
 Optional:
 

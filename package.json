@@ -87,6 +87,7 @@
     },
     "mac": {
       "category": "public.app-category.finance",
+      "artifactName": "SubSync ${version}-${arch}.${ext}",
       "target": [
         "dmg",
         "zip"

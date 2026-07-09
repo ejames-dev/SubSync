@@ -1,36 +1,30 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SubSync Web
 
-## Getting Started
+Next.js dashboard for SubSync. In normal development, run it from the repo root so the API base URL is set by the root script.
 
-First, run the development server:
+## Local development
+
+Start the API first:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd ../..
+npm run dev:api
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then start the web UI in a second terminal:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run dev:web
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+The root `dev:web` script starts Next.js on `http://127.0.0.1:3000` and sets `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:43100/api`.
 
-## Learn More
+Open `http://127.0.0.1:3000/dashboard`.
 
-To learn more about Next.js, take a look at the following resources:
+## Useful commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```bash
+npm run build --workspace web
+npm run lint --workspace web
+npm run format --workspace web
+```

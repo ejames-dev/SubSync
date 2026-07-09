@@ -1,16 +1,15 @@
 # SubSync Release Checklist
 
 ## Platform builds
-Each platform's build must be produced **on that platform**: `prepare-dist.mjs`
-runs `npm install` for the runtime bundle on the build machine, so the Prisma
-query engine and any native modules only match the OS/arch they were installed
-on. The **Release** GitHub workflow (`.github/workflows/release.yml`) handles
-this — pushing a `v{version}` tag (or dispatching the workflow manually) builds
-Windows, macOS (Apple Silicon), and Linux artifacts and uploads them to a draft
-GitHub Release.
+Each desktop artifact must be produced on its matching OS runner. `desktop/prepare-dist.mjs` installs the packaged runtime on the build machine, so Prisma engines and any native modules need to match the target OS.
 
-Local packaging (`npm run dist:desktop`) produces the current platform's build
-only.
+The **Release** GitHub workflow (`.github/workflows/release.yml`) handles this for v1.2.0:
+
+- Windows runner: `SubSync ${VERSION}.exe`
+- macOS runner: `SubSync ${VERSION}.dmg`, `SubSync ${VERSION}.zip`
+- Linux runner: `SubSync-${VERSION}.AppImage`
+
+Local `npm run dist:desktop` packages only the platform you are currently running.
 
 ## Windows build environment (first-time setup, local builds only)
 The desktop `.exe` (`electron-builder --win portable`) must be built on **native
@@ -29,25 +28,39 @@ required. Git Bash, PowerShell, or `cmd` all work; the commands below use Git Ba
 
 ## Before tagging
 - Run `npm run lint`
+- Run `npm run test`
 - Run `npm run test:e2e --workspace api`
 - Run `npm run build:desktop`
 - Run `npm run dist:desktop`
-- Smoke-test the generated `release/SubSync ${VERSION}.exe`
+- Smoke-test the local artifact generated for the current OS
 - Update `CHANGELOG.md` with the new version's entry and move planned items out of `[Unreleased]`
 
 ## Release contents
-- Push the `v${VERSION}` tag (or dispatch the **Release** workflow) so CI publishes all three platforms to a draft release; alternatively publish the current platform with `npm run dist:desktop:publish` (requires `GH_TOKEN`) or upload the `release/` artifacts and update manifests manually
-- Verify the draft release contains: `SubSync ${VERSION}.exe` + `latest.yml`, `SubSync ${VERSION}.dmg` + `SubSync ${VERSION}.zip` + `latest-mac.yml`, and `SubSync-${VERSION}.AppImage` + `latest-linux.yml`, then publish it
+- Push the `v${VERSION}` tag or dispatch the **Release** workflow manually.
+- Confirm the workflow uploads artifacts to a draft GitHub Release.
+- Verify the draft release contains:
+  - Windows: `SubSync ${VERSION}.exe`, `latest.yml`
+  - macOS: `SubSync ${VERSION}.dmg`, `SubSync ${VERSION}.zip`, `latest-mac.yml`
+  - Linux: `SubSync-${VERSION}.AppImage`, `latest-linux.yml`
+- Publish the draft only after smoke tests pass.
 - Include release notes that mention:
   - local SQLite storage
   - dashboard summary metrics
-  - connection persistence
-  - billing email import
+  - Gmail billing import and manual email import
+  - automatic SQLite migrations using the `_migrations` ledger
+  - desktop notifications and auto-update behavior
+  - unsigned Windows and macOS launch warnings, unless the release is code-signed
+  - macOS auto-update remains disabled until signing
 - Link the Windows quickstart guide in `docs/windows-portable-quickstart.md`
+- Link the macOS/Linux quickstart guide in `docs/macos-linux-desktop-quickstart.md`
+- If the release remains unsigned, call out the official download source and any checksum/hash users should verify.
 
 ## Manual checks
-- In the packaged app, open Settings and verify **Check for updates** reports the current version
 - Launch on a clean Windows user profile if available
+- Confirm the unsigned-build SmartScreen path is documented accurately for the release
+- Launch on macOS Apple Silicon with right-click Open and confirm Settings reports automatic updates as disabled until signing
+- Launch the Linux AppImage directly, confirm it has execute permission, and verify **Check for updates** reaches the GitHub release feed
+- In each packaged app, open Settings and verify **Check for updates** reports either the current version or the expected macOS disabled state
 - Create one manual subscription
 - Import one billing email
 - Confirm settings persist across restart
@@ -55,5 +68,5 @@ required. Git Bash, PowerShell, or `cmd` all work; the commands below use Git Ba
 
 ## Post-release
 - Verify the GitHub Release asset downloads correctly
-- Confirm the portable executable starts after extraction or direct download
+- Confirm Windows, macOS, and Linux artifacts start after download
 - Track any startup failures, SmartScreen complaints, or false-positive antivirus reports

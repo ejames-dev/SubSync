@@ -4,9 +4,9 @@
 
 **A local-first subscription command center for streaming, music, gaming, and media services.**
 
-SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a Windows portable desktop app.
+SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a desktop app.
 
-**Current version:** 1.1.2 · **Platforms:** Windows portable · macOS (Apple Silicon) · Linux AppImage
+**Current version:** 1.1.2 · **Platforms:** Windows portable · macOS Apple Silicon · Linux AppImage
 
 ---
 
@@ -52,9 +52,10 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 - One-click SQLite backup and restore from Settings
 
 ### Desktop app
-- Windows portable `.exe` (no installer required), macOS `.dmg` (Apple Silicon), and Linux AppImage
-- In-app auto-update from GitHub Releases (`electron-updater`) on Windows and Linux; disabled on macOS until builds are signed
-- Bundles API (`127.0.0.1:43100`) and web UI (`127.0.0.1:43101`)
+- Windows portable `.exe`, macOS `.dmg` / `.zip` for Apple Silicon, and Linux AppImage
+- Unsigned today; Windows SmartScreen may warn and macOS requires right-click Open until SubSync is signed
+- In-app auto-update from GitHub Releases (`electron-updater`) on Windows and Linux; macOS updates are disabled until signing
+- Bundles API (`127.0.0.1:43100`) and packaged web UI (`127.0.0.1:43101`)
 - Applies SQLite migrations automatically on first launch (tracked in a `_migrations` ledger)
 - Native OS notification polling while the app is running
 
@@ -62,8 +63,8 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 
 ## Quick start (desktop)
 
-1. Download the build for your platform from [GitHub Releases](https://github.com/ejames-dev/SubSync/releases): `SubSync *.exe` (Windows), `SubSync *.dmg` (macOS, Apple Silicon), or `SubSync-*.AppImage` (Linux, `chmod +x` before launching).
-2. Launch it. The builds are unsigned, so Windows SmartScreen may warn (see [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md)) and macOS Gatekeeper requires right-click → Open on first launch.
+1. Download the latest build for your platform from [GitHub Releases](https://github.com/ejames-dev/SubSync/releases): `SubSync *.exe` for Windows, `SubSync *.dmg` for macOS Apple Silicon, or `SubSync-*.AppImage` for Linux.
+2. Launch it. Windows users should read [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md); macOS and Linux users should read [docs/macos-linux-desktop-quickstart.md](docs/macos-linux-desktop-quickstart.md).
 3. Open **Dashboard** to review spend and renewals.
 4. Open **Connections** to link Gmail or import billing emails.
 5. Open **Settings** to set reminder lead time and enable desktop notifications.
@@ -81,13 +82,14 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 ```bash
 git clone https://github.com/ejames-dev/SubSync.git
 cd SubSync
-npm install --workspaces
+npm install
 ```
 
 Copy environment variables and initialize the database:
 
 ```bash
 cp .env.example .env
+cp .env apps/api/.env
 npm run prisma:migrate --workspace api
 npm run prisma:generate --workspace api
 npm run prisma:seed --workspace api
@@ -220,16 +222,15 @@ See [.env.example](.env.example) for the full list.
 npm run dist:desktop
 ```
 
-This packages the platform you run it on:
+Local packaging produces the current platform's artifact:
 
 ```text
-release/SubSync 1.1.2.exe        # Windows (portable)
-release/SubSync 1.1.2.dmg        # macOS (native arch of the build machine)
+release/SubSync 1.1.2.exe        # Windows portable
+release/SubSync 1.1.2.dmg        # macOS on the build machine's architecture
 release/SubSync-1.1.2.AppImage   # Linux
 ```
 
-The Release GitHub workflow builds all three platforms and publishes them to a
-draft GitHub Release when a `v*` tag is pushed.
+The `Release` GitHub workflow builds Windows, macOS, and Linux artifacts on the matching hosted runners and uploads them to a draft GitHub Release when a `v*` tag is pushed or the workflow is dispatched manually.
 
 Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
@@ -244,6 +245,7 @@ Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 | [docs/data-model-and-integrations.md](docs/data-model-and-integrations.md) | Schema and provider integration notes |
 | [docs/wireframes.md](docs/wireframes.md) | UI wireframes |
 | [docs/windows-portable-quickstart.md](docs/windows-portable-quickstart.md) | End-user desktop guide |
+| [docs/macos-linux-desktop-quickstart.md](docs/macos-linux-desktop-quickstart.md) | macOS and Linux desktop launch notes |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ---
@@ -264,8 +266,8 @@ Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
 ## Roadmap (v1.2+)
 
-- Code signing for the Windows and macOS builds (also unlocks macOS auto-update)
-- Intel macOS builds
+- Code signing for Windows and macOS builds
+- Intel or universal macOS builds
 - Spend-by-category chart on the dashboard
 - Expanded provider catalog and provider-specific email parsers
 - Budget alerts and spend forecasting
@@ -276,9 +278,8 @@ Full plan: [docs/release-roadmap.md](docs/release-roadmap.md)
 
 ## Known limitations
 
-- Builds are unsigned: Windows SmartScreen may warn, and macOS requires right-click → Open on first launch
-- macOS builds are Apple Silicon only and do not auto-update yet
-
+- Builds are unsigned: Windows SmartScreen may warn, and macOS requires right-click Open on first launch
+- macOS builds are Apple Silicon only and do not auto-update until signing is configured
 - Per-provider Spotify/YouTube OAuth is simulated — Gmail is the first real OAuth integration
 - Email-channel reminders are logged but not sent (no SMTP); push/desktop notifications are the working path
 - No cloud sync or multi-user support

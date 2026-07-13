@@ -55,6 +55,8 @@ function formatEventTitle(eventType: SubscriptionEvent['eventType']): string {
       return 'Status changed';
     case 'renewal':
       return 'Renewal';
+    case 'price_changed':
+      return 'Price changed';
     default:
       return 'Updated';
   }

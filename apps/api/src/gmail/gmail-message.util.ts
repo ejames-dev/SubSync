@@ -7,6 +7,7 @@ type GmailMessagePart = {
   parts?: GmailMessagePart[];
 };
 type GmailMessagePayload = {
+  mimeType?: string;
   headers?: GmailHeader[];
   body?: GmailBody;
   parts?: GmailMessagePart[];
@@ -41,6 +42,29 @@ export function extractPlainTextBody(message: GmailApiMessage): string {
   return chunks.join('\n').trim();
 }
 
+export function hasAuthenticatedSender(
+  message: GmailApiMessage,
+  sender: string,
+): boolean {
+  const senderDomain = sender.match(/@([a-z0-9.-]+)/i)?.[1]?.toLowerCase();
+  const authentication = extractHeader(message, 'Authentication-Results');
+  if (!senderDomain || !authentication) {
+    return false;
+  }
+  const authenticatedDomains = Array.from(
+    authentication.matchAll(
+      /\b(?:dkim|spf)\s*=\s*pass\b[^;]*(?:header\.(?:d|i)|smtp\.mailfrom)\s*=\s*@?([a-z0-9.-]+)/gi,
+    ),
+    (match) => match[1].toLowerCase(),
+  );
+  return authenticatedDomains.some(
+    (domain) =>
+      domain === senderDomain ||
+      domain.endsWith(`.${senderDomain}`) ||
+      senderDomain.endsWith(`.${domain}`),
+  );
+}
+
 function collectText(
   part: GmailMessagePart | GmailMessagePayload | undefined,
   chunks: string[],
@@ -50,6 +74,14 @@ function collectText(
   }
 
   const mimeType = 'mimeType' in part ? part.mimeType : undefined;
+  if (mimeType?.toLowerCase() === 'multipart/alternative') {
+    const preferred =
+      part.parts?.find((child) => child.mimeType === 'text/plain') ??
+      part.parts?.find((child) => child.mimeType === 'text/html') ??
+      part.parts?.[0];
+    collectText(preferred, chunks);
+    return;
+  }
   if (part.body?.data) {
     const decoded = decodeBase64Url(part.body.data);
     if (mimeType?.startsWith('text/plain') || !mimeType) {
@@ -77,7 +109,15 @@ function stripHtml(value: string): string {
   return value
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<(?:br|\/p|\/div|\/li|\/tr|\/td|\/th)>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/\n\s*\n+/g, '\n')
     .trim();
 }

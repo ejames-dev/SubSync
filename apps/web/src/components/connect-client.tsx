@@ -150,7 +150,7 @@ export function ConnectClient() {
       const result = await syncGmailBillingEmails();
       await refreshGmailStatus();
       setStatusMessage(
-        `Gmail sync complete: imported ${result.imported}, skipped ${result.skipped}, failed ${result.failed}.`,
+        `Gmail sync complete: imported ${result.imported}, review ${result.review}, skipped ${result.skipped}, failed ${result.failed}.`,
       );
     } catch (error) {
       setStatusMessage(
@@ -186,11 +186,16 @@ export function ConnectClient() {
         ...emailDraft,
         receivedAt: new Date().toISOString(),
       });
-      setConnectionState((current) => ({
-        ...current,
-        [result.subscription.serviceId]:
-          result.subscription.autoImportSource === 'email' ? 'manual' : 'connected',
-      }));
+      const importedSubscription = result.subscription;
+      if (importedSubscription) {
+        setConnectionState((current) => ({
+          ...current,
+          [importedSubscription.serviceId]:
+            importedSubscription.autoImportSource === 'email'
+              ? 'manual'
+              : 'connected',
+        }));
+      }
       setStatusMessage(result.message);
     } catch (error) {
       setStatusMessage(

@@ -8,19 +8,19 @@ export class ServiceCatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(): Promise<ServiceProvider[]> {
-    const services = await this.prisma.service.findMany();
-    if (services.length > 0) {
-      return services.map((service) => ({
-        id: service.id,
-        name: service.name,
-        category: service.category as ServiceProvider['category'],
-        supportsOAuth: service.supportsOAuth,
-        description: service.description ?? undefined,
-        logoUrl: service.logoUrl ?? undefined,
-      }));
-    }
     await this.seedDefaults();
-    return STREAMING_SERVICES;
+    const services = await this.prisma.service.findMany();
+    if (services.length === 0) {
+      return STREAMING_SERVICES;
+    }
+    return services.map((service) => ({
+      id: service.id,
+      name: service.name,
+      category: service.category as ServiceProvider['category'],
+      supportsOAuth: service.supportsOAuth,
+      description: service.description ?? undefined,
+      logoUrl: service.logoUrl ?? undefined,
+    }));
   }
 
   async ensureExists(id: string): Promise<boolean> {

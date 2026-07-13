@@ -12,6 +12,7 @@ import {
   extractPlainTextBody,
   getBillingSearchQuery,
   GmailApiMessage,
+  hasAuthenticatedSender,
 } from './gmail-message.util';
 
 type GmailListResponse = {
@@ -40,7 +41,7 @@ export class GmailSyncService {
     try {
       const result = await this.syncBillingEmails();
       this.logger.log(
-        `Scheduled Gmail sync complete: scanned=${result.scanned} imported=${result.imported} skipped=${result.skipped} failed=${result.failed}`,
+        `Scheduled Gmail sync complete: scanned=${result.scanned} imported=${result.imported} review=${result.review} skipped=${result.skipped} failed=${result.failed}`,
       );
     } catch (error) {
       this.logger.error(
@@ -60,6 +61,7 @@ export class GmailSyncService {
     let imported = 0;
     let skipped = 0;
     let failed = 0;
+    let review = 0;
 
     try {
       const accessToken = await this.gmailOAuth.getValidAccessToken();
@@ -93,14 +95,33 @@ export class GmailSyncService {
             subject,
             receivedAt,
             body,
+            externalMessageId: messageId,
+            source: 'gmail',
+            authenticatedSender: hasAuthenticatedSender(message, sender),
           });
 
-          await this.prisma.processedGmailMessage.create({
-            data: { messageId },
-          });
+          if (result.status !== 'failed') {
+            await this.prisma.processedGmailMessage.create({
+              data: { messageId },
+            });
+          }
 
           results.push(result);
-          imported += 1;
+          if (result.status === 'failed') {
+            failed += 1;
+          } else if (result.status === 'review' || result.status === 'mixed') {
+            review += 1;
+            if (result.subscriptions.length > 0) {
+              imported += 1;
+            }
+          } else if (
+            result.status === 'duplicate' ||
+            result.status === 'ignored'
+          ) {
+            skipped += 1;
+          } else {
+            imported += 1;
+          }
         } catch (error) {
           failed += 1;
           this.logger.warn(
@@ -119,6 +140,7 @@ export class GmailSyncService {
         imported,
         skipped,
         failed,
+        review,
         results,
         syncedAt: new Date().toISOString(),
       };

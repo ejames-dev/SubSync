@@ -66,13 +66,21 @@ describe('applyMigrations', () => {
         'IntegrationConnection',
         'GmailConnection',
         'PendingNotification',
+        'EmailReceipt',
+        'EmailReceiptItem',
         '_migrations',
       ]) {
         assert.ok(tables.includes(table), `missing table ${table}`);
       }
 
       const subscriptionColumns = columnNames(db, 'Subscription');
-      for (const column of ['nextRenewalReminderSent', 'statusChangedAt', 'snoozedUntil']) {
+      for (const column of [
+        'nextRenewalReminderSent',
+        'statusChangedAt',
+        'snoozedUntil',
+        'importKey',
+        'lastImportedAt',
+      ]) {
         assert.ok(subscriptionColumns.includes(column), `missing Subscription.${column}`);
       }
       assert.ok(columnNames(db, 'Service').includes('logoUrl'));
@@ -109,6 +117,7 @@ describe('applyMigrations', () => {
         '20260605140000_pending_notifications',
         '20260605200000_service_logo_url',
         '20260605201000_subscription_snooze',
+        '20260713120000_smarter_imports',
       ];
       assert.deepEqual(ordered, listRealMigrations());
       for (const name of ordered) {
@@ -153,6 +162,8 @@ describe('applyMigrations', () => {
       assert.ok(tableNames(db).includes('GmailConnection'));
       assert.ok(columnNames(db, 'Service').includes('logoUrl'));
       assert.ok(columnNames(db, 'Subscription').includes('snoozedUntil'));
+      assert.ok(columnNames(db, 'Subscription').includes('lastImportedAt'));
+      assert.ok(tableNames(db).includes('EmailReceipt'));
       assert.deepEqual(ledgerNames(db), listRealMigrations());
     });
   });

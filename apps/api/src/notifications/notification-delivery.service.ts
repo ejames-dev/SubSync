@@ -46,6 +46,15 @@ export class NotificationDeliveryService {
     title: string;
     body: string;
   }): Promise<PendingRenewalNotification> {
+    return this.queueNotification(input);
+  }
+
+  async queueNotification(input: {
+    subscriptionId: string;
+    channel: NotificationChannel;
+    title: string;
+    body: string;
+  }): Promise<PendingRenewalNotification> {
     const created = await this.prisma.pendingNotification.create({
       data: input,
     });

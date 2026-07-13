@@ -1,6 +1,10 @@
 export type SubscriptionStatus = 'active' | 'trial' | 'canceled_pending';
 export type BillingInterval = 'monthly' | 'yearly' | 'quarterly' | 'custom';
-export type SubscriptionEventType = 'created' | 'status_changed' | 'renewal';
+export type SubscriptionEventType =
+  | 'created'
+  | 'status_changed'
+  | 'renewal'
+  | 'price_changed';
 
 export interface ServiceProvider {
   id: string;
@@ -117,11 +121,73 @@ export interface AppUpdateStatus {
 }
 
 export interface EmailIngestResult {
-  status: 'created' | 'updated';
+  status:
+    | 'created'
+    | 'updated'
+    | 'ignored'
+    | 'review'
+    | 'mixed'
+    | 'failed'
+    | 'duplicate';
   inferredProvider: string;
-  subscription: Subscription;
+  subscription?: Subscription;
+  subscriptions: Subscription[];
+  receiptId: string;
+  items: EmailReceiptItem[];
   message: string;
   receivedAt: string;
+}
+
+export type EmailReceiptStatus =
+  | 'processing'
+  | 'imported'
+  | 'review'
+  | 'failed'
+  | 'rejected';
+
+export type EmailReceiptItemAction =
+  | 'created'
+  | 'updated'
+  | 'ignored'
+  | 'review'
+  | 'rejected';
+
+export interface EmailReceiptItem {
+  id: string;
+  receiptId: string;
+  serviceId?: string;
+  subscriptionId?: string;
+  providerName: string;
+  planName: string;
+  billingAmount: number;
+  billingCurrency: string;
+  billingInterval: BillingInterval;
+  nextRenewal: string;
+  paymentSource?: Subscription['paymentSource'];
+  paymentLast4?: string;
+  confidence: number;
+  action: EmailReceiptItemAction;
+  evidence: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmailReceipt {
+  id: string;
+  source: 'gmail' | 'manual';
+  externalMessageId?: string;
+  sender: string;
+  subject: string;
+  receivedAt: string;
+  parserId?: string;
+  parserVersion?: number;
+  status: EmailReceiptStatus;
+  confidence: number;
+  bodySnapshot?: string;
+  failureReason?: string;
+  createdAt: string;
+  reviewedAt?: string;
+  items: EmailReceiptItem[];
 }
 
 export interface GmailConnectionStatus {
@@ -142,6 +208,7 @@ export interface GmailSyncResult {
   imported: number;
   skipped: number;
   failed: number;
+  review: number;
   results: EmailIngestResult[];
   syncedAt: string;
 }

@@ -7,6 +7,7 @@ import { PrismaService } from './../src/prisma/prisma.service';
 describe('App (e2e)', () => {
   let app: INestApplication;
   const prismaMock = {
+    $transaction: jest.fn(),
     service: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -59,9 +60,25 @@ describe('App (e2e)', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    emailReceipt: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+    },
+    emailReceiptItem: {
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
+      deleteMany: jest.fn(),
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
+    prismaMock.$transaction.mockImplementation((callback) =>
+      callback(prismaMock),
+    );
     prismaMock.service.findMany.mockResolvedValue([]);
     prismaMock.service.findUnique.mockResolvedValue(null);
     prismaMock.service.upsert.mockImplementation(({ create }) =>
@@ -173,6 +190,43 @@ describe('App (e2e)', () => {
     });
     prismaMock.subscriptionEvent.findMany.mockResolvedValue([]);
     prismaMock.subscription.updateMany.mockResolvedValue({ count: 0 });
+    prismaMock.emailReceipt.findUnique.mockResolvedValue(null);
+    prismaMock.emailReceipt.findMany.mockResolvedValue([]);
+    prismaMock.emailReceipt.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: 'receipt_1',
+        ...data,
+        externalMessageId: data.externalMessageId ?? null,
+        parserId: null,
+        parserVersion: null,
+        status: 'processing',
+        overallConfidence: 0,
+        bodySnapshot: data.bodySnapshot ?? null,
+        failureReason: null,
+        createdAt: new Date('2026-03-17T12:00:00.000Z'),
+        reviewedAt: null,
+      }),
+    );
+    prismaMock.emailReceipt.update.mockImplementation(({ data }) =>
+      Promise.resolve({ id: 'receipt_1', ...data }),
+    );
+    prismaMock.emailReceiptItem.create.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: 'receipt_item_1',
+        ...data,
+        serviceId: data.serviceId ?? null,
+        subscriptionId: null,
+        paymentSource: data.paymentSource ?? null,
+        paymentLast4: data.paymentLast4 ?? null,
+        evidenceJson: data.evidenceJson ?? null,
+        createdAt: new Date('2026-03-17T12:00:00.000Z'),
+        updatedAt: new Date('2026-03-17T12:00:00.000Z'),
+      }),
+    );
+    prismaMock.emailReceiptItem.update.mockResolvedValue(undefined);
+    prismaMock.emailReceiptItem.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.emailReceiptItem.deleteMany.mockResolvedValue({ count: 0 });
+    prismaMock.emailReceiptItem.findMany.mockResolvedValue([]);
     prismaMock.pendingNotification.findMany.mockResolvedValue([]);
     prismaMock.pendingNotification.create.mockImplementation(({ data }) =>
       Promise.resolve({
@@ -314,7 +368,8 @@ describe('App (e2e)', () => {
       expect.objectContaining({
         status: 'created',
         inferredProvider: 'Netflix',
-        message: 'Created Netflix from email import.',
+        message: 'Imported 1 subscription from netflix.',
+        receiptId: 'receipt_1',
       }),
     );
     expect(prismaMock.subscription.create).toHaveBeenCalled();

@@ -13,6 +13,8 @@ function formatEventLabel(event: SubscriptionEvent) {
       return 'Status updated';
     case 'renewal':
       return 'Renewal logged';
+    case 'price_changed':
+      return 'Price changed';
     default:
       return 'Event';
   }

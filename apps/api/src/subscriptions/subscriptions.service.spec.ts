@@ -4,9 +4,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
 
 type PrismaMock = {
+  $transaction: jest.Mock;
   subscription: {
     findMany: jest.Mock;
     findUnique: jest.Mock;
+    findFirst: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
@@ -14,6 +16,9 @@ type PrismaMock = {
   subscriptionEvent: {
     create: jest.Mock;
     findMany: jest.Mock;
+  };
+  pendingNotification: {
+    create: jest.Mock;
   };
 };
 
@@ -24,9 +29,11 @@ describe('SubscriptionsService', () => {
 
   beforeEach(() => {
     prisma = {
+      $transaction: jest.fn(),
       subscription: {
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
@@ -35,7 +42,11 @@ describe('SubscriptionsService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
       },
+      pendingNotification: {
+        create: jest.fn(),
+      },
     };
+    prisma.$transaction.mockImplementation((callback) => callback(prisma));
 
     serviceCatalog = {
       ensureExists: jest
@@ -66,6 +77,8 @@ describe('SubscriptionsService', () => {
     statusChangedAt: new Date('2026-03-01T00:00:00.000Z'),
     createdAt: new Date('2026-03-01T00:00:00.000Z'),
     updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+    importKey: null,
+    lastImportedAt: null,
   });
 
   it('creates subscriptions and records an event', async () => {
@@ -188,6 +201,117 @@ describe('SubscriptionsService', () => {
       status: 'trial',
       notes: undefined,
       occurredAt: '2026-03-05T00:00:00.000Z',
+    });
+  });
+
+  it('records and returns an imported price change', async () => {
+    const existing = subscriptionEntity();
+    prisma.subscription.findFirst.mockResolvedValue(existing);
+    prisma.subscription.update.mockResolvedValue({
+      ...existing,
+      billingAmountCents: 1799,
+      autoImportSource: 'email',
+    });
+
+    const result = await service.upsertImported({
+      serviceId: 'svc_spotify',
+      planName: 'Premium',
+      billingAmount: 17.99,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: '2026-05-01T00:00:00.000Z',
+      autoImportSource: 'email',
+      priceChangeNotification: {
+        channels: ['push', 'email'],
+        title: 'Spotify price changed',
+      },
+    });
+
+    expect(prisma.subscriptionEvent.create).toHaveBeenCalledWith({
+      data: {
+        subscriptionId: 'sub_1',
+        eventType: 'price_changed',
+        status: 'active',
+        notes: 'Price changed from USD 15.00 to USD 17.99 via email import',
+      },
+    });
+    expect(result.priceChange).toEqual({
+      previousAmount: 15,
+      previousCurrency: 'USD',
+      newAmount: 17.99,
+      newCurrency: 'USD',
+    });
+    expect(prisma.pendingNotification.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not record a price change when an imported price is unchanged', async () => {
+    const existing = subscriptionEntity();
+    prisma.subscription.findFirst.mockResolvedValue(existing);
+    prisma.subscription.update.mockResolvedValue({
+      ...existing,
+      autoImportSource: 'email',
+    });
+
+    const result = await service.upsertImported({
+      serviceId: 'svc_spotify',
+      planName: 'Premium',
+      billingAmount: 15,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: '2026-05-01T00:00:00.000Z',
+      autoImportSource: 'email',
+    });
+
+    expect(prisma.subscriptionEvent.create).not.toHaveBeenCalled();
+    expect(result.priceChange).toBeUndefined();
+  });
+
+  it('ignores an older receipt instead of rolling a subscription backward', async () => {
+    const existing = {
+      ...subscriptionEntity(),
+      lastImportedAt: new Date('2026-06-01T00:00:00.000Z'),
+    };
+    prisma.subscription.findFirst.mockResolvedValue(existing);
+
+    const result = await service.upsertImported({
+      serviceId: 'svc_spotify',
+      planName: 'Premium',
+      billingAmount: 12,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: '2026-05-01T00:00:00.000Z',
+      observedAt: '2026-05-01T00:00:00.000Z',
+      importKey: 'spotify:account',
+      autoImportSource: 'email',
+    });
+
+    expect(result.mode).toBe('ignored');
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+    expect(prisma.subscriptionEvent.create).not.toHaveBeenCalled();
+  });
+
+  it('uses a stable import key before falling back to plan-name matching', async () => {
+    prisma.subscription.findFirst.mockResolvedValue(null);
+    prisma.subscription.create.mockResolvedValue({
+      ...subscriptionEntity(),
+      importKey: 'spotify:account',
+      lastImportedAt: new Date('2026-06-01T00:00:00.000Z'),
+    });
+
+    await service.upsertImported({
+      serviceId: 'svc_spotify',
+      planName: 'Spotify Individual',
+      billingAmount: 15,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: '2026-07-01T00:00:00.000Z',
+      observedAt: '2026-06-01T00:00:00.000Z',
+      importKey: 'spotify:account',
+      autoImportSource: 'email',
+    });
+
+    expect(prisma.subscription.findUnique).toHaveBeenCalledWith({
+      where: { importKey: 'spotify:account' },
     });
   });
 

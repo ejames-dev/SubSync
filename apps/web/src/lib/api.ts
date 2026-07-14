@@ -4,6 +4,7 @@ import type {
   DashboardSummary,
   DataBackupInfo,
   DataRestoreResult,
+  EmailReceipt,
   EmailIngestResult,
   GmailAuthUrlResponse,
   GmailConnectionStatus,
@@ -163,6 +164,40 @@ export function ingestEmail(payload: {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export function listEmailReceipts(status: EmailReceipt['status'] = 'review') {
+  return apiRequest<EmailReceipt[]>(
+    `/email-receipts?status=${encodeURIComponent(status)}`,
+  );
+}
+
+export function approveEmailReceiptItem(
+  receiptId: string,
+  itemId: string,
+  payload: {
+    serviceId: string;
+    planName: string;
+    billingAmount: number;
+    billingCurrency: string;
+    billingInterval: BillingInterval;
+    nextRenewal: string;
+  },
+) {
+  return apiRequest<EmailReceipt>(
+    `/email-receipts/${receiptId}/items/${itemId}/approve`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function rejectEmailReceiptItem(receiptId: string, itemId: string) {
+  return apiRequest<EmailReceipt>(
+    `/email-receipts/${receiptId}/items/${itemId}/reject`,
+    { method: 'POST' },
+  );
 }
 
 export function getGmailStatus() {

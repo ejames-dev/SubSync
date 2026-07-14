@@ -9,23 +9,24 @@ generator client {
 }
 
 model Service {
-  id            String                  @id
+  id            String                 @id
   name          String
   category      String
-  supportsOAuth Boolean                 @default(false)
+  supportsOAuth Boolean                @default(false)
   description   String?
   logoUrl       String?
   subscriptions Subscription[]
+  receiptItems  EmailReceiptItem[]
   integration   IntegrationConnection?
 }
 
 model IntegrationConnection {
-  providerId   String   @id
+  providerId   String    @id
   status       String
   source       String
-  connectedAt  DateTime @default(now())
+  connectedAt  DateTime  @default(now())
   lastSyncedAt DateTime?
-  updatedAt    DateTime @updatedAt
+  updatedAt    DateTime  @updatedAt
 
   service Service @relation(fields: [providerId], references: [id], onDelete: Restrict)
 }
@@ -37,27 +38,79 @@ model UserSettings {
 }
 
 model Subscription {
-  id                      String   @id @default(uuid())
+  id                      String    @id @default(uuid())
   serviceId               String
   planName                String
-  status                  String   @default("active")
+  status                  String    @default("active")
   billingAmountCents      Int
   billingCurrency         String
-  billingInterval         String   @default("monthly")
+  billingInterval         String    @default("monthly")
   nextRenewal             DateTime
   paymentSource           String?
   paymentLast4            String?
   autoImportSource        String?
   notes                   String?
-  nextRenewalReminderSent Boolean  @default(false)
+  nextRenewalReminderSent Boolean   @default(false)
   snoozedUntil            DateTime?
-  statusChangedAt         DateTime @default(now())
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  statusChangedAt         DateTime  @default(now())
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  importKey               String?   @unique
+  lastImportedAt          DateTime?
 
-  service              Service                @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  service              Service               @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   events               SubscriptionEvent[]
   pendingNotifications PendingNotification[]
+  receiptItems         EmailReceiptItem[]
+}
+
+model EmailReceipt {
+  id                String    @id @default(uuid())
+  source            String
+  externalMessageId String?   @unique
+  sender            String
+  subject           String
+  receivedAt        DateTime
+  parserId          String?
+  parserVersion     Int?
+  status            String    @default("processing")
+  overallConfidence Int       @default(0)
+  bodyHash          String
+  bodySnapshot      String?
+  failureReason     String?
+  createdAt         DateTime  @default(now())
+  reviewedAt        DateTime?
+
+  items EmailReceiptItem[]
+
+  @@index([status, receivedAt])
+}
+
+model EmailReceiptItem {
+  id             String   @id @default(uuid())
+  receiptId      String
+  serviceId      String?
+  subscriptionId String?
+  providerName   String
+  planName       String
+  amountCents    Int
+  currency       String
+  interval       String
+  renewalDate    DateTime
+  paymentSource  String?
+  paymentLast4   String?
+  confidence     Int
+  action         String   @default("review")
+  evidenceJson   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  receipt      EmailReceipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  service      Service?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([receiptId])
+  @@index([action, confidence])
 }
 
 model PendingNotification {

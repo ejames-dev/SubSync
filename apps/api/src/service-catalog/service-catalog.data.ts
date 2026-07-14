@@ -41,4 +41,28 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     description: 'TV + originals',
     logoUrl: 'https://logo.clearbit.com/hulu.com',
   },
+  {
+    id: 'svc_apple_tv_plus',
+    name: 'Apple TV+',
+    category: 'streaming',
+    supportsOAuth: false,
+    description: 'Apple original films and series',
+    logoUrl: 'https://logo.clearbit.com/apple.com',
+  },
+  {
+    id: 'svc_apple_music',
+    name: 'Apple Music',
+    category: 'music',
+    supportsOAuth: false,
+    description: 'Apple music streaming subscription',
+    logoUrl: 'https://logo.clearbit.com/apple.com',
+  },
+  {
+    id: 'svc_icloud_plus',
+    name: 'iCloud+',
+    category: 'other',
+    supportsOAuth: false,
+    description: 'Apple cloud storage subscription',
+    logoUrl: 'https://logo.clearbit.com/icloud.com',
+  },
 ];

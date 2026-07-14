@@ -1,5 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Subscription, SubscriptionEvent } from '@subscription-tracker/types';
+import {
+  NotificationChannel,
+  Subscription,
+  SubscriptionEvent,
+} from '@subscription-tracker/types';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,6 +13,36 @@ import {
   SubscriptionEvent as PrismaSubscriptionEvent,
 } from '../../prisma/generated/client';
 import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
+
+type ImportedSubscriptionInput = {
+  serviceId: string;
+  planName: string;
+  billingAmount: number;
+  billingCurrency: string;
+  billingInterval: Subscription['billingInterval'];
+  nextRenewal: string;
+  paymentSource?: Subscription['paymentSource'];
+  paymentLast4?: string;
+  notes?: string;
+  autoImportSource: NonNullable<Subscription['autoImportSource']>;
+  importKey?: string;
+  observedAt?: string;
+  priceChangeNotification?: {
+    channels: NotificationChannel[];
+    title: string;
+  };
+};
+
+type ImportedSubscriptionResult = {
+  mode: 'created' | 'updated' | 'ignored';
+  subscription: Subscription;
+  priceChange?: {
+    previousAmount: number;
+    previousCurrency: string;
+    newAmount: number;
+    newCurrency: string;
+  };
+};
 
 @Injectable()
 export class SubscriptionsService {
@@ -115,33 +149,58 @@ export class SubscriptionsService {
     return events.map((event) => this.toEventDomain(event));
   }
 
-  async upsertImported(input: {
-    serviceId: string;
-    planName: string;
-    billingAmount: number;
-    billingCurrency: string;
-    billingInterval: Subscription['billingInterval'];
-    nextRenewal: string;
-    paymentSource?: Subscription['paymentSource'];
-    paymentLast4?: string;
-    notes?: string;
-    autoImportSource: NonNullable<Subscription['autoImportSource']>;
-  }): Promise<{ mode: 'created' | 'updated'; subscription: Subscription }> {
+  async upsertImported(
+    input: ImportedSubscriptionInput,
+  ): Promise<ImportedSubscriptionResult> {
     await this.assertServiceExists(input.serviceId);
+    return this.prisma.$transaction((client) =>
+      this.upsertImportedInTransaction(input, client),
+    );
+  }
 
-    const existing = await this.prisma.subscription.findFirst({
-      where: {
-        serviceId: input.serviceId,
-        planName: input.planName,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+  private async upsertImportedInTransaction(
+    input: ImportedSubscriptionInput,
+    db: Prisma.TransactionClient,
+  ): Promise<ImportedSubscriptionResult> {
+    const byImportKey = input.importKey
+      ? await db.subscription.findUnique({
+          where: { importKey: input.importKey },
+        })
+      : null;
+    const existing =
+      byImportKey ??
+      (await db.subscription.findFirst({
+        where: input.paymentLast4
+          ? {
+              serviceId: input.serviceId,
+              OR: [
+                { planName: input.planName },
+                { paymentLast4: input.paymentLast4 },
+              ],
+            }
+          : { serviceId: input.serviceId, planName: input.planName },
+        orderBy: { updatedAt: 'desc' },
+      }));
 
     if (existing) {
-      const updated = await this.prisma.subscription.update({
+      const observedAt = input.observedAt
+        ? new Date(input.observedAt)
+        : new Date();
+      if (
+        existing.lastImportedAt &&
+        observedAt.getTime() < existing.lastImportedAt.getTime()
+      ) {
+        return { mode: 'ignored', subscription: this.toDomain(existing) };
+      }
+
+      const newAmountCents = this.toAmountCents(input.billingAmount);
+      const priceChanged =
+        existing.billingAmountCents !== newAmountCents ||
+        existing.billingCurrency !== input.billingCurrency;
+      const updated = await db.subscription.update({
         where: { id: existing.id },
         data: {
-          billingAmountCents: this.toAmountCents(input.billingAmount),
+          billingAmountCents: newAmountCents,
           billingCurrency: input.billingCurrency,
           billingInterval: input.billingInterval,
           nextRenewal: new Date(input.nextRenewal),
@@ -151,12 +210,46 @@ export class SubscriptionsService {
           autoImportSource: input.autoImportSource,
           status: 'active',
           nextRenewalReminderSent: false,
+          importKey: input.importKey ?? existing.importKey,
+          lastImportedAt: observedAt,
         },
       });
-      return { mode: 'updated', subscription: this.toDomain(updated) };
+
+      if (priceChanged) {
+        await this.recordEvent(
+          updated.id,
+          'price_changed',
+          this.toStatus(updated.status),
+          `Price changed from ${existing.billingCurrency} ${this.fromAmountCents(existing.billingAmountCents).toFixed(2)} to ${updated.billingCurrency} ${this.fromAmountCents(updated.billingAmountCents).toFixed(2)} via email import`,
+          db,
+        );
+        for (const channel of input.priceChangeNotification?.channels ?? []) {
+          await db.pendingNotification.create({
+            data: {
+              subscriptionId: updated.id,
+              channel,
+              title: input.priceChangeNotification?.title ?? 'Price changed',
+              body: `${input.planName} changed from ${existing.billingCurrency} ${this.fromAmountCents(existing.billingAmountCents).toFixed(2)} to ${updated.billingCurrency} ${this.fromAmountCents(updated.billingAmountCents).toFixed(2)}.`,
+            },
+          });
+        }
+      }
+
+      return {
+        mode: 'updated',
+        subscription: this.toDomain(updated),
+        priceChange: priceChanged
+          ? {
+              previousAmount: this.fromAmountCents(existing.billingAmountCents),
+              previousCurrency: existing.billingCurrency,
+              newAmount: this.fromAmountCents(updated.billingAmountCents),
+              newCurrency: updated.billingCurrency,
+            }
+          : undefined,
+      };
     }
 
-    const created = await this.prisma.subscription.create({
+    const created = await db.subscription.create({
       data: {
         status: 'active',
         autoImportSource: input.autoImportSource,
@@ -170,6 +263,10 @@ export class SubscriptionsService {
         paymentLast4: input.paymentLast4,
         notes: input.notes,
         nextRenewalReminderSent: false,
+        importKey: input.importKey,
+        lastImportedAt: input.observedAt
+          ? new Date(input.observedAt)
+          : new Date(),
       },
     });
     await this.recordEvent(
@@ -177,6 +274,7 @@ export class SubscriptionsService {
       'created',
       this.toStatus(created.status),
       'Imported from email',
+      db,
     );
     return { mode: 'created', subscription: this.toDomain(created) };
   }
@@ -248,8 +346,9 @@ export class SubscriptionsService {
     eventType: SubscriptionEvent['eventType'],
     status: Subscription['status'],
     notes?: string,
+    client: Pick<Prisma.TransactionClient, 'subscriptionEvent'> = this.prisma,
   ) {
-    await this.prisma.subscriptionEvent.create({
+    await client.subscriptionEvent.create({
       data: {
         subscriptionId,
         eventType,
@@ -310,7 +409,11 @@ export class SubscriptionsService {
   }
 
   private toEventType(value: string): SubscriptionEvent['eventType'] {
-    if (value === 'status_changed' || value === 'renewal') {
+    if (
+      value === 'status_changed' ||
+      value === 'renewal' ||
+      value === 'price_changed'
+    ) {
       return value;
     }
     return 'created';

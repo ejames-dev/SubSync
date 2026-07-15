@@ -8,6 +8,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: true,
     description: 'Premium music streaming',
     logoUrl: 'https://logo.clearbit.com/spotify.com',
+    cancelUrl: 'https://support.spotify.com/us/article/cancel-premium/',
   },
   {
     id: 'svc_youtube_premium',
@@ -16,6 +17,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: true,
     description: 'Ad-free YouTube + Music',
     logoUrl: 'https://logo.clearbit.com/youtube.com',
+    cancelUrl: 'https://support.google.com/youtube/answer/6308278',
   },
   {
     id: 'svc_netflix',
@@ -24,6 +26,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: false,
     description: 'On-demand series and films',
     logoUrl: 'https://logo.clearbit.com/netflix.com',
+    cancelUrl: 'https://www.netflix.com/cancelplan',
   },
   {
     id: 'svc_disney_plus',
@@ -32,6 +35,8 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: false,
     description: 'Disney, Marvel, Star Wars catalog',
     logoUrl: 'https://logo.clearbit.com/disneyplus.com',
+    cancelUrl:
+      'https://help.disneyplus.com/article/disneyplus-account-management-faq',
   },
   {
     id: 'svc_hulu',
@@ -40,6 +45,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: false,
     description: 'TV + originals',
     logoUrl: 'https://logo.clearbit.com/hulu.com',
+    cancelUrl: 'https://help.hulu.com/article/hulu-cancel-hulu-subscription',
   },
   {
     id: 'svc_apple_tv_plus',
@@ -48,6 +54,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: false,
     description: 'Apple original films and series',
     logoUrl: 'https://logo.clearbit.com/apple.com',
+    cancelUrl: 'https://support.apple.com/en-us/118398',
   },
   {
     id: 'svc_apple_music',
@@ -56,6 +63,7 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: false,
     description: 'Apple music streaming subscription',
     logoUrl: 'https://logo.clearbit.com/apple.com',
+    cancelUrl: 'https://support.apple.com/en-us/118399',
   },
   {
     id: 'svc_icloud_plus',
@@ -64,5 +72,6 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     supportsOAuth: false,
     description: 'Apple cloud storage subscription',
     logoUrl: 'https://logo.clearbit.com/icloud.com',
+    cancelUrl: 'https://support.apple.com/en-us/108318',
   },
 ];

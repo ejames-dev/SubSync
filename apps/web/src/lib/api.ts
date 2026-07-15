@@ -16,6 +16,7 @@ import type {
   Subscription,
   SubscriptionEvent,
   UserSettings,
+  YearlyReview,
 } from '@subscription-tracker/types';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:43100/api';
@@ -34,7 +35,10 @@ export function getApiBaseUrl() {
   );
 }
 
-async function apiRequest<T>(path: string, init?: ApiRequestOptions): Promise<T> {
+async function apiRequest<T>(
+  path: string,
+  init?: ApiRequestOptions
+): Promise<T> {
   const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
@@ -56,14 +60,20 @@ async function apiRequest<T>(path: string, init?: ApiRequestOptions): Promise<T>
   return (await response.json()) as T;
 }
 
-export const getSubscriptions = cache(() => apiRequest<Subscription[]>('/subscriptions'));
-export const getServices = cache(() => apiRequest<ServiceProvider[]>('/services'));
+export const getSubscriptions = cache(() =>
+  apiRequest<Subscription[]>('/subscriptions')
+);
+export const getServices = cache(() =>
+  apiRequest<ServiceProvider[]>('/services')
+);
 export const getSubscription = (id: string) =>
   apiRequest<Subscription>(`/subscriptions/${id}`);
 export const getSubscriptionEvents = (id: string) =>
   apiRequest<SubscriptionEvent[]>(`/subscriptions/${id}/events`);
 export const getRecentSubscriptionEvents = (limit = 5) =>
-  apiRequest<SubscriptionEvent[]>(`/subscriptions/events/recent?limit=${limit}`);
+  apiRequest<SubscriptionEvent[]>(
+    `/subscriptions/events/recent?limit=${limit}`
+  );
 export const getNotificationPreference = () =>
   apiRequest<NotificationPreference>('/notifications/preferences');
 export const updateNotificationPreference = (payload: {
@@ -87,6 +97,12 @@ export function getDashboardSummary() {
   return apiRequest<DashboardSummary>('/dashboard/summary');
 }
 
+export function getYearlyReview(year: number) {
+  return apiRequest<YearlyReview>(
+    `/insights/yearly-review?year=${encodeURIComponent(year)}`
+  );
+}
+
 export function createSubscription(payload: CreateSubscriptionPayload) {
   return apiRequest<Subscription>('/subscriptions', {
     method: 'POST',
@@ -96,7 +112,7 @@ export function createSubscription(payload: CreateSubscriptionPayload) {
 
 export function updateSubscription(
   id: string,
-  payload: Partial<CreateSubscriptionPayload>,
+  payload: Partial<CreateSubscriptionPayload>
 ) {
   return apiRequest<Subscription>(`/subscriptions/${id}`, {
     method: 'PATCH',
@@ -119,7 +135,7 @@ export function snoozeSubscription(id: string, days = 7) {
 
 export function connectIntegration(
   provider: string,
-  payload: Record<string, string>,
+  payload: Record<string, string>
 ) {
   return apiRequest<{
     connection: IntegrationConnection;
@@ -147,6 +163,8 @@ export function getSettings() {
 export function updateSettings(payload: {
   leadTimeDays: number;
   channels: Array<'email' | 'push'>;
+  monthlyBudgetCents: number | null;
+  budgetCurrency: string;
 }) {
   return apiRequest<UserSettings>('/settings', {
     method: 'PUT',
@@ -168,7 +186,7 @@ export function ingestEmail(payload: {
 
 export function listEmailReceipts(status: EmailReceipt['status'] = 'review') {
   return apiRequest<EmailReceipt[]>(
-    `/email-receipts?status=${encodeURIComponent(status)}`,
+    `/email-receipts?status=${encodeURIComponent(status)}`
   );
 }
 
@@ -182,21 +200,21 @@ export function approveEmailReceiptItem(
     billingCurrency: string;
     billingInterval: BillingInterval;
     nextRenewal: string;
-  },
+  }
 ) {
   return apiRequest<EmailReceipt>(
     `/email-receipts/${receiptId}/items/${itemId}/approve`,
     {
       method: 'POST',
       body: JSON.stringify(payload),
-    },
+    }
   );
 }
 
 export function rejectEmailReceiptItem(receiptId: string, itemId: string) {
   return apiRequest<EmailReceipt>(
     `/email-receipts/${receiptId}/items/${itemId}/reject`,
-    { method: 'POST' },
+    { method: 'POST' }
   );
 }
 
@@ -222,7 +240,7 @@ export function syncGmailBillingEmails() {
 
 export function getPendingNotifications(channel: 'push' | 'email' = 'push') {
   return apiRequest<PendingRenewalNotification[]>(
-    `/notifications/pending?channel=${channel}`,
+    `/notifications/pending?channel=${channel}`
   );
 }
 
@@ -232,10 +250,7 @@ export function acknowledgeNotification(id: string) {
   });
 }
 
-function getDownloadFileName(
-  response: Response,
-  fallback: string,
-): string {
+function getDownloadFileName(response: Response, fallback: string): string {
   const disposition = response.headers.get('Content-Disposition');
   const match = disposition?.match(/filename="([^"]+)"/);
   return match?.[1] ?? fallback;
@@ -252,7 +267,7 @@ function triggerBrowserDownload(blob: Blob, fileName: string) {
 
 export async function downloadSubscriptionExport(format: 'csv' | 'json') {
   const response = await fetch(
-    `${getApiBaseUrl()}/data/export/subscriptions?format=${format}`,
+    `${getApiBaseUrl()}/data/export/subscriptions?format=${format}`
   );
 
   if (!response.ok) {
@@ -263,7 +278,7 @@ export async function downloadSubscriptionExport(format: 'csv' | 'json') {
   const blob = await response.blob();
   triggerBrowserDownload(
     blob,
-    getDownloadFileName(response, `subsync-subscriptions.${format}`),
+    getDownloadFileName(response, `subsync-subscriptions.${format}`)
   );
 }
 
@@ -283,7 +298,9 @@ export async function downloadDatabaseBackup(fileName: string) {
   const response = await fetch(getDatabaseBackupDownloadUrl(fileName));
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || `Backup download failed with ${response.status}`);
+    throw new Error(
+      message || `Backup download failed with ${response.status}`
+    );
   }
 
   const blob = await response.blob();
@@ -310,7 +327,7 @@ export async function restoreDatabaseBackup(file: File) {
 export function restoreStoredDatabaseBackup(fileName: string) {
   return apiRequest<DataRestoreResult>(
     `/data/restore/${encodeURIComponent(fileName)}`,
-    { method: 'POST' },
+    { method: 'POST' }
   );
 }
 

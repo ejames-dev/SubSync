@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Money-awareness tools: configurable monthly budget alerts, a currency-safe
+  three-month renewal forecast, provider cancellation links with a
+  flagged-for-cancellation workflow, and an estimated yearly review of spend,
+  price increases, and subscriptions that may need attention.
 - macOS (Apple Silicon) and Linux (AppImage) desktop builds. `npm run
   dist:desktop` now packages the current platform's target, CI packages all
   three platforms on main, and a tag-triggered Release workflow builds and

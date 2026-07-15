@@ -19,15 +19,22 @@ interface Props {
 const STATUS_LABELS: Record<SubscriptionStatus, string> = {
   active: 'Active',
   trial: 'Trial',
+  flagged_for_cancellation: 'Review to cancel',
   canceled_pending: 'Cancels soon',
 };
 
-const STATUS_ORDER: SubscriptionStatus[] = ['active', 'trial', 'canceled_pending'];
+const STATUS_ORDER: SubscriptionStatus[] = [
+  'active',
+  'trial',
+  'flagged_for_cancellation',
+  'canceled_pending',
+];
 const STATUS_NONE_VALUE = 'none';
 
 const INITIAL_STATUS_FLAGS: Record<SubscriptionStatus, boolean> = {
   active: true,
   trial: true,
+  flagged_for_cancellation: true,
   canceled_pending: true,
 };
 
@@ -82,7 +89,12 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
         acc[subscription.status] += 1;
         return acc;
       },
-      { active: 0, trial: 0, canceled_pending: 0 } as Record<SubscriptionStatus, number>,
+      {
+        active: 0,
+        trial: 0,
+        flagged_for_cancellation: 0,
+        canceled_pending: 0,
+      } as Record<SubscriptionStatus, number>,
     );
   }, [subscriptions]);
 
@@ -156,7 +168,7 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {STATUS_ORDER.map((status) => (
           <button
             key={status}
@@ -220,7 +232,7 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
                     <p className="text-sm text-slate-600">“{summarizeNote(subscription.notes)}”</p>
                   )}
                 </CardHeader>
-                <CardContent className="flex items-center justify-between">
+                <CardContent className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-2xl font-semibold text-slate-900">
                       {formatCurrency(
@@ -230,12 +242,24 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
                     </p>
                     <p className="text-xs text-slate-500">/{subscription.billingInterval}</p>
                   </div>
-                  <Link
-                    href={`/subscriptions/${subscription.id}`}
-                    className="text-sm font-medium text-blue-600 hover:underline"
-                  >
-                    Manage →
-                  </Link>
+                  <div className="flex flex-col items-end gap-2">
+                    {service?.cancelUrl && (
+                      <a
+                        href={service.cancelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
+                      >
+                        Cancellation guide ↗
+                      </a>
+                    )}
+                    <Link
+                      href={`/subscriptions/${subscription.id}`}
+                      className="text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      Manage →
+                    </Link>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -266,6 +290,7 @@ function decodeStatusParam(param: string | null): Record<SubscriptionStatus, boo
     return {
       active: false,
       trial: false,
+      flagged_for_cancellation: false,
       canceled_pending: false,
     };
   }

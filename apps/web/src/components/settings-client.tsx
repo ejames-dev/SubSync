@@ -21,6 +21,8 @@ export function SettingsClient() {
   const [leadTimeDays, setLeadTimeDays] = useState('7');
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [pushEnabled, setPushEnabled] = useState(true);
+  const [monthlyBudget, setMonthlyBudget] = useState('');
+  const [budgetCurrency, setBudgetCurrency] = useState('USD');
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState<'csv' | 'json' | null>(null);
   const [backingUp, setBackingUp] = useState(false);
@@ -40,6 +42,10 @@ export function SettingsClient() {
       setLeadTimeDays(String(result.notificationPreference.leadTimeDays));
       setEmailEnabled(result.notificationPreference.channels.includes('email'));
       setPushEnabled(result.notificationPreference.channels.includes('push'));
+      setMonthlyBudget(
+        result.monthlyBudget ? String(result.monthlyBudget.amount) : ''
+      );
+      setBudgetCurrency(result.budgetCurrency);
     });
     void refreshBackups().catch(() => undefined);
   }, []);
@@ -51,7 +57,9 @@ export function SettingsClient() {
       await downloadSubscriptionExport(format);
       setStatusMessage(`Exported subscriptions as ${format.toUpperCase()}.`);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Export failed.');
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Export failed.'
+      );
     } finally {
       setExporting(null);
     }
@@ -66,7 +74,9 @@ export function SettingsClient() {
       await downloadDatabaseBackup(backup.fileName);
       setStatusMessage(`Backup saved as ${backup.fileName}.`);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Backup failed.');
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Backup failed.'
+      );
     } finally {
       setBackingUp(false);
     }
@@ -86,7 +96,9 @@ export function SettingsClient() {
       await refreshBackups();
       setStatusMessage(result.message);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Restore failed.');
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Restore failed.'
+      );
     } finally {
       setRestoring(false);
     }
@@ -100,7 +112,9 @@ export function SettingsClient() {
       await refreshBackups();
       setStatusMessage(result.message);
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Restore failed.');
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Restore failed.'
+      );
     } finally {
       setRestoring(false);
     }
@@ -120,12 +134,19 @@ export function SettingsClient() {
       const updated = await updateSettings({
         leadTimeDays: Number(leadTimeDays),
         channels,
+        monthlyBudgetCents:
+          monthlyBudget.trim() === ''
+            ? null
+            : Math.round(Number(monthlyBudget) * 100),
+        budgetCurrency,
       });
 
       setSettings(updated);
       setStatusMessage('Preferences saved locally.');
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Failed to save settings.');
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Failed to save settings.'
+      );
     } finally {
       setSaving(false);
     }
@@ -142,9 +163,10 @@ export function SettingsClient() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Reminder lead time</CardTitle>
+          <CardTitle>Alerts and monthly budget</CardTitle>
           <p className="text-sm text-slate-500">
-            Control how far ahead SubSync reminds you about renewals.
+            Control renewal reminders and get a one-time alert when tracked
+            monthly spend reaches your budget.
           </p>
         </CardHeader>
         <CardContent>
@@ -159,6 +181,40 @@ export function SettingsClient() {
                 className="mt-1 w-32 rounded-md border border-slate-300 px-3 py-2 text-sm"
               />
             </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-sm font-medium text-slate-700">
+                Monthly budget
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="No budget alert"
+                  value={monthlyBudget}
+                  onChange={(event) => setMonthlyBudget(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="text-sm font-medium text-slate-700">
+                Budget currency
+                <input
+                  required
+                  minLength={3}
+                  maxLength={3}
+                  value={budgetCurrency}
+                  onChange={(event) =>
+                    setBudgetCurrency(event.target.value.toUpperCase())
+                  }
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm uppercase"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-slate-500">
+              Subscriptions in other currencies stay visible but are not added
+              to this budget or its forecast.
+              {settings?.monthlyBudget?.alertTriggered
+                ? ' The current threshold alert has already been sent.'
+                : ''}
+            </p>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 text-sm text-slate-600">
                 <input
@@ -177,7 +233,9 @@ export function SettingsClient() {
                 Desktop / browser notifications
               </label>
             </div>
-            {statusMessage ? <p className="text-sm text-slate-600">{statusMessage}</p> : null}
+            {statusMessage ? (
+              <p className="text-sm text-slate-600">{statusMessage}</p>
+            ) : null}
             <Button className="w-fit" disabled={saving || settings === null}>
               {saving ? 'Saving...' : 'Save preferences'}
             </Button>
@@ -191,8 +249,8 @@ export function SettingsClient() {
         <CardHeader>
           <CardTitle>Export subscriptions</CardTitle>
           <p className="text-sm text-slate-500">
-            Download your subscription list as CSV or JSON for spreadsheets, migration, or
-            safekeeping.
+            Download your subscription list as CSV or JSON for spreadsheets,
+            migration, or safekeeping.
           </p>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
@@ -217,13 +275,17 @@ export function SettingsClient() {
         <CardHeader>
           <CardTitle>Backup and restore</CardTitle>
           <p className="text-sm text-slate-500">
-            Create a full SQLite backup of your local SubSync data or restore from a backup
-            file. Restoring automatically saves a safety copy of your current database first.
+            Create a full SQLite backup of your local SubSync data or restore
+            from a backup file. Restoring automatically saves a safety copy of
+            your current database first.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3">
-            <Button disabled={backingUp || restoring} onClick={() => void handleCreateBackup()}>
+            <Button
+              disabled={backingUp || restoring}
+              onClick={() => void handleCreateBackup()}
+            >
               {backingUp ? 'Creating backup...' : 'Create backup'}
             </Button>
             <label className="inline-flex">
@@ -241,7 +303,9 @@ export function SettingsClient() {
           </div>
           {backups.length ? (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-slate-700">Local backups</p>
+              <p className="text-sm font-medium text-slate-700">
+                Local backups
+              </p>
               <ul className="space-y-2 text-sm text-slate-600">
                 {backups.map((backup) => (
                   <li
@@ -249,7 +313,9 @@ export function SettingsClient() {
                     className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 px-3 py-2"
                   >
                     <div>
-                      <p className="font-medium text-slate-800">{backup.fileName}</p>
+                      <p className="font-medium text-slate-800">
+                        {backup.fileName}
+                      </p>
                       <p>
                         {new Date(backup.createdAt).toLocaleString()} ·{' '}
                         {Math.max(1, Math.round(backup.sizeBytes / 1024))} KB
@@ -259,7 +325,9 @@ export function SettingsClient() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => void downloadDatabaseBackup(backup.fileName)}
+                        onClick={() =>
+                          void downloadDatabaseBackup(backup.fileName)
+                        }
                       >
                         Download
                       </Button>
@@ -267,7 +335,9 @@ export function SettingsClient() {
                         variant="outline"
                         size="sm"
                         disabled={restoring}
-                        onClick={() => void handleRestoreStored(backup.fileName)}
+                        onClick={() =>
+                          void handleRestoreStored(backup.fileName)
+                        }
                       >
                         Restore
                       </Button>
@@ -297,7 +367,7 @@ export function SettingsClient() {
             variant="outline"
             onClick={() =>
               navigator.clipboard.writeText(
-                settings?.emailForwardingAlias ?? 'subs+general@subsync.app',
+                settings?.emailForwardingAlias ?? 'subs+general@subsync.app'
               )
             }
           >

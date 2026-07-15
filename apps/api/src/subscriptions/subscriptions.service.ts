@@ -83,6 +83,14 @@ export class SubscriptionsService {
 
     const statusChanged =
       dto.status !== undefined && dto.status !== existing.status;
+    const nextAmountCents =
+      dto.billingAmount === undefined
+        ? existing.billingAmountCents
+        : this.toAmountCents(dto.billingAmount);
+    const nextCurrency = dto.billingCurrency ?? existing.billingCurrency;
+    const priceChanged =
+      nextAmountCents !== existing.billingAmountCents ||
+      nextCurrency !== existing.billingCurrency;
     const updateData = this.mapDtoToUpdate(dto);
     if (statusChanged) {
       updateData.statusChangedAt = new Date();
@@ -98,6 +106,21 @@ export class SubscriptionsService {
         updated.id,
         'status_changed',
         this.toStatus(updated.status),
+      );
+    }
+
+    if (priceChanged) {
+      await this.recordEvent(
+        updated.id,
+        'price_changed',
+        this.toStatus(updated.status),
+        `Price changed from ${existing.billingCurrency} ${this.fromAmountCents(existing.billingAmountCents).toFixed(2)} to ${updated.billingCurrency} ${this.fromAmountCents(updated.billingAmountCents).toFixed(2)} via manual edit`,
+        {
+          previousAmountCents: existing.billingAmountCents,
+          previousCurrency: existing.billingCurrency,
+          amountCents: updated.billingAmountCents,
+          currency: updated.billingCurrency,
+        },
       );
     }
 
@@ -208,7 +231,10 @@ export class SubscriptionsService {
           paymentLast4: input.paymentLast4,
           notes: input.notes,
           autoImportSource: input.autoImportSource,
-          status: 'active',
+          status:
+            existing.status === 'flagged_for_cancellation'
+              ? existing.status
+              : 'active',
           nextRenewalReminderSent: false,
           importKey: input.importKey ?? existing.importKey,
           lastImportedAt: observedAt,
@@ -221,6 +247,12 @@ export class SubscriptionsService {
           'price_changed',
           this.toStatus(updated.status),
           `Price changed from ${existing.billingCurrency} ${this.fromAmountCents(existing.billingAmountCents).toFixed(2)} to ${updated.billingCurrency} ${this.fromAmountCents(updated.billingAmountCents).toFixed(2)} via email import`,
+          {
+            previousAmountCents: existing.billingAmountCents,
+            previousCurrency: existing.billingCurrency,
+            amountCents: updated.billingAmountCents,
+            currency: updated.billingCurrency,
+          },
           db,
         );
         for (const channel of input.priceChangeNotification?.channels ?? []) {
@@ -274,6 +306,7 @@ export class SubscriptionsService {
       'created',
       this.toStatus(created.status),
       'Imported from email',
+      undefined,
       db,
     );
     return { mode: 'created', subscription: this.toDomain(created) };
@@ -346,6 +379,12 @@ export class SubscriptionsService {
     eventType: SubscriptionEvent['eventType'],
     status: Subscription['status'],
     notes?: string,
+    amountSnapshot?: {
+      previousAmountCents: number;
+      previousCurrency: string;
+      amountCents: number;
+      currency: string;
+    },
     client: Pick<Prisma.TransactionClient, 'subscriptionEvent'> = this.prisma,
   ) {
     await client.subscriptionEvent.create({
@@ -354,6 +393,7 @@ export class SubscriptionsService {
         eventType,
         status,
         notes,
+        ...amountSnapshot,
       },
     });
   }
@@ -385,12 +425,26 @@ export class SubscriptionsService {
       eventType: this.toEventType(event.eventType),
       status: this.toStatus(event.status),
       notes: event.notes ?? undefined,
+      previousAmount:
+        event.previousAmountCents === null
+          ? undefined
+          : this.fromAmountCents(event.previousAmountCents),
+      previousCurrency: event.previousCurrency ?? undefined,
+      amount:
+        event.amountCents === null
+          ? undefined
+          : this.fromAmountCents(event.amountCents),
+      currency: event.currency ?? undefined,
       occurredAt: event.occurredAt.toISOString(),
     };
   }
 
   private toStatus(value: string): Subscription['status'] {
-    if (value === 'trial' || value === 'canceled_pending') {
+    if (
+      value === 'trial' ||
+      value === 'flagged_for_cancellation' ||
+      value === 'canceled_pending'
+    ) {
       return value;
     }
     return 'active';

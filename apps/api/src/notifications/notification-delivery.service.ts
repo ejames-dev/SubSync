@@ -50,7 +50,7 @@ export class NotificationDeliveryService {
   }
 
   async queueNotification(input: {
-    subscriptionId: string;
+    subscriptionId?: string;
     channel: NotificationChannel;
     title: string;
     body: string;
@@ -64,7 +64,7 @@ export class NotificationDeliveryService {
 
   private toDomain(record: {
     id: string;
-    subscriptionId: string;
+    subscriptionId: string | null;
     channel: string;
     title: string;
     body: string;
@@ -72,7 +72,7 @@ export class NotificationDeliveryService {
   }): PendingRenewalNotification {
     return {
       id: record.id,
-      subscriptionId: record.subscriptionId,
+      subscriptionId: record.subscriptionId ?? undefined,
       channel: record.channel as NotificationChannel,
       title: record.title,
       body: record.body,

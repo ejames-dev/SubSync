@@ -42,7 +42,7 @@ export class CreateSubscriptionDto {
   paymentLast4?: string;
 
   @IsOptional()
-  @IsIn(['active', 'trial', 'canceled_pending'])
+  @IsIn(['active', 'trial', 'flagged_for_cancellation', 'canceled_pending'])
   status?: Subscription['status'];
 
   @IsOptional()

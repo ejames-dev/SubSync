@@ -11,6 +11,7 @@ import { SettingsModule } from './settings/settings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DataModule } from './data/data.module';
 import { GmailModule } from './gmail/gmail.module';
+import { InsightsModule } from './insights/insights.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { GmailModule } from './gmail/gmail.module';
     IntegrationsModule,
     IngestModule,
     GmailModule,
+    InsightsModule,
     DataModule,
     NotificationPreferencesModule,
     ReminderModule,

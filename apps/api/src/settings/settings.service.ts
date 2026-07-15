@@ -18,40 +18,74 @@ export class SettingsService {
         id: SETTINGS_ID,
         leadTimeDays: 7,
         notificationChannels: JSON.stringify(['email', 'push']),
+        monthlyBudgetCents: null,
+        budgetCurrency: 'USD',
+        budgetAlertTriggered: false,
       },
     });
 
-    return this.toDomain(settings.leadTimeDays, settings.notificationChannels);
+    return this.toDomain(settings);
   }
 
   async updateSettings(dto: UpdateSettingsDto): Promise<UserSettings> {
+    const existing = await this.prisma.userSettings.findUnique({
+      where: { id: SETTINGS_ID },
+    });
+    const monthlyBudgetCents =
+      dto.monthlyBudgetCents === undefined
+        ? (existing?.monthlyBudgetCents ?? null)
+        : dto.monthlyBudgetCents;
+    const budgetCurrency = (
+      dto.budgetCurrency ??
+      existing?.budgetCurrency ??
+      'USD'
+    ).toUpperCase();
+    const budgetChanged =
+      !existing ||
+      existing.monthlyBudgetCents !== monthlyBudgetCents ||
+      existing.budgetCurrency !== budgetCurrency;
+
     const settings = await this.prisma.userSettings.upsert({
       where: { id: SETTINGS_ID },
       update: {
         leadTimeDays: dto.leadTimeDays,
         notificationChannels: JSON.stringify(dto.channels),
+        monthlyBudgetCents,
+        budgetCurrency,
+        ...(budgetChanged ? { budgetAlertTriggered: false } : {}),
       },
       create: {
         id: SETTINGS_ID,
         leadTimeDays: dto.leadTimeDays,
         notificationChannels: JSON.stringify(dto.channels),
+        monthlyBudgetCents,
+        budgetCurrency,
+        budgetAlertTriggered: false,
       },
     });
 
-    return this.toDomain(settings.leadTimeDays, settings.notificationChannels);
+    return this.toDomain(settings);
   }
 
-  private toDomain(
-    leadTimeDays: number,
-    notificationChannels: string,
-  ): UserSettings {
+  private toDomain(settings: {
+    leadTimeDays: number;
+    notificationChannels: string;
+    monthlyBudgetCents?: number | null;
+    budgetCurrency?: string | null;
+    budgetAlertTriggered?: boolean;
+  }): UserSettings {
+    const budgetCurrency = settings.budgetCurrency?.toUpperCase() ?? 'USD';
+    const monthlyBudgetCents =
+      typeof settings.monthlyBudgetCents === 'number'
+        ? settings.monthlyBudgetCents
+        : undefined;
     let channels: UserSettings['notificationPreference']['channels'] = [
       'email',
       'push',
     ];
 
     try {
-      const parsed = JSON.parse(notificationChannels);
+      const parsed = JSON.parse(settings.notificationChannels);
       if (Array.isArray(parsed)) {
         channels = parsed.filter(
           (value): value is 'email' | 'push' =>
@@ -65,10 +99,19 @@ export class SettingsService {
     return {
       notificationPreference: {
         id: SETTINGS_ID,
-        leadTimeDays,
+        leadTimeDays: settings.leadTimeDays,
         channels,
       },
       emailForwardingAlias: EMAIL_FORWARDING_ALIAS,
+      budgetCurrency,
+      monthlyBudget:
+        monthlyBudgetCents === undefined
+          ? undefined
+          : {
+              amount: monthlyBudgetCents / 100,
+              currency: budgetCurrency,
+              alertTriggered: settings.budgetAlertTriggered ?? false,
+            },
     };
   }
 }

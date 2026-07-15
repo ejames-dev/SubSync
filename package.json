@@ -4,6 +4,7 @@
   "private": true,
   "description": "SubSync desktop-packaged subscription tracker",
   "author": "Evan Newman",
+  "license": "AGPL-3.0-only",
   "main": "desktop/main.cjs",
   "packageManager": "npm@10.8.1",
   "workspaces": [

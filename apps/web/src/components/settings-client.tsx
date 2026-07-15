@@ -375,6 +375,43 @@ export function SettingsClient() {
           </Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Free and open-source software</CardTitle>
+          <p className="text-sm text-slate-500">
+            Copyright © 2026 Evan Newman. SubSync is licensed under the GNU
+            Affero General Public License v3.0 only and is provided without
+            warranty.
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-4 text-sm">
+          <a
+            className="font-medium text-emerald-700 underline-offset-4 hover:underline"
+            href="https://github.com/ejames-dev/SubSync"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Source code
+          </a>
+          <a
+            className="font-medium text-emerald-700 underline-offset-4 hover:underline"
+            href="https://github.com/ejames-dev/SubSync/blob/main/LICENSE"
+            target="_blank"
+            rel="noreferrer"
+          >
+            AGPL-3.0 license
+          </a>
+          <a
+            className="font-medium text-emerald-700 underline-offset-4 hover:underline"
+            href="https://github.com/ejames-dev/SubSync/blob/main/THIRD_PARTY_NOTICES.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Third-party notices
+          </a>
+        </CardContent>
+      </Card>
     </div>
   );
 }

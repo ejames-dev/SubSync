@@ -1,4 +1,8 @@
-export type SubscriptionStatus = 'active' | 'trial' | 'canceled_pending';
+export type SubscriptionStatus =
+  | 'active'
+  | 'trial'
+  | 'flagged_for_cancellation'
+  | 'canceled_pending';
 export type BillingInterval = 'monthly' | 'yearly' | 'quarterly' | 'custom';
 export type SubscriptionEventType =
   | 'created'
@@ -13,6 +17,7 @@ export interface ServiceProvider {
   supportsOAuth: boolean;
   description?: string;
   logoUrl?: string;
+  cancelUrl?: string;
 }
 
 export interface Subscription {
@@ -39,6 +44,10 @@ export interface SubscriptionEvent {
   eventType: SubscriptionEventType;
   status: SubscriptionStatus;
   notes?: string;
+  previousAmount?: number;
+  previousCurrency?: string;
+  amount?: number;
+  currency?: string;
   occurredAt: string;
 }
 
@@ -53,7 +62,7 @@ export interface NotificationPreference {
 
 export interface PendingRenewalNotification {
   id: string;
-  subscriptionId: string;
+  subscriptionId?: string;
   channel: NotificationChannel;
   title: string;
   body: string;
@@ -63,6 +72,12 @@ export interface PendingRenewalNotification {
 export interface UserSettings {
   notificationPreference: NotificationPreference;
   emailForwardingAlias: string;
+  budgetCurrency: string;
+  monthlyBudget?: {
+    amount: number;
+    currency: string;
+    alertTriggered: boolean;
+  };
 }
 
 export type IntegrationSource = 'oauth' | 'email' | 'manual';
@@ -87,6 +102,30 @@ export interface DashboardDuplicateGroup {
   count: number;
 }
 
+export interface DashboardBudgetStatus {
+  currency: string;
+  monthlyEquivalentSpend: number;
+  threshold?: number;
+  percentUsed?: number;
+  overBudget: boolean;
+  excludedCurrencyCount: number;
+}
+
+export interface SpendForecastMonth {
+  month: string;
+  amount: number;
+  renewalCount: number;
+}
+
+export interface SpendForecast {
+  currency: string;
+  total: number;
+  horizonStart: string;
+  horizonEnd: string;
+  excludedCurrencyCount: number;
+  months: SpendForecastMonth[];
+}
+
 export interface DashboardSummary {
   monthlyEquivalentSpend: number;
   activeSubscriptions: number;
@@ -100,6 +139,53 @@ export interface DashboardSummary {
   sourceBreakdown: Record<'manual' | 'email' | 'oauth', number>;
   spendByCategory: DashboardSpendByCategory[];
   duplicateSubscriptions: DashboardDuplicateGroup[];
+  budget: DashboardBudgetStatus;
+  forecast: SpendForecast;
+}
+
+export interface YearlyReviewSpendTotal {
+  currency: string;
+  amount: number;
+  renewalCount: number;
+  subscriptionCount: number;
+}
+
+export interface YearlyReviewPriceIncrease {
+  subscriptionId: string;
+  serviceId: string;
+  serviceName: string;
+  planName: string;
+  previousAmount: number;
+  newAmount: number;
+  increaseAmount: number;
+  increasePercent?: number;
+  currency: string;
+  occurredAt: string;
+  dataSource: 'structured' | 'legacy_note';
+}
+
+export interface YearlyReviewSignal {
+  subscriptionId: string;
+  serviceId: string;
+  serviceName: string;
+  planName: string;
+  reason: 'overdue_renewal' | 'stale_tracking_data';
+  detail: string;
+  lastActivityAt?: string;
+  nextRenewal: string;
+  confidence: 'low';
+}
+
+export interface YearlyReview {
+  year: number;
+  generatedAt: string;
+  periodStart: string;
+  periodEnd: string;
+  isEstimate: true;
+  methodology: string;
+  spendByCurrency: YearlyReviewSpendTotal[];
+  biggestPriceIncreases: YearlyReviewPriceIncrease[];
+  reviewSignals: YearlyReviewSignal[];
 }
 
 export type AppUpdateState =

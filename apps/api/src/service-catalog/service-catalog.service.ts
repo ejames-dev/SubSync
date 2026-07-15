@@ -20,6 +20,7 @@ export class ServiceCatalogService {
       supportsOAuth: service.supportsOAuth,
       description: service.description ?? undefined,
       logoUrl: service.logoUrl ?? undefined,
+      cancelUrl: service.cancelUrl ?? undefined,
     }));
   }
 
@@ -68,6 +69,7 @@ export class ServiceCatalogService {
       supportsOAuth: service.supportsOAuth,
       description: service.description ?? null,
       logoUrl: service.logoUrl ?? null,
+      cancelUrl: service.cancelUrl ?? null,
     };
   }
 }

@@ -3,9 +3,10 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { ServiceCatalogModule } from '../service-catalog/service-catalog.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
-  imports: [ServiceCatalogModule, SubscriptionsModule],
+  imports: [ServiceCatalogModule, SubscriptionsModule, SettingsModule],
   controllers: [DashboardController],
   providers: [DashboardService],
 })

@@ -20,6 +20,7 @@ describe('App (e2e)', () => {
       delete: jest.fn(),
     },
     userSettings: {
+      findUnique: jest.fn(),
       upsert: jest.fn(),
     },
     notificationPreference: {
@@ -105,8 +106,22 @@ describe('App (e2e)', () => {
         leadTimeDays: update?.leadTimeDays ?? create.leadTimeDays,
         notificationChannels:
           update?.notificationChannels ?? create.notificationChannels,
+        monthlyBudgetCents:
+          update?.monthlyBudgetCents ?? create.monthlyBudgetCents ?? null,
+        budgetCurrency:
+          update?.budgetCurrency ?? create.budgetCurrency ?? 'USD',
+        budgetAlertTriggered:
+          update?.budgetAlertTriggered ?? create.budgetAlertTriggered ?? false,
       }),
     );
+    prismaMock.userSettings.findUnique.mockResolvedValue({
+      id: 'default',
+      leadTimeDays: 7,
+      notificationChannels: JSON.stringify(['email', 'push']),
+      monthlyBudgetCents: null,
+      budgetCurrency: 'USD',
+      budgetAlertTriggered: false,
+    });
     prismaMock.notificationPreference.findUnique.mockResolvedValue(null);
     prismaMock.notificationPreference.create.mockImplementation(({ data }) =>
       Promise.resolve({
@@ -611,6 +626,7 @@ describe('App (e2e)', () => {
         channels: ['email', 'push'],
       },
       emailForwardingAlias: 'subs+general@subsync.app',
+      budgetCurrency: 'USD',
     });
 
     const updated = await request(app.getHttpServer())
@@ -628,6 +644,7 @@ describe('App (e2e)', () => {
         channels: ['email'],
       },
       emailForwardingAlias: 'subs+general@subsync.app',
+      budgetCurrency: 'USD',
     });
   });
 });

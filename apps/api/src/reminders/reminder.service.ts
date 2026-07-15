@@ -17,6 +17,7 @@ export class ReminderService {
   @Cron(CronExpression.EVERY_HOUR)
   async dispatchRenewalReminders() {
     await this.queueDueRenewalReminders();
+    await this.queueBudgetAlert();
   }
 
   async queueDueRenewalReminders(): Promise<number> {
@@ -26,7 +27,7 @@ export class ReminderService {
 
     const dueSubscriptions = await this.prisma.subscription.findMany({
       where: {
-        status: { in: ['active', 'trial'] },
+        status: { in: ['active', 'trial', 'flagged_for_cancellation'] },
         nextRenewalReminderSent: false,
         nextRenewal: { lte: cutoff },
       },
@@ -73,5 +74,140 @@ export class ReminderService {
       `Queued renewal reminders for ${dueSubscriptions.length} subscriptions`,
     );
     return dueSubscriptions.length;
+  }
+
+  async queueBudgetAlert(): Promise<number> {
+    const settings = await this.prisma.userSettings.findUnique({
+      where: { id: 'default' },
+    });
+    if (!settings?.monthlyBudgetCents) {
+      return 0;
+    }
+
+    const currency = settings.budgetCurrency.toUpperCase();
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        status: { in: ['active', 'trial', 'flagged_for_cancellation'] },
+      },
+      select: {
+        billingAmountCents: true,
+        billingCurrency: true,
+        billingInterval: true,
+      },
+    });
+    const monthlyEquivalentCents = Math.round(
+      subscriptions
+        .filter(
+          (subscription) =>
+            subscription.billingCurrency.toUpperCase() === currency,
+        )
+        .reduce(
+          (total, subscription) =>
+            total +
+            this.toMonthlyEquivalentCents(
+              subscription.billingAmountCents,
+              subscription.billingInterval,
+            ),
+          0,
+        ),
+    );
+
+    if (monthlyEquivalentCents < settings.monthlyBudgetCents) {
+      if (settings.budgetAlertTriggered) {
+        await this.prisma.userSettings.updateMany({
+          where: { id: settings.id, budgetAlertTriggered: true },
+          data: { budgetAlertTriggered: false },
+        });
+      }
+      return 0;
+    }
+
+    const channels = this.parseChannels(settings.notificationChannels);
+    if (!channels.length) {
+      return 0;
+    }
+
+    const claimed = await this.prisma.userSettings.updateMany({
+      where: {
+        id: settings.id,
+        budgetAlertTriggered: false,
+        monthlyBudgetCents: settings.monthlyBudgetCents,
+        budgetCurrency: settings.budgetCurrency,
+      },
+      data: { budgetAlertTriggered: true },
+    });
+    if (!claimed.count) {
+      return 0;
+    }
+
+    const spend = this.formatMoney(monthlyEquivalentCents, currency);
+    const threshold = this.formatMoney(settings.monthlyBudgetCents, currency);
+    const title = 'Monthly budget reached';
+    const body = `Your tracked monthly spend is ${spend}, at or above your ${threshold} budget.`;
+
+    try {
+      for (const channel of channels) {
+        if (channel === 'push') {
+          await this.notificationDelivery.queueNotification({
+            channel,
+            title,
+            body,
+          });
+        } else {
+          this.logger.log(`Email budget alert recorded: ${body}`);
+        }
+      }
+    } catch (error) {
+      await this.prisma.userSettings.updateMany({
+        where: { id: settings.id },
+        data: { budgetAlertTriggered: false },
+      });
+      throw error;
+    }
+
+    this.logger.log(`Queued monthly budget alert for ${currency}`);
+    return 1;
+  }
+
+  private toMonthlyEquivalentCents(
+    amountCents: number,
+    interval: string,
+  ): number {
+    switch (interval) {
+      case 'yearly':
+        return amountCents / 12;
+      case 'quarterly':
+        return amountCents / 3;
+      case 'monthly':
+      case 'custom':
+      default:
+        return amountCents;
+    }
+  }
+
+  private parseChannels(value: string): Array<'email' | 'push'> {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (channel): channel is 'email' | 'push' =>
+            channel === 'email' || channel === 'push',
+        );
+      }
+    } catch {
+      return [];
+    }
+    return [];
+  }
+
+  private formatMoney(amountCents: number, currency: string): string {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+      }).format(amountCents / 100);
+    } catch {
+      return `${currency} ${(amountCents / 100).toFixed(2)}`;
+    }
   }
 }

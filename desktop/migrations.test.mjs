@@ -84,6 +84,28 @@ describe('applyMigrations', () => {
         assert.ok(subscriptionColumns.includes(column), `missing Subscription.${column}`);
       }
       assert.ok(columnNames(db, 'Service').includes('logoUrl'));
+      assert.ok(columnNames(db, 'Service').includes('cancelUrl'));
+      for (const column of [
+        'monthlyBudgetCents',
+        'budgetCurrency',
+        'budgetAlertTriggered',
+      ]) {
+        assert.ok(columnNames(db, 'UserSettings').includes(column));
+      }
+      for (const column of [
+        'previousAmountCents',
+        'previousCurrency',
+        'amountCents',
+        'currency',
+      ]) {
+        assert.ok(columnNames(db, 'SubscriptionEvent').includes(column));
+      }
+
+      const pendingNotificationSubscriptionId = db
+        .prepare('PRAGMA table_info("PendingNotification")')
+        .all()
+        .find((column) => column.name === 'subscriptionId');
+      assert.equal(pendingNotificationSubscriptionId.notnull, 0);
 
       assert.deepEqual(ledgerNames(db), listRealMigrations());
     });
@@ -118,6 +140,7 @@ describe('applyMigrations', () => {
         '20260605200000_service_logo_url',
         '20260605201000_subscription_snooze',
         '20260713120000_smarter_imports',
+        '20260715120000_money_awareness',
       ];
       assert.deepEqual(ordered, listRealMigrations());
       for (const name of ordered) {

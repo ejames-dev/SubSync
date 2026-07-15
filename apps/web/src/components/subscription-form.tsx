@@ -18,10 +18,16 @@ interface Props {
 
 export function SubscriptionForm({ services, mode, initial }: Props) {
   const router = useRouter();
+  const [selectedServiceId, setSelectedServiceId] = useState(
+    initial?.serviceId ?? '',
+  );
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>(
     'idle',
   );
   const [error, setError] = useState<string | null>(null);
+  const selectedService = services.find(
+    (service) => service.id === selectedServiceId,
+  );
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -82,6 +88,7 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           name="serviceId"
           required
           defaultValue={initial?.serviceId ?? ''}
+          onChange={(event) => setSelectedServiceId(event.target.value)}
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
         >
           <option value="">Choose a service</option>
@@ -183,9 +190,31 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
         >
           <option value="active">Active</option>
           <option value="trial">Trial</option>
+          <option value="flagged_for_cancellation">Flagged for cancellation</option>
           <option value="canceled_pending">Cancels on next renewal</option>
         </select>
+        <p className="mt-1 text-xs text-slate-500">
+          Flagging keeps the subscription in spend totals and reminders until you
+          confirm it is canceled.
+        </p>
       </div>
+      {selectedService?.cancelUrl && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-950">Ready to cancel?</p>
+          <p className="mt-1 text-sm text-amber-900">
+            Open the provider&apos;s official cancellation instructions, then update
+            this subscription when the provider confirms the cancellation.
+          </p>
+          <a
+            href={selectedService.cancelUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-block text-sm font-medium text-amber-950 underline underline-offset-2"
+          >
+            Open cancellation guide ↗
+          </a>
+        </div>
+      )}
       <div>
         <label className="text-sm font-medium text-slate-700">Notes</label>
         <textarea

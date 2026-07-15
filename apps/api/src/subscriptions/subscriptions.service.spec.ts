@@ -142,6 +142,30 @@ describe('SubscriptionsService', () => {
     expect(result.status).toBe('trial');
   });
 
+  it('records a structured price event during a manual edit', async () => {
+    const entity = subscriptionEntity();
+    prisma.subscription.findUnique.mockResolvedValue(entity);
+    prisma.subscription.update.mockResolvedValue({
+      ...entity,
+      billingAmountCents: 1750,
+    });
+
+    await service.update('sub_1', { billingAmount: 17.5 });
+
+    expect(prisma.subscriptionEvent.create).toHaveBeenCalledWith({
+      data: {
+        subscriptionId: 'sub_1',
+        eventType: 'price_changed',
+        status: 'active',
+        notes: 'Price changed from USD 15.00 to USD 17.50 via manual edit',
+        previousAmountCents: 1500,
+        previousCurrency: 'USD',
+        amountCents: 1750,
+        currency: 'USD',
+      },
+    });
+  });
+
   it('returns mapped subscription events', async () => {
     const entity = subscriptionEntity();
     prisma.subscription.findUnique.mockResolvedValue(entity);
@@ -152,6 +176,10 @@ describe('SubscriptionsService', () => {
         eventType: 'created',
         status: 'active',
         notes: null,
+        previousAmountCents: null,
+        previousCurrency: null,
+        amountCents: null,
+        currency: null,
         occurredAt: new Date('2026-03-01T00:00:00.000Z'),
         createdAt: new Date('2026-03-01T00:00:00.000Z'),
       },
@@ -183,6 +211,10 @@ describe('SubscriptionsService', () => {
         eventType: 'status_changed',
         status: 'trial',
         notes: null,
+        previousAmountCents: null,
+        previousCurrency: null,
+        amountCents: null,
+        currency: null,
         occurredAt: new Date('2026-03-05T00:00:00.000Z'),
         createdAt: new Date('2026-03-05T00:00:00.000Z'),
       },
@@ -233,6 +265,10 @@ describe('SubscriptionsService', () => {
         eventType: 'price_changed',
         status: 'active',
         notes: 'Price changed from USD 15.00 to USD 17.99 via email import',
+        previousAmountCents: 1500,
+        previousCurrency: 'USD',
+        amountCents: 1799,
+        currency: 'USD',
       },
     });
     expect(result.priceChange).toEqual({
@@ -264,6 +300,33 @@ describe('SubscriptionsService', () => {
 
     expect(prisma.subscriptionEvent.create).not.toHaveBeenCalled();
     expect(result.priceChange).toBeUndefined();
+  });
+
+  it('preserves a cancellation flag when a new receipt is imported', async () => {
+    const existing = {
+      ...subscriptionEntity(),
+      status: 'flagged_for_cancellation',
+    };
+    prisma.subscription.findFirst.mockResolvedValue(existing);
+    prisma.subscription.update.mockImplementation(({ data }) =>
+      Promise.resolve({ ...existing, ...data, autoImportSource: 'email' }),
+    );
+
+    const result = await service.upsertImported({
+      serviceId: 'svc_spotify',
+      planName: 'Premium',
+      billingAmount: 15,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: '2026-05-01T00:00:00.000Z',
+      autoImportSource: 'email',
+    });
+
+    expect(prisma.subscription.update).toHaveBeenCalledWith({
+      where: { id: 'sub_1' },
+      data: expect.objectContaining({ status: 'flagged_for_cancellation' }),
+    });
+    expect(result.subscription.status).toBe('flagged_for_cancellation');
   });
 
   it('ignores an older receipt instead of rolling a subscription backward', async () => {

@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
+  { href: '/insights/yearly-review', label: 'Yearly review' },
   { href: '/connect', label: 'Connect' },
   { href: '/imports/review', label: 'Imports' },
   { href: '/subscriptions/new', label: 'Add subscription' },

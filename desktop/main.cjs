@@ -3,6 +3,8 @@ const { existsSync, mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const net = require('node:net');
 const { applyMigrations } = require('./migrations.cjs');
+const { resolveRuntimePath } = require('./runtime-path.cjs');
+const { getServerStatus } = require('./server-readiness.cjs');
 const {
   setupUpdater,
   getUpdateStatus,
@@ -21,14 +23,7 @@ let notificationPollTimer = null;
 let startupUrl = `http://${HOST}:${WEB_PORT}/dashboard`;
 
 function getRuntimePath(...parts) {
-  const appPath = app.getAppPath();
-  const packagedRuntime = resolve(appPath, 'runtime');
-
-  if (existsSync(packagedRuntime)) {
-    return resolve(packagedRuntime, ...parts);
-  }
-
-  return resolve(appPath, 'desktop', 'runtime', ...parts);
+  return resolveRuntimePath(app.getAppPath(), process.resourcesPath, ...parts);
 }
 
 function getPreloadPath() {
@@ -137,11 +132,11 @@ async function waitForServer(url, label) {
 
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(url);
-      if (response.ok) {
+      const status = await getServerStatus(url);
+      if (status >= 200 && status < 300) {
         return;
       }
-      lastError = new Error(`${label} responded with ${response.status}`);
+      lastError = new Error(`${label} responded with ${status}`);
     } catch (error) {
       lastError = error;
     }

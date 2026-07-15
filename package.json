@@ -1,6 +1,6 @@
 {
   "name": "subscription-tracker",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "private": true,
   "description": "SubSync desktop-packaged subscription tracker",
   "author": "Evan Newman",
@@ -20,7 +20,9 @@
     "dist:desktop:publish": "npm run build:desktop && electron-builder --win portable --publish always",
     "lint": "npm run lint --workspace @subscription-tracker/types && npm run lint --workspace api && npm run lint --workspace web",
     "test": "npm run test --workspace @subscription-tracker/types && npm run test --workspace api && npm run test --workspace web && npm run test:desktop",
-    "test:desktop": "node --test desktop/migrations.test.mjs",
+    "test:desktop": "node --test desktop/migrations.test.mjs desktop/runtime-path.test.mjs desktop/server-readiness.test.mjs",
+    "smoke:desktop:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File desktop/smoke-windows-package.ps1",
+    "manifest:desktop:windows": "node desktop/generate-update-manifest.mjs",
     "format": "npm run format --workspace @subscription-tracker/types && npm run format --workspace api && npm run format --workspace web"
   },
   "dependencies": {
@@ -66,11 +68,32 @@
       "app": "desktop/app",
       "output": "release"
     },
+    "files": [
+      "**/*",
+      "!runtime/web{,/**/*}"
+    ],
+    "disableDefaultIgnoredFiles": true,
+    "extraResources": [
+      {
+        "from": "desktop/app/runtime/web",
+        "to": "runtime/web",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "desktop/app/runtime/web/node_modules",
+        "to": "runtime/web/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "asarUnpack": [
       "runtime/api/prisma/generated/client/*.node",
       "runtime/api/prisma/generated/client/*.dll.node"
     ],
-    "artifactName": "SubSync ${version}.${ext}",
+    "artifactName": "SubSync-${version}.${ext}",
     "publish": {
       "provider": "github",
       "owner": "ejames-dev",
@@ -83,7 +106,7 @@
       ]
     },
     "portable": {
-      "artifactName": "SubSync ${version}.exe"
+      "artifactName": "SubSync-${version}.exe"
     }
   },
   "devDependencies": {

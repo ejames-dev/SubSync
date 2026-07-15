@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 - macOS and Linux desktop builds.
 
+## [1.1.3] - 2026-07-15
+
+### Fixed
+- The Windows portable app now starts its bundled Next.js server from a real
+  filesystem directory instead of Electron's ASAR archive. This fixes the
+  `ENOENT` startup failure caused by Next.js calling `process.chdir()` inside
+  `app.asar`.
+- The complete standalone web runtime, including its traced `node_modules`, is
+  included as a physical packaged resource.
+
+### Changed
+- Desktop readiness checks use bounded `node:http` probes, and the Windows
+  package pipeline now includes an automated launch smoke test that requires
+  HTTP 200 responses from both the API and dashboard.
+- Windows release assets use the stable `SubSync-{version}.exe` filename.
+
 ## [1.1.2] - 2026-07-02
 
 ### Fixed

@@ -4,7 +4,7 @@
 
 SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a Windows portable desktop app.
 
-**Current version:** 1.1.0 · **Platform:** Windows portable (macOS/Linux planned)
+**Current version:** 1.1.3 · **Platform:** Windows portable (macOS/Linux planned)
 
 ---
 
@@ -204,7 +204,7 @@ npm run dist:desktop
 Output:
 
 ```text
-release/SubSync 1.1.0.exe
+release/SubSync-1.1.3.exe
 ```
 
 Release checklist: [docs/release-checklist.md](docs/release-checklist.md)

@@ -2,11 +2,11 @@
 
 ## Download
 1. Open the latest GitHub Release for SubSync.
-2. Download `SubSync 1.0.0.exe`.
+2. Download `SubSync-1.1.3.exe`.
 3. Move the file somewhere you can keep it, such as `Downloads` or `Desktop`.
 
 ## Launch
-1. Double-click `SubSync 1.0.0.exe`.
+1. Double-click `SubSync-1.1.3.exe`.
 2. Wait for the local API, web UI, and SQLite database to initialize.
 3. If Windows SmartScreen appears, review the publisher warning and choose whether to continue.
 

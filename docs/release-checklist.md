@@ -17,14 +17,20 @@ required. Git Bash, PowerShell, or `cmd` all work; the commands below use Git Ba
 
 ## Before tagging
 - Run `npm run lint`
+- Run `npm run test`
 - Run `npm run test:e2e --workspace api`
 - Run `npm run build:desktop`
 - Run `npm run dist:desktop`
-- Smoke-test the generated `release/SubSync ${VERSION}.exe`
+- Run `npm run manifest:desktop:windows` and verify `release/latest.yml` names
+  the exact portable artifact.
+- Run `npm run smoke:desktop:windows` and require HTTP 200 responses from both
+  the packaged API and dashboard.
 - Update `CHANGELOG.md` with the new version's entry and move planned items out of `[Unreleased]`
 
 ## Release contents
-- Publish with `npm run dist:desktop:publish` (requires `GH_TOKEN`) or upload `release/SubSync ${VERSION}.exe` and `release/latest.yml` to GitHub Releases manually
+- Publish with `npm run dist:desktop:publish` (requires `GH_TOKEN`) or upload
+  `release/SubSync-${VERSION}.exe` and `release/latest.yml` to GitHub Releases
+  manually.
 - Include release notes that mention:
   - local SQLite storage
   - dashboard summary metrics

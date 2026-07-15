@@ -4,7 +4,7 @@ SubSync uses [`electron-updater`](https://www.electron.build/auto-update) with G
 
 ## How it works
 
-1. Packaged desktop builds publish `latest.yml` plus `SubSync {version}.exe` to GitHub Releases.
+1. Packaged desktop builds publish `latest.yml` plus `SubSync-{version}.exe` to GitHub Releases.
 2. The Electron main process checks the configured GitHub feed for a newer version.
 3. Users can open **Settings → Desktop updates** to check, download, and install an update.
 4. Portable builds download the new executable and relaunch through `quitAndInstall()`.
@@ -23,7 +23,7 @@ npm run dist:desktop:publish
 ```
 
 4. Upload or verify the generated assets in the GitHub Release:
-   - `SubSync {version}.exe`
+   - `SubSync-{version}.exe`
    - `latest.yml`
 
 ## GitHub configuration

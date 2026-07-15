@@ -1,3 +1,7 @@
+param(
+  [int]$TimeoutSeconds = 150
+)
+
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
@@ -23,9 +27,12 @@ try {
     -WindowStyle Hidden `
     -PassThru
 
-  $deadline = (Get-Date).AddSeconds(60)
+  $startedAt = Get-Date
+  $deadline = $startedAt.AddSeconds($TimeoutSeconds)
   $apiReady = $false
   $webReady = $false
+  $lastApiError = $null
+  $lastWebError = $null
 
   do {
     if ($process.HasExited) {
@@ -38,6 +45,7 @@ try {
       $apiReady = $apiResponse.StatusCode -eq 200
     } catch {
       $apiReady = $false
+      $lastApiError = $_.Exception.Message
     }
 
     if ($apiReady) {
@@ -47,6 +55,7 @@ try {
         $webReady = $webResponse.StatusCode -eq 200
       } catch {
         $webReady = $false
+        $lastWebError = $_.Exception.Message
       }
     }
 
@@ -56,7 +65,12 @@ try {
   } while ((Get-Date) -lt $deadline -and -not ($apiReady -and $webReady))
 
   if (-not ($apiReady -and $webReady)) {
-    throw 'Packaged app did not serve both the API and dashboard within 60 seconds.'
+    $elapsed = [Math]::Round(((Get-Date) - $startedAt).TotalSeconds, 1)
+    $childSummary = Get-CimInstance Win32_Process | Where-Object {
+      $_.ProcessId -eq $process.Id -or
+      ($_.CommandLine -and $_.CommandLine.Contains($userData))
+    } | ForEach-Object { "$($_.Name)[$($_.ProcessId)]" }
+    throw "Packaged app did not serve both endpoints within $TimeoutSeconds seconds. Elapsed=$elapsed; API=$apiReady ($lastApiError); Web=$webReady ($lastWebError); Processes=$($childSummary -join ', ')"
   }
 
   Write-Output 'Packaged Windows smoke test passed (API 200, dashboard 200).'

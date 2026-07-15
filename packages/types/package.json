@@ -17,7 +17,7 @@
     "types"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "type": "commonjs",
   "files": [
     "dist"

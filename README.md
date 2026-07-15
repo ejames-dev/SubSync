@@ -289,3 +289,18 @@ Full plan: [docs/release-roadmap.md](docs/release-roadmap.md)
 ## Author
 
 Evan Newman · [GitHub](https://github.com/ejames-dev/SubSync)
+
+---
+
+## License
+
+Copyright © 2026 Evan Newman.
+
+SubSync is free software licensed under the
+[GNU Affero General Public License v3.0 only](LICENSE). You may use, study,
+modify, and redistribute it under that license. Modified versions offered to
+users over a network must also provide those users access to the corresponding
+source code.
+
+SubSync is provided without warranty. Third-party components remain under
+their respective licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -33,13 +33,17 @@ required. Git Bash, PowerShell, or `cmd` all work; the commands below use Git Ba
 - Run `npm run build:desktop`
 - Run `npm run dist:desktop`
 - Smoke-test the local artifact generated for the current OS
+- On Windows, run `npm run manifest:desktop:windows` and verify `release/latest.yml`
+  names the exact portable artifact.
+- On Windows, run `npm run smoke:desktop:windows` and require HTTP 200 responses
+  from both the packaged API and dashboard.
 - Update `CHANGELOG.md` with the new version's entry and move planned items out of `[Unreleased]`
 
 ## Release contents
 - Push the `v${VERSION}` tag or dispatch the **Release** workflow manually.
 - Confirm the workflow uploads artifacts to a draft GitHub Release.
 - Verify the draft release contains:
-  - Windows: `SubSync ${VERSION}.exe`, `latest.yml`
+  - Windows: `SubSync-${VERSION}.exe`, `latest.yml`
   - macOS Apple Silicon: `SubSync ${VERSION}-arm64.dmg`, `SubSync ${VERSION}-arm64.zip`, `latest-mac.yml`
   - Linux: `SubSync-${VERSION}.AppImage`, `latest-linux.yml`
 - Publish the draft only after smoke tests pass.

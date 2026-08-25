@@ -33,7 +33,7 @@ npm run dist:desktop:publish
 ```
 
 4. Verify the generated assets in the draft GitHub Release before publishing it:
-   - Windows: `SubSync {version}.exe`, `latest.yml`
+   - Windows: `SubSync-{version}.exe`, `latest.yml`
    - macOS Apple Silicon: `SubSync {version}-arm64.dmg`, `SubSync {version}-arm64.zip`, `latest-mac.yml`
    - Linux: `SubSync-{version}.AppImage`, `latest-linux.yml`
 

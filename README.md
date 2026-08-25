@@ -6,7 +6,7 @@
 
 SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a desktop app.
 
-**Current version:** 1.1.2 · **Platforms:** Windows portable · macOS Apple Silicon · Linux AppImage
+**Current version:** 1.1.3 · **Platforms:** Windows portable · macOS Apple Silicon · Linux AppImage
 
 ---
 
@@ -225,9 +225,9 @@ npm run dist:desktop
 Local packaging produces the current platform's artifact:
 
 ```text
-release/SubSync 1.1.2.exe        # Windows portable
-release/SubSync 1.1.2-arm64.dmg  # macOS Apple Silicon
-release/SubSync-1.1.2.AppImage   # Linux
+release/SubSync-1.1.3.exe        # Windows portable
+release/SubSync 1.1.3-arm64.dmg  # macOS Apple Silicon
+release/SubSync-1.1.3.AppImage   # Linux
 ```
 
 The `Release` GitHub workflow builds Windows, macOS Apple Silicon, and Linux artifacts on matching hosted runners and uploads them to a draft GitHub Release when a `v*` tag is pushed or the workflow is dispatched manually.

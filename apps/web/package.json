@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",
+    "@sentry/nextjs": "^10.71.0",
     "@subscription-tracker/types": "file:../../packages/types",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

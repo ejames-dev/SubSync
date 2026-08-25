@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { IntegrationsModule } from './integrations/integrations.module';
@@ -15,6 +16,7 @@ import { InsightsModule } from './insights/insights.module';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ScheduleModule.forRoot(),
     PrismaModule,
     ServiceCatalogModule,

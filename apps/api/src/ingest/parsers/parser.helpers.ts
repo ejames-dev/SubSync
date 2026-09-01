@@ -28,24 +28,44 @@ export function emailContent(input: ReceiptEmailInput): string {
 }
 
 export function plainText(content: string): string {
-  return content
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>|<\/div>|<\/tr>|<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&pound;/gi, '£')
-    .replace(/&euro;/gi, '€')
-    .replace(/\r/g, '')
-    .replace(/[\t ]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return (
+    content
+      .replace(/<style\b[^>]*>[\s\S]*?<\s*\/\s*style\s*>/gi, ' ')
+      .replace(/<script\b[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>|<\/div>|<\/tr>|<\/li>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&pound;/gi, '£')
+      .replace(/&euro;/gi, '€')
+      // &amp; must unescape last: decoding it before the named entities above
+      // would turn a literal, already-single-encoded "&amp;pound;" into
+      // "&pound;" and then into "£", silently double-unescaping content that
+      // was never meant to become a currency symbol.
+      .replace(/&amp;/gi, '&')
+      .replace(/\r/g, '')
+      .replace(/[\t ]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }
 
+// A "From" header is never remotely this long (RFC 5322 caps an unfolded
+// line at 998 octets); bounding the input keeps the worst case for the
+// regex below trivially fast regardless of its polynomial degree.
+const MAX_SENDER_LENGTH = 998;
+
 export function senderDomain(sender: string): string | undefined {
-  const address = sender.match(/<?([^<>\s]+@[^<>\s]+)>?/)?.[1];
+  const bounded =
+    sender.length > MAX_SENDER_LENGTH
+      ? sender.slice(0, MAX_SENDER_LENGTH)
+      : sender;
+  // The local part excludes '@' so it can't overlap with the literal '@'
+  // that follows it -- without that exclusion, a string with no '@' at all
+  // (e.g. many repeated '!') forces the regex engine to try every possible
+  // split point between the two greedy groups, causing catastrophic
+  // backtracking (ReDoS) on attacker-controlled sender strings.
+  const address = bounded.match(/<?([^<>\s@]+@[^<>\s]+)>?/)?.[1];
   return address?.split('@')[1]?.toLowerCase();
 }
 

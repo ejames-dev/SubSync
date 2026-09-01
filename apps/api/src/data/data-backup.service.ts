@@ -12,7 +12,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { DataBackupInfo, DataRestoreResult } from '@subscription-tracker/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { getBackupDirectory, getSqliteFilePath } from './sqlite-path.util';
@@ -37,7 +37,7 @@ export class DataBackupService {
           name.startsWith(BACKUP_PREFIX) && name.endsWith(BACKUP_SUFFIX),
       )
       .map((fileName) => {
-        const filePath = join(backupDir, fileName);
+        const filePath = resolve(backupDir, fileName);
         const stats = statSync(filePath);
         return {
           fileName,
@@ -60,7 +60,7 @@ export class DataBackupService {
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const fileName = `${BACKUP_PREFIX}${timestamp}${BACKUP_SUFFIX}`;
-    const filePath = join(backupDir, fileName);
+    const filePath = resolve(backupDir, fileName);
 
     copyFileSync(databasePath, filePath);
     const stats = statSync(filePath);
@@ -75,7 +75,16 @@ export class DataBackupService {
 
   getBackupFilePath(fileName: string): string {
     this.assertSafeBackupFileName(fileName);
-    const filePath = join(getBackupDirectory(), fileName);
+    const backupDir = resolve(getBackupDirectory());
+    const filePath = resolve(backupDir, fileName);
+    // Belt-and-suspenders on top of assertSafeBackupFileName: resolve the
+    // joined path and require it to stay inside backupDir, so nothing
+    // resolvable outside that directory ever reaches the filesystem calls
+    // below, regardless of what the name-shape check above did or didn't
+    // catch.
+    if (filePath !== backupDir && !filePath.startsWith(backupDir + sep)) {
+      throw new BadRequestException('Invalid backup file name.');
+    }
     if (!existsSync(filePath)) {
       throw new NotFoundException(`Backup "${fileName}" not found`);
     }

@@ -1,13 +1,20 @@
 import {
   createCipheriv,
   createDecipheriv,
-  createHash,
   randomBytes,
+  scryptSync,
 } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
+const KEY_LENGTH = 32;
+// Fixed, application-specific salt for deriving the fallback encryption key
+// below. This only raises the cost of attacking that fallback secret (in
+// place of the single fast, unsalted hash CodeQL flags as
+// js/insufficient-password-hash) -- it is not a substitute for configuring
+// OAUTH_TOKEN_ENCRYPTION_KEY, which every real deployment should do.
+const KEY_DERIVATION_SALT = 'subsync-token-crypto-v1';
 
 @Injectable()
 export class TokenCryptoService {
@@ -30,7 +37,7 @@ export class TokenCryptoService {
       process.env.DATABASE_URL ??
       process.env.GOOGLE_OAUTH_CLIENT_SECRET ??
       'subsync-local-dev-key';
-    this.key = createHash('sha256').update(fallbackSource).digest();
+    this.key = scryptSync(fallbackSource, KEY_DERIVATION_SALT, KEY_LENGTH);
   }
 
   encrypt(plaintext: string): string {

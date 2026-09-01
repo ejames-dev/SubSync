@@ -106,18 +106,24 @@ function decodeBase64Url(value: string): string {
 }
 
 function stripHtml(value: string): string {
-  return value
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<(?:br|\/p|\/div|\/li|\/tr|\/td|\/th)>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n[ \t]+/g, '\n')
-    .replace(/\n\s*\n+/g, '\n')
-    .trim();
+  return (
+    value
+      .replace(/<style[\s\S]*?<\s*\/\s*style\s*>/gi, ' ')
+      .replace(/<script[\s\S]*?<\s*\/\s*script\s*>/gi, ' ')
+      .replace(/<(?:br|\/p|\/div|\/li|\/tr|\/td|\/th)>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      // &amp; must unescape last -- decoding it before &lt;/&gt;/&quot; would
+      // turn an already-single-encoded "&amp;lt;" into "&lt;" and then into
+      // "<", silently double-unescaping attacker-controlled email HTML into
+      // characters this function is supposed to be stripping.
+      .replace(/&amp;/gi, '&')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n[ \t]+/g, '\n')
+      .replace(/\n\s*\n+/g, '\n')
+      .trim()
+  );
 }

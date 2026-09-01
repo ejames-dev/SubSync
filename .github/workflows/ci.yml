@@ -128,3 +128,29 @@ jobs:
           name: subsync-linux-appimage
           path: release/*.AppImage
           retention-days: 14
+
+  # Tracks a Sentry release for apps/api once every platform package has
+  # built successfully, so a release is only ever finalized against a
+  # commit that's known to package cleanly everywhere.
+  sentry-release:
+    needs: [package-windows, package-macos, package-linux]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # set_commits: auto needs history back to the previous release to
+          # compute the commit range; a shallow checkout would only see HEAD.
+          fetch-depth: 0
+
+      - name: Create Sentry release
+        uses: getsentry/action-release@v3
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: evan-dx
+          SENTRY_PROJECT: subsync-api
+        with:
+          environment: production
+          set_commits: auto

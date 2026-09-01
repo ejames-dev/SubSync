@@ -30,8 +30,8 @@ export function emailContent(input: ReceiptEmailInput): string {
 export function plainText(content: string): string {
   return (
     content
-      .replace(/<style\b[^>]*>[\s\S]*?<\s*\/\s*style\s*>/gi, ' ')
-      .replace(/<script\b[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, ' ')
+      .replace(/<style\b[^>]*>[\s\S]*?<\s*\/\s*style\b[^>]*>/gi, ' ')
+      .replace(/<script\b[^>]*>[\s\S]*?<\s*\/\s*script\b[^>]*>/gi, ' ')
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/p>|<\/div>|<\/tr>|<\/li>/gi, '\n')
       .replace(/<[^>]+>/g, ' ')

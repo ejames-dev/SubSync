@@ -108,8 +108,8 @@ function decodeBase64Url(value: string): string {
 function stripHtml(value: string): string {
   return (
     value
-      .replace(/<style[\s\S]*?<\s*\/\s*style\s*>/gi, ' ')
-      .replace(/<script[\s\S]*?<\s*\/\s*script\s*>/gi, ' ')
+      .replace(/<style[\s\S]*?<\s*\/\s*style\b[^>]*>/gi, ' ')
+      .replace(/<script[\s\S]*?<\s*\/\s*script\b[^>]*>/gi, ' ')
       .replace(/<(?:br|\/p|\/div|\/li|\/tr|\/td|\/th)>/gi, '\n')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/gi, ' ')

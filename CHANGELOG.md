@@ -5,7 +5,7 @@ All notable changes to SubSync are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-09-04
 
 ### Added
 - Money-awareness tools: configurable monthly budget alerts, a currency-safe
@@ -19,13 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Linux AppImage builds auto-update through the existing Settings flow.
   Automatic updates stay disabled on macOS until builds are signed; Settings
   explains this and points to GitHub Releases.
+- Spend-by-category chart on the dashboard, built on the existing category
+  breakdown endpoint.
+- Smarter Gmail email receipt imports: richer parsing, a dedicated
+  `EmailReceipt` audit trail, and a review endpoint for low-confidence
+  parses.
+- Optional Sentry error tracking for the API and web app, off unless a host
+  sets `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`. Left unset in the published
+  desktop builds, so packaged releases send nothing.
 
 ### Changed
+- SubSync is now licensed under AGPL-3.0 (previously unlicensed); see
+  `LICENSE` and `THIRD_PARTY_NOTICES.md`.
 - `docs/release-roadmap.md` rewritten for the post-v1.1.2 state: the June 2026
   plan (largely shipped in v1.1.0–v1.1.2) is replaced with themed releases
   through v2.0.0 — v1.2.0 "Cross-platform", v1.2.x signing patches, v1.3.0
   "Smarter imports", v1.4.0 "Money awareness", and v2.0.0 "Beyond one
   machine".
+
+### Fixed
+- All 14 open CodeQL code-scanning alerts.
 
 ## [1.1.3] - 2026-07-15
 

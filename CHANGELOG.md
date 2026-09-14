@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-14
+
 ### Fixed
 - Windows portable releases now generate and publish `latest.yml` during
   `electron-builder --publish always`, restoring in-app auto-update for CI

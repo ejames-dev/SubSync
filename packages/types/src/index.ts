@@ -29,6 +29,7 @@ export interface Subscription {
   billingCurrency: string;
   billingInterval: BillingInterval;
   nextRenewal: string; // ISO date
+  trialEndsAt?: string;
   paymentSource?: 'card' | 'paypal' | 'gift' | 'other';
   paymentLast4?: string;
   autoImportSource?: 'oauth' | 'email' | 'manual';

@@ -343,4 +343,5 @@ type CreateSubscriptionPayload = {
   autoImportSource?: Subscription['autoImportSource'];
   notes?: string;
   status?: Subscription['status'];
+  trialEndsAt?: string;
 };

@@ -85,6 +85,100 @@ describe('ReminderService', () => {
     expect(notificationDelivery.queueRenewalReminder).not.toHaveBeenCalled();
   });
 
+  describe('trial-ending reminders', () => {
+    beforeEach(() => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-25T12:00:00.000Z'));
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('queues a countdown reminder once for trials ending within the lead time', async () => {
+      prisma.subscription.findMany.mockResolvedValue([
+        {
+          id: 'sub_trial',
+          planName: 'Premium',
+          billingAmountCents: 1099,
+          billingCurrency: 'USD',
+          billingInterval: 'monthly',
+          trialEndsAt: new Date('2026-09-28T00:00:00.000Z'),
+          service: { name: 'Peacock' },
+        },
+      ]);
+      const service = new ReminderService(
+        prisma as never,
+        notificationPreferences as never,
+        notificationDelivery as never,
+      );
+
+      await expect(service.queueTrialEndingReminders()).resolves.toBe(1);
+
+      expect(prisma.subscription.findMany).toHaveBeenCalledWith({
+        where: {
+          status: 'trial',
+          trialReminderSent: false,
+          trialEndsAt: {
+            not: null,
+            lte: new Date('2026-10-02T12:00:00.000Z'),
+          },
+        },
+        include: { service: true },
+      });
+      expect(notificationDelivery.queueRenewalReminder).toHaveBeenCalledWith({
+        subscriptionId: 'sub_trial',
+        channel: 'push',
+        title: 'Peacock trial ends in 3 days',
+        body: 'Premium trial ends on Sep 28, 2026. Cancel before then to avoid being billed $10.99 monthly.',
+      });
+      expect(prisma.subscription.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['sub_trial'] } },
+        data: { trialReminderSent: true },
+      });
+    });
+
+    it('words the reminder as ended when the trial date has passed', async () => {
+      prisma.subscription.findMany.mockResolvedValue([
+        {
+          id: 'sub_trial',
+          planName: 'Premium',
+          billingAmountCents: 1099,
+          billingCurrency: 'USD',
+          billingInterval: 'monthly',
+          trialEndsAt: new Date('2026-09-20T00:00:00.000Z'),
+          service: { name: 'Peacock' },
+        },
+      ]);
+      const service = new ReminderService(
+        prisma as never,
+        notificationPreferences as never,
+        notificationDelivery as never,
+      );
+
+      await service.queueTrialEndingReminders();
+
+      expect(notificationDelivery.queueRenewalReminder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Peacock trial has ended',
+          body: expect.stringContaining('trial ended on Sep 20, 2026'),
+        }),
+      );
+    });
+
+    it('does nothing when no trials are ending', async () => {
+      prisma.subscription.findMany.mockResolvedValue([]);
+      const service = new ReminderService(
+        prisma as never,
+        notificationPreferences as never,
+        notificationDelivery as never,
+      );
+
+      await expect(service.queueTrialEndingReminders()).resolves.toBe(0);
+      expect(notificationDelivery.queueRenewalReminder).not.toHaveBeenCalled();
+      expect(prisma.subscription.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
   it('queues a deduplicated budget alert using only the selected currency', async () => {
     prisma.userSettings.findUnique.mockResolvedValue({
       id: 'default',

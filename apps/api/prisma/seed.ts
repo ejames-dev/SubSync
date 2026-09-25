@@ -10,6 +10,7 @@ type SeedSubscription = {
   billingCurrency: string;
   billingInterval: 'monthly' | 'yearly' | 'quarterly' | 'custom';
   nextRenewal: Date;
+  trialEndsAt?: Date;
   paymentSource?: 'card' | 'paypal' | 'gift' | 'other';
   paymentLast4?: string;
   notes?: string;
@@ -85,6 +86,7 @@ const SAMPLE_SUBSCRIPTIONS: SeedSubscription[] = [
     billingCurrency: 'USD',
     billingInterval: 'monthly',
     nextRenewal: new Date('2026-03-30T12:00:00Z'),
+    trialEndsAt: new Date('2026-03-30T12:00:00Z'),
     paymentSource: 'other',
     notes: 'Intro promo via bundle',
     statusChangedAt: new Date('2026-03-05T12:00:00Z'),
@@ -145,6 +147,7 @@ async function seedSubscriptions() {
       billingCurrency: sample.billingCurrency,
       billingInterval: sample.billingInterval,
       nextRenewal: sample.nextRenewal,
+      trialEndsAt: sample.trialEndsAt ?? null,
       paymentSource: sample.paymentSource,
       paymentLast4: sample.paymentLast4,
       notes: sample.notes,

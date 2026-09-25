@@ -81,6 +81,8 @@ describe('applyMigrations', () => {
         'importKey',
         'lastImportedAt',
         'duplicateReviewedAt',
+        'trialEndsAt',
+        'trialReminderSent',
       ]) {
         assert.ok(subscriptionColumns.includes(column), `missing Subscription.${column}`);
       }
@@ -143,6 +145,7 @@ describe('applyMigrations', () => {
         '20260713120000_smarter_imports',
         '20260715120000_money_awareness',
         '20260925120000_duplicate_review',
+        '20260925130000_trial_tracking',
       ];
       assert.deepEqual(ordered, listRealMigrations());
       for (const name of ordered) {

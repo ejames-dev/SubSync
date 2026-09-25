@@ -67,5 +67,6 @@ Open **http://127.0.0.1:3000/dashboard** (not only `localhost`) so the browser o
 ### Gotchas
 
 - **CORS:** Default `.env.example` allows both `http://localhost:3000` and `http://127.0.0.1:3000`. Keep `CORS_ORIGIN` aligned with the browser origin you actually open.
+- **Next.js dev:** `apps/web/next.config.mjs` sets `allowedDevOrigins` for `127.0.0.1` and `localhost` so the dashboard hydrates when you open `http://127.0.0.1:3000/dashboard` (required on Next.js 16+).
 - **Prisma generate:** Run after `npm install` if the API fails to load `@prisma/client` / generated client.
 - **Legacy Postgres:** `docker-compose.yml` is not used; Prisma schema is SQLite-only.

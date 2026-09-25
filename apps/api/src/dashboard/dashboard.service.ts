@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DashboardSummary, Subscription } from '@subscription-tracker/types';
+import { toMonthlyEquivalent } from '../common/billing';
 import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -242,17 +243,10 @@ export class DashboardService {
   }
 
   private toMonthlyEquivalent(subscription: Subscription): number {
-    switch (subscription.billingInterval) {
-      case 'yearly':
-        return subscription.billingAmount / 12;
-      case 'quarterly':
-        return subscription.billingAmount / 3;
-      case 'custom':
-        return subscription.billingAmount;
-      case 'monthly':
-      default:
-        return subscription.billingAmount;
-    }
+    return toMonthlyEquivalent(
+      subscription.billingAmount,
+      subscription.billingInterval,
+    );
   }
 
   private isWithinDays(value: string, days: number): boolean {

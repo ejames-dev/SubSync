@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-25
+
+### Added
+- Duplicate review: a "Review duplicates" banner and dialog on the dashboard
+  let you pick the entry to keep and merge the rest into it, or mark a group
+  as not duplicates. Merging moves the removed entries' history, receipt
+  items, and pending notifications onto the kept subscription, keeps its
+  email import key so the next Gmail sync does not recreate the duplicate,
+  and records a `merged` event. A dismissed group stays hidden until a new
+  entry for that service appears. New endpoints:
+  `POST /api/subscriptions/duplicates/merge` and
+  `POST /api/subscriptions/duplicates/:serviceId/dismiss`.
+- Trial tracking: trial subscriptions now require a trial end date, the
+  subscriptions grid shows a countdown badge, and the reminder worker sends a
+  one-time "trial ends in N days" notification within your reminder lead
+  time.
+- Annual vs. monthly cost comparison: yearly and quarterly plans show their
+  monthly equivalent, and monthly plans show their yearly total, on
+  subscription cards and live in the subscription form.
+- Nine services in the built-in catalog, each with an official cancellation
+  link: Paramount+, Amazon Prime, Crunchyroll, HBO Max, Peacock, Xbox Game
+  Pass, PlayStation Plus, Nintendo Switch Online, and Audible.
+
+### Changed
+- Monthly-equivalent spend math is shared by the dashboard and budget alerts
+  (`apps/api/src/common/billing.ts`).
+- `prisma/seed.ts` now writes each service's `cancelUrl`.
+- `docs/release-roadmap.md` now reflects what shipped through v1.3.0.
+
+### Fixed
+- The subscription detail page (`/subscriptions/:id`) awaits its route params
+  as Next.js 16 requires. Before this fix, every "Manage" link showed the
+  not-found page.
+- The dashboard's recent activity feed refreshes after merges, snoozes, and
+  deletes instead of waiting for a full page reload.
+
 ## [1.2.1] - 2026-09-14
 
 ### Fixed

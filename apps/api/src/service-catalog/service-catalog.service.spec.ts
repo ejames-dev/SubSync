@@ -36,6 +36,57 @@ describe('ServiceCatalogService', () => {
     });
   });
 
+  it('ships a catalog with unique ids and names and an https cancel link for every entry', () => {
+    const ids = STREAMING_SERVICES.map((entry) => entry.id);
+    const names = STREAMING_SERVICES.map((entry) => entry.name.toLowerCase());
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(new Set(names).size).toBe(names.length);
+
+    for (const entry of STREAMING_SERVICES) {
+      expect(entry.id).toMatch(/^svc_[a-z0-9_]+$/);
+      expect(['streaming', 'music', 'gaming', 'other']).toContain(
+        entry.category,
+      );
+      expect(new URL(entry.cancelUrl ?? '').protocol).toBe('https:');
+      expect(new URL(entry.logoUrl ?? '').protocol).toBe('https:');
+    }
+  });
+
+  it('includes the expanded streaming, gaming, and membership services', () => {
+    expect(STREAMING_SERVICES.map((entry) => entry.name)).toEqual(
+      expect.arrayContaining([
+        'Paramount+',
+        'Amazon Prime',
+        'Crunchyroll',
+        'HBO Max',
+        'Peacock',
+        'Xbox Game Pass',
+        'PlayStation Plus',
+        'Nintendo Switch Online',
+        'Audible',
+      ]),
+    );
+  });
+
+  it('upserts new catalog entries into an existing database', async () => {
+    prisma.service.findMany.mockResolvedValue([]);
+
+    await service.findAll();
+
+    expect(prisma.service.upsert).toHaveBeenCalledTimes(
+      STREAMING_SERVICES.length,
+    );
+    expect(prisma.service.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'svc_xbox_game_pass' },
+        create: expect.objectContaining({
+          name: 'Xbox Game Pass',
+          category: 'gaming',
+        }),
+      }),
+    );
+  });
+
   it('returns persisted cancellation links through the service API', async () => {
     prisma.service.findMany.mockResolvedValue([
       {

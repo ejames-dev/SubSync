@@ -6,7 +6,7 @@
 
 SubSync helps you track plans, billing cadence, renewal dates, and monthly spend in one place — without cloud accounts or third-party data hosting. Everything runs on your machine: a NestJS API, a Next.js dashboard, and a SQLite database bundled inside a desktop app.
 
-**Current version:** 1.2.1 · **Platforms:** Windows portable · macOS Apple Silicon · Linux AppImage
+**Current version:** 1.3.0 · **Platforms:** Windows portable · macOS Apple Silicon · Linux AppImage
 
 ---
 
@@ -26,14 +26,15 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 ### Dashboard
 - Monthly equivalent spend and spend-by-category breakdown
 - Upcoming renewals list sorted by date, with per-subscription snooze
-- Active subscription count and duplicate-plan detection
+- Active subscription count and duplicate-plan detection, with a review dialog to merge duplicates or mark them as distinct
 - Recent activity feed of subscription status changes
 - Inline add/delete and quick navigation to subscription details
 
 ### Subscription management
 - Full CRUD for subscriptions (plan, amount, currency, interval, renewal date, payment method)
-- `SubscriptionEvent` audit log per subscription (created, status changed, renewal)
-- Pre-seeded catalog for Spotify, YouTube Premium, Netflix, Disney+, and Hulu
+- `SubscriptionEvent` audit log per subscription (created, status changed, renewal, price changed, merged)
+- Trial end dates with a countdown badge, and monthly/yearly cost equivalents for every plan
+- Built-in catalog of 17 services with official cancellation links, including Netflix, Disney+, Hulu, HBO Max, Peacock, Paramount+, Crunchyroll, Spotify, Apple Music, YouTube Premium, Xbox Game Pass, PlayStation Plus, Nintendo Switch Online, Amazon Prime, and Audible
 
 ### Import & connections
 - **Gmail OAuth** — read-only access to scan billing and subscription emails automatically
@@ -45,6 +46,7 @@ Most subscription trackers assume a hosted backend. SubSync is built for people 
 - Configurable lead time (days before renewal)
 - **Desktop / browser push notifications** delivered through the Electron shell or web client
 - Hourly background worker queues reminders for active and trial subscriptions
+- One-time "trial ends in N days" reminder before a trial converts to a paid plan
 - Unified notification preferences in Settings (shared by the UI and reminder worker)
 
 ### Data & backup
@@ -154,6 +156,8 @@ All routes are prefixed with `/api`.
 | `PATCH` | `/subscriptions/:id` | Update subscription |
 | `DELETE` | `/subscriptions/:id` | Delete subscription |
 | `POST` | `/subscriptions/:id/snooze` | Snooze an upcoming renewal |
+| `POST` | `/subscriptions/duplicates/merge` | Merge duplicate subscriptions into one (`{ keepId, removeIds }`) |
+| `POST` | `/subscriptions/duplicates/:serviceId/dismiss` | Mark a duplicate group as reviewed |
 | `GET` | `/subscriptions/:id/events` | Subscription event timeline |
 | `GET` | `/subscriptions/events/recent` | Recent status changes |
 | `GET` | `/dashboard/summary` | Dashboard KPIs and breakdowns |
@@ -240,7 +244,7 @@ Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
 | Doc | Contents |
 | --- | --- |
-| [docs/release-roadmap.md](docs/release-roadmap.md) | v1.1+ feature plan |
+| [docs/release-roadmap.md](docs/release-roadmap.md) | Shipped releases and upcoming plan |
 | [docs/architecture.md](docs/architecture.md) | System design and long-term vision |
 | [docs/data-model-and-integrations.md](docs/data-model-and-integrations.md) | Schema and provider integration notes |
 | [docs/wireframes.md](docs/wireframes.md) | UI wireframes |
@@ -264,13 +268,11 @@ Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
 ---
 
-## Roadmap (v1.2+)
+## Roadmap
 
-- Code signing for Windows and macOS builds
+- Code signing for Windows and macOS builds, which unblocks macOS auto-update
 - Intel or universal macOS builds
-- Spend-by-category chart on the dashboard
-- Expanded provider catalog and provider-specific email parsers
-- Budget alerts and spend forecasting
+- v2.0: file-based device sync, a read-only mobile companion, and other multi-device work
 
 Full plan: [docs/release-roadmap.md](docs/release-roadmap.md)
 

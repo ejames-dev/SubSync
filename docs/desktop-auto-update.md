@@ -6,7 +6,7 @@ SubSync uses [`electron-updater`](https://www.electron.build/auto-update) with G
 
 | Platform | Auto-update | Update manifest | Notes |
 | --- | --- | --- | --- |
-| Windows portable | Yes | `latest.yml` | Build is currently unsigned, so SmartScreen can still warn on first launch. |
+| Windows portable | Yes | `latest.yml` | `electron-builder` does not emit update metadata for the `portable` target; SubSync generates `latest.yml` in `afterAllArtifactBuild` (see `desktop/after-all-artifact-build.cjs`) so CI and `dist:desktop:publish` upload it with the `.exe`. Build is currently unsigned, so SmartScreen can still warn on first launch. |
 | Linux AppImage | Yes | `latest-linux.yml` | Run the AppImage directly, not an extracted copy, so updater replacement works. |
 | macOS Apple Silicon | No | `latest-mac.yml` is published | Disabled until the macOS app is signed and notarized. Settings points users to GitHub Releases. |
 
@@ -49,7 +49,7 @@ npm run dist:desktop:publish
 }
 ```
 
-`electron-builder` uses this metadata to generate update manifests and upload release assets when `--publish always` is passed.
+`electron-builder` uses this metadata to generate update manifests and upload release assets when `--publish always` is passed. On Windows, the portable `.exe` manifest is written by `desktop/windows-latest-yml.mjs` (also available as `npm run manifest:desktop:windows` after a local `--publish never` build).
 
 ## User flow
 

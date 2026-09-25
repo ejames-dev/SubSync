@@ -103,23 +103,18 @@ const prisma = new PrismaClient();
 
 async function seedServices() {
   for (const service of STREAMING_SERVICES) {
+    const data = {
+      name: service.name,
+      category: service.category,
+      supportsOAuth: service.supportsOAuth,
+      description: service.description,
+      logoUrl: service.logoUrl ?? null,
+      cancelUrl: service.cancelUrl ?? null,
+    };
     await prisma.service.upsert({
       where: { id: service.id },
-      update: {
-        name: service.name,
-        category: service.category,
-        supportsOAuth: service.supportsOAuth,
-        description: service.description,
-        logoUrl: service.logoUrl ?? null,
-      },
-      create: {
-        id: service.id,
-        name: service.name,
-        category: service.category,
-        supportsOAuth: service.supportsOAuth,
-        description: service.description,
-        logoUrl: service.logoUrl ?? null,
-      },
+      update: data,
+      create: { id: service.id, ...data },
     });
   }
 }

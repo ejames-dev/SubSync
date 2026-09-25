@@ -7,7 +7,7 @@ import type {
   ServiceProvider,
   Subscription,
 } from '@subscription-tracker/types';
-import { Pause, Trash2 } from 'lucide-react';
+import { CopyCheck, Pause, Trash2 } from 'lucide-react';
 import {
   createSubscription,
   deleteSubscription,
@@ -17,6 +17,7 @@ import {
   snoozeSubscription,
 } from '../lib/api';
 import { formatCurrency, isRenewalSnoozed } from '../lib/utils';
+import { DuplicateReviewDialog } from './duplicate-review-dialog';
 import { RecentActivityFeed } from './recent-activity-feed';
 import { SubscriptionsGrid } from './subscriptions-grid';
 import { Badge } from './ui/badge';
@@ -90,6 +91,8 @@ export function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reviewingDuplicates, setReviewingDuplicates] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
 
   async function loadData() {
     setLoading(true);
@@ -104,6 +107,7 @@ export function DashboardClient() {
       setServices(serviceData);
       setSubscriptions(subscriptionData);
       setSummary(dashboardSummary);
+      setDataVersion((version) => version + 1);
       setDraft((current) => ({
         ...current,
         serviceId: current.serviceId || serviceData[0]?.id || '',
@@ -193,8 +197,46 @@ export function DashboardClient() {
     }
   }
 
+  const duplicateGroups = summary?.duplicateSubscriptions ?? [];
+
   return (
     <div className="space-y-6">
+      {duplicateGroups.length > 0 ? (
+        <div
+          role="status"
+          className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-3">
+            <CopyCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-medium text-amber-900">
+                {duplicateGroups.length === 1
+                  ? `${duplicateGroups[0].serviceName} has ${duplicateGroups[0].count} entries`
+                  : `${duplicateGroups.length} services have duplicate entries`}
+              </p>
+              <p className="text-xs text-amber-800">
+                Merge duplicates so spend totals and reminders stay accurate.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setReviewingDuplicates(true)}
+          >
+            Review duplicates
+          </Button>
+        </div>
+      ) : null}
+      {reviewingDuplicates ? (
+        <DuplicateReviewDialog
+          groups={duplicateGroups}
+          subscriptions={subscriptions}
+          servicesById={servicesById}
+          onClose={() => setReviewingDuplicates(false)}
+          onResolved={loadData}
+        />
+      ) : null}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
@@ -331,7 +373,7 @@ export function DashboardClient() {
                 </p>
                 <p className="text-xs text-slate-500">
                   {summary?.duplicateSubscriptions[0]
-                    ? `${summary.duplicateSubscriptions[0].serviceName} has ${summary.duplicateSubscriptions[0].count} active entries`
+                    ? `${summary.duplicateSubscriptions[0].serviceName} has ${summary.duplicateSubscriptions[0].count} entries`
                     : 'No duplicate services detected'}
                 </p>
               </CardContent>
@@ -440,18 +482,27 @@ export function DashboardClient() {
                 <CardTitle>Attention Needed</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {summary?.duplicateSubscriptions.length ? (
-                  summary.duplicateSubscriptions.map((entry) => (
-                    <div
-                      key={entry.serviceId}
-                      className="text-sm text-slate-700"
+                {duplicateGroups.length ? (
+                  <>
+                    {duplicateGroups.map((entry) => (
+                      <div
+                        key={entry.serviceId}
+                        className="text-sm text-slate-700"
+                      >
+                        <p className="font-medium">{entry.serviceName}</p>
+                        <p className="text-slate-500">
+                          {entry.count} subscriptions should be reviewed.
+                        </p>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReviewingDuplicates(true)}
                     >
-                      <p className="font-medium">{entry.serviceName}</p>
-                      <p className="text-slate-500">
-                        {entry.count} active subscriptions should be reviewed.
-                      </p>
-                    </div>
-                  ))
+                      Review duplicates
+                    </Button>
+                  </>
                 ) : (
                   <p className="text-sm text-slate-500">
                     No duplicate subscriptions are currently flagged.
@@ -461,7 +512,7 @@ export function DashboardClient() {
             </Card>
           </div>
 
-          <RecentActivityFeed />
+          <RecentActivityFeed refreshKey={dataVersion} />
 
           <div>
             <div className="mb-3 flex items-center justify-between">

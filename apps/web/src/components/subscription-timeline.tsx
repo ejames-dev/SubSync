@@ -15,8 +15,12 @@ function formatEventLabel(event: SubscriptionEvent) {
       return 'Renewal logged';
     case 'price_changed':
       return 'Price changed';
-    default:
-      return 'Event';
+    case 'merged':
+      return 'Duplicates merged';
+    default: {
+      const unhandled: never = event.eventType;
+      return unhandled;
+    }
   }
 }
 

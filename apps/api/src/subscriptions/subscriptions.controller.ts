@@ -10,9 +10,14 @@ import {
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import { MergeDuplicatesDto } from './dto/merge-duplicates.dto';
 import { SnoozeSubscriptionDto } from './dto/snooze-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
-import { Subscription, SubscriptionEvent } from '@subscription-tracker/types';
+import {
+  DuplicateDismissResult,
+  Subscription,
+  SubscriptionEvent,
+} from '@subscription-tracker/types';
 
 @Controller('subscriptions')
 export class SubscriptionsController {
@@ -39,6 +44,20 @@ export class SubscriptionsController {
   @Get(':id/events')
   async events(@Param('id') id: string): Promise<SubscriptionEvent[]> {
     return this.subscriptions.listEvents(id);
+  }
+
+  @Post('duplicates/merge')
+  async mergeDuplicates(
+    @Body() dto: MergeDuplicatesDto,
+  ): Promise<Subscription> {
+    return this.subscriptions.mergeDuplicates(dto);
+  }
+
+  @Post('duplicates/:serviceId/dismiss')
+  async dismissDuplicates(
+    @Param('serviceId') serviceId: string,
+  ): Promise<DuplicateDismissResult> {
+    return this.subscriptions.dismissDuplicates(serviceId);
   }
 
   @Post()

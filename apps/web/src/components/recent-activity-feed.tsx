@@ -5,7 +5,7 @@ import type { SubscriptionEvent } from '@subscription-tracker/types';
 import { getRecentSubscriptionEvents } from '../lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
-export function RecentActivityFeed() {
+export function RecentActivityFeed({ refreshKey = 0 }: { refreshKey?: number }) {
   const [events, setEvents] = useState<SubscriptionEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -13,7 +13,7 @@ export function RecentActivityFeed() {
     void getRecentSubscriptionEvents(6)
       .then(setEvents)
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   return (
     <Card>

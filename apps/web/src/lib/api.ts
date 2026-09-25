@@ -4,6 +4,7 @@ import type {
   DashboardSummary,
   DataBackupInfo,
   DataRestoreResult,
+  DuplicateDismissResult,
   EmailReceipt,
   EmailIngestResult,
   GmailAuthUrlResponse,
@@ -131,6 +132,23 @@ export function snoozeSubscription(id: string, days = 7) {
     method: 'POST',
     body: JSON.stringify({ days }),
   });
+}
+
+export function mergeDuplicateSubscriptions(payload: {
+  keepId: string;
+  removeIds: string[];
+}) {
+  return apiRequest<Subscription>('/subscriptions/duplicates/merge', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function dismissDuplicateSubscriptions(serviceId: string) {
+  return apiRequest<DuplicateDismissResult>(
+    `/subscriptions/duplicates/${encodeURIComponent(serviceId)}/dismiss`,
+    { method: 'POST' }
+  );
 }
 
 export function connectIntegration(

@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  DuplicateDismissResult,
   NotificationChannel,
   Subscription,
   SubscriptionEvent,
 } from '@subscription-tracker/types';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
+import { MergeDuplicatesDto } from './dto/merge-duplicates.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -150,6 +156,98 @@ export class SubscriptionsService {
     );
 
     return this.toDomain(updated);
+  }
+
+  async dismissDuplicates(serviceId: string): Promise<DuplicateDismissResult> {
+    const group = await this.prisma.subscription.findMany({
+      where: { serviceId },
+      select: { id: true },
+    });
+    if (group.length < 2) {
+      throw new NotFoundException(
+        `No duplicate subscriptions found for service ${serviceId}`,
+      );
+    }
+
+    const { count } = await this.prisma.subscription.updateMany({
+      where: { serviceId },
+      data: { duplicateReviewedAt: new Date() },
+    });
+    return { serviceId, dismissedCount: count };
+  }
+
+  async mergeDuplicates(dto: MergeDuplicatesDto): Promise<Subscription> {
+    if (dto.removeIds.includes(dto.keepId)) {
+      throw new BadRequestException(
+        'The kept subscription cannot also be removed',
+      );
+    }
+
+    const kept = await this.getEntityOrThrow(dto.keepId);
+    const removed = await this.prisma.subscription.findMany({
+      where: { id: { in: dto.removeIds } },
+    });
+    const foundIds = new Set(removed.map((subscription) => subscription.id));
+    const missing = dto.removeIds.filter((id) => !foundIds.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundException(
+        `Subscriptions not found: ${missing.join(', ')}`,
+      );
+    }
+    if (
+      removed.some((subscription) => subscription.serviceId !== kept.serviceId)
+    ) {
+      throw new BadRequestException(
+        'Only subscriptions for the same service can be merged',
+      );
+    }
+
+    // importKey is unique, so it can only move to the kept row once the
+    // removed rows are gone; keeping it stops the next email import from
+    // recreating the duplicate.
+    const inheritedImport = kept.importKey
+      ? undefined
+      : removed
+          .filter((subscription) => subscription.importKey)
+          .sort(
+            (a, b) =>
+              (b.lastImportedAt?.getTime() ?? 0) -
+              (a.lastImportedAt?.getTime() ?? 0),
+          )[0];
+
+    return this.prisma.$transaction(async (db) => {
+      const reassign = {
+        where: { subscriptionId: { in: dto.removeIds } },
+        data: { subscriptionId: kept.id },
+      };
+      await db.subscriptionEvent.updateMany(reassign);
+      await db.emailReceiptItem.updateMany(reassign);
+      await db.pendingNotification.updateMany(reassign);
+      await db.subscription.deleteMany({
+        where: { id: { in: dto.removeIds } },
+      });
+
+      const updated = await db.subscription.update({
+        where: { id: kept.id },
+        data: inheritedImport
+          ? {
+              importKey: inheritedImport.importKey,
+              lastImportedAt: inheritedImport.lastImportedAt,
+            }
+          : {},
+      });
+
+      await this.recordEvent(
+        updated.id,
+        'merged',
+        this.toStatus(updated.status),
+        `Merged ${removed.length} duplicate ${removed.length === 1 ? 'entry' : 'entries'}: ${removed.map((subscription) => subscription.planName).join(', ')}`,
+        undefined,
+        db,
+      );
+
+      return this.toDomain(updated);
+    });
   }
 
   async listEvents(subscriptionId: string): Promise<SubscriptionEvent[]> {
@@ -415,6 +513,7 @@ export class SubscriptionsService {
       nextRenewalReminderSent: sub.nextRenewalReminderSent,
       snoozedUntil: sub.snoozedUntil?.toISOString(),
       statusChangedAt: sub.statusChangedAt.toISOString(),
+      duplicateReviewedAt: sub.duplicateReviewedAt?.toISOString(),
     };
   }
 
@@ -466,7 +565,8 @@ export class SubscriptionsService {
     if (
       value === 'status_changed' ||
       value === 'renewal' ||
-      value === 'price_changed'
+      value === 'price_changed' ||
+      value === 'merged'
     ) {
       return value;
     }

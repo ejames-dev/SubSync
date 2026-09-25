@@ -92,6 +92,7 @@ export function DashboardClient() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reviewingDuplicates, setReviewingDuplicates] = useState(false);
+  const [dataVersion, setDataVersion] = useState(0);
 
   async function loadData() {
     setLoading(true);
@@ -106,6 +107,7 @@ export function DashboardClient() {
       setServices(serviceData);
       setSubscriptions(subscriptionData);
       setSummary(dashboardSummary);
+      setDataVersion((version) => version + 1);
       setDraft((current) => ({
         ...current,
         serviceId: current.serviceId || serviceData[0]?.id || '',
@@ -510,7 +512,7 @@ export function DashboardClient() {
             </Card>
           </div>
 
-          <RecentActivityFeed />
+          <RecentActivityFeed refreshKey={dataVersion} />
 
           <div>
             <div className="mb-3 flex items-center justify-between">

@@ -56,6 +56,8 @@ model Subscription {
   notes                   String?
   nextRenewalReminderSent Boolean   @default(false)
   snoozedUntil            DateTime?
+  trialEndsAt             DateTime?
+  trialReminderSent       Boolean   @default(false)
   statusChangedAt         DateTime  @default(now())
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt

@@ -93,6 +93,8 @@ describe('SubscriptionsService', () => {
     updatedAt: new Date('2026-03-01T00:00:00.000Z'),
     importKey: null,
     lastImportedAt: null,
+    trialEndsAt: null as Date | null,
+    trialReminderSent: false,
   });
 
   it('creates subscriptions and records an event', async () => {
@@ -137,7 +139,10 @@ describe('SubscriptionsService', () => {
       statusChangedAt: new Date('2026-03-10T00:00:00.000Z'),
     });
 
-    const result = await service.update('sub_1', { status: 'trial' });
+    const result = await service.update('sub_1', {
+      status: 'trial',
+      trialEndsAt: '2026-04-01T00:00:00.000Z',
+    });
 
     expect(prisma.subscription.update).toHaveBeenCalledWith({
       where: { id: 'sub_1' },
@@ -521,6 +526,124 @@ describe('SubscriptionsService', () => {
       await expect(
         service.mergeDuplicates({ keepId: 'sub_1', removeIds: ['sub_2'] }),
       ).rejects.toThrow('Subscriptions not found: sub_2');
+    });
+  });
+
+  describe('trial tracking', () => {
+    const trialEnd = new Date('2026-04-15T00:00:00.000Z');
+
+    it('stores the trial end date when creating a trial', async () => {
+      prisma.subscription.create.mockResolvedValue({
+        ...subscriptionEntity(),
+        status: 'trial',
+        trialEndsAt: trialEnd,
+      });
+
+      const result = await service.create({
+        serviceId: 'svc_spotify',
+        planName: 'Premium',
+        billingAmount: 15,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        nextRenewal: '2026-04-15',
+        status: 'trial',
+        trialEndsAt: trialEnd.toISOString(),
+      });
+
+      expect(prisma.subscription.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          status: 'trial',
+          trialEndsAt: trialEnd,
+        }),
+      });
+      expect(result.trialEndsAt).toBe(trialEnd.toISOString());
+    });
+
+    it('ignores a trial end date on non-trial subscriptions', async () => {
+      prisma.subscription.create.mockResolvedValue(subscriptionEntity());
+
+      await service.create({
+        serviceId: 'svc_spotify',
+        planName: 'Premium',
+        billingAmount: 15,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        nextRenewal: '2026-04-15',
+        trialEndsAt: trialEnd.toISOString(),
+      });
+
+      expect(prisma.subscription.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ status: 'active', trialEndsAt: null }),
+      });
+    });
+
+    it('rejects switching to trial without a trial end date', async () => {
+      prisma.subscription.findUnique.mockResolvedValue(subscriptionEntity());
+
+      await expect(
+        service.update('sub_1', { status: 'trial' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.subscription.update).not.toHaveBeenCalled();
+    });
+
+    it('resets the trial reminder when the trial end date moves', async () => {
+      prisma.subscription.findUnique.mockResolvedValue({
+        ...subscriptionEntity(),
+        status: 'trial',
+        trialEndsAt: trialEnd,
+        trialReminderSent: true,
+      });
+      prisma.subscription.update.mockResolvedValue(subscriptionEntity());
+
+      await service.update('sub_1', {
+        status: 'trial',
+        trialEndsAt: '2026-04-30T00:00:00.000Z',
+      });
+
+      expect(prisma.subscription.update).toHaveBeenCalledWith({
+        where: { id: 'sub_1' },
+        data: expect.objectContaining({
+          trialEndsAt: new Date('2026-04-30T00:00:00.000Z'),
+          trialReminderSent: false,
+        }),
+      });
+    });
+
+    it('keeps edits to legacy trials without an end date working', async () => {
+      prisma.subscription.findUnique.mockResolvedValue({
+        ...subscriptionEntity(),
+        status: 'trial',
+        trialEndsAt: null,
+      });
+      prisma.subscription.update.mockResolvedValue(subscriptionEntity());
+
+      await service.update('sub_1', { notes: 'still deciding' });
+
+      expect(prisma.subscription.update).toHaveBeenCalledWith({
+        where: { id: 'sub_1' },
+        data: { notes: 'still deciding' },
+      });
+    });
+
+    it('clears the trial end date when the trial converts', async () => {
+      prisma.subscription.findUnique.mockResolvedValue({
+        ...subscriptionEntity(),
+        status: 'trial',
+        trialEndsAt: trialEnd,
+        trialReminderSent: true,
+      });
+      prisma.subscription.update.mockResolvedValue(subscriptionEntity());
+
+      await service.update('sub_1', { status: 'active' });
+
+      expect(prisma.subscription.update).toHaveBeenCalledWith({
+        where: { id: 'sub_1' },
+        data: expect.objectContaining({
+          status: 'active',
+          trialEndsAt: null,
+          trialReminderSent: false,
+        }),
+      });
     });
   });
 });

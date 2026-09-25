@@ -101,6 +101,7 @@ export class SubscriptionsService {
     if (statusChanged) {
       updateData.statusChangedAt = new Date();
     }
+    Object.assign(updateData, this.resolveTrialUpdate(existing, dto));
 
     const updated = await this.prisma.subscription.update({
       where: { id },
@@ -425,11 +426,45 @@ export class SubscriptionsService {
     }
   }
 
+  private resolveTrialUpdate(
+    existing: PrismaSubscription,
+    dto: UpdateSubscriptionDto,
+  ): Pick<Prisma.SubscriptionUpdateInput, 'trialEndsAt' | 'trialReminderSent'> {
+    const nextStatus = dto.status ?? existing.status;
+    if (nextStatus !== 'trial') {
+      return existing.trialEndsAt
+        ? { trialEndsAt: null, trialReminderSent: false }
+        : {};
+    }
+
+    let nextTrialEndsAt = existing.trialEndsAt;
+    if (dto.trialEndsAt !== undefined) {
+      nextTrialEndsAt = dto.trialEndsAt ? new Date(dto.trialEndsAt) : null;
+    }
+    if (
+      !nextTrialEndsAt &&
+      (dto.status === 'trial' || dto.trialEndsAt === null)
+    ) {
+      throw new BadRequestException(
+        'trialEndsAt is required for trial subscriptions',
+      );
+    }
+    if (nextTrialEndsAt?.getTime() === existing.trialEndsAt?.getTime()) {
+      return {};
+    }
+    return { trialEndsAt: nextTrialEndsAt, trialReminderSent: false };
+  }
+
   private mapDtoToCreate(
     dto: CreateSubscriptionDto,
   ): Prisma.SubscriptionCreateInput {
+    const status = dto.status ?? 'active';
     return {
-      status: dto.status ?? 'active',
+      status,
+      trialEndsAt:
+        status === 'trial' && dto.trialEndsAt
+          ? new Date(dto.trialEndsAt)
+          : null,
       autoImportSource: 'manual',
       service: { connect: { id: dto.serviceId } },
       planName: dto.planName,
@@ -506,6 +541,7 @@ export class SubscriptionsService {
       billingCurrency: sub.billingCurrency,
       billingInterval: this.toBillingInterval(sub.billingInterval),
       nextRenewal: sub.nextRenewal.toISOString(),
+      trialEndsAt: sub.trialEndsAt?.toISOString(),
       paymentSource: this.toPaymentSource(sub.paymentSource),
       paymentLast4: sub.paymentLast4 ?? undefined,
       autoImportSource: this.toAutoImportSource(sub.autoImportSource),

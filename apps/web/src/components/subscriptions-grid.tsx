@@ -8,7 +8,12 @@ import { ServiceProvider, Subscription, SubscriptionStatus } from '@subscription
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { formatCurrency } from '../lib/utils';
+import {
+  daysUntil,
+  describeCostComparison,
+  formatCurrency,
+  formatTrialCountdown,
+} from '../lib/utils';
 import { StatusBadge } from './status-badge';
 
 interface Props {
@@ -197,6 +202,7 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
         <div className="grid gap-4 md:grid-cols-2">
           {filtered.map((subscription) => {
             const service = servicesById[subscription.serviceId];
+            const comparison = costComparison(subscription);
             return (
               <Card key={subscription.id}>
                 <CardHeader className="space-y-2">
@@ -228,6 +234,15 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
                       {subscription.autoImportSource ?? 'manual'}
                     </Badge>
                   </div>
+                  {subscription.status === 'trial' && subscription.trialEndsAt && (
+                    <Badge
+                      variant={daysUntil(subscription.trialEndsAt) <= 7 ? 'warning' : 'default'}
+                      className="self-start"
+                      title={`Trial ends ${subscription.trialEndsAt.slice(0, 10)}`}
+                    >
+                      {formatTrialCountdown(subscription.trialEndsAt)}
+                    </Badge>
+                  )}
                   {subscription.notes && (
                     <p className="text-sm text-slate-600">“{summarizeNote(subscription.notes)}”</p>
                   )}
@@ -241,6 +256,7 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
                       )}
                     </p>
                     <p className="text-xs text-slate-500">/{subscription.billingInterval}</p>
+                    {comparison && <p className="text-xs text-slate-500">{comparison}</p>}
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     {service?.cancelUrl && (
@@ -275,6 +291,14 @@ function formatUpdatedLabel(timestamp: string) {
     month: 'short',
     day: 'numeric',
   });
+}
+
+function costComparison(subscription: Subscription) {
+  return describeCostComparison(
+    subscription.billingAmount,
+    subscription.billingCurrency,
+    subscription.billingInterval,
+  );
 }
 
 function summarizeNote(note: string) {

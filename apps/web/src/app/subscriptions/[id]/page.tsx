@@ -7,15 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function SubscriptionDetailPage({ params }: Props) {
+  const { id } = await params;
   try {
     const [subscription, services, events] = await Promise.all([
-      getSubscription(params.id),
+      getSubscription(id),
       getServices(),
-      getSubscriptionEvents(params.id),
+      getSubscriptionEvents(id),
     ]);
 
     return (

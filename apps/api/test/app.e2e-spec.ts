@@ -357,6 +357,24 @@ describe('App (e2e)', () => {
     expect(prismaMock.subscription.create).toHaveBeenCalled();
   });
 
+  it('/api/subscriptions (POST) requires a trial end date for trials', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/subscriptions')
+      .send({
+        serviceId: 'svc_netflix',
+        planName: 'Standard',
+        billingAmount: 15.49,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        nextRenewal: '2026-03-18T00:00:00.000Z',
+        status: 'trial',
+      })
+      .expect(400);
+
+    expect(JSON.stringify(response.body)).toContain('trialEndsAt');
+    expect(prismaMock.subscription.create).not.toHaveBeenCalled();
+  });
+
   it('/api/ingest/email (POST) rejects invalid payloads', () => {
     return request(app.getHttpServer())
       .post('/api/ingest/email')

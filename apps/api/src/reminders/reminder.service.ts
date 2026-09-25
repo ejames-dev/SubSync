@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { parseBillingInterval, toMonthlyEquivalent } from '../common/billing';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationDeliveryService } from '../notifications/notification-delivery.service';
 import { NotificationPreferencesService } from '../notifications/notification-preferences.service';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class ReminderService {
@@ -17,7 +20,80 @@ export class ReminderService {
   @Cron(CronExpression.EVERY_HOUR)
   async dispatchRenewalReminders() {
     await this.queueDueRenewalReminders();
+    await this.queueTrialEndingReminders();
     await this.queueBudgetAlert();
+  }
+
+  async queueTrialEndingReminders(): Promise<number> {
+    const preference = await this.notificationPreferences.getPreference();
+    const now = new Date();
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() + preference.leadTimeDays);
+
+    const endingTrials = await this.prisma.subscription.findMany({
+      where: {
+        status: 'trial',
+        trialReminderSent: false,
+        trialEndsAt: { not: null, lte: cutoff },
+      },
+      include: { service: true },
+    });
+
+    if (!endingTrials.length) {
+      return 0;
+    }
+
+    for (const subscription of endingTrials) {
+      if (!subscription.trialEndsAt) {
+        continue;
+      }
+      const serviceName = subscription.service.name;
+      const daysLeft = Math.ceil(
+        (subscription.trialEndsAt.getTime() - now.getTime()) / DAY_MS,
+      );
+      const endDate = subscription.trialEndsAt.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      const title =
+        daysLeft <= 0
+          ? `${serviceName} trial has ended`
+          : `${serviceName} trial ends in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`;
+      const amount = this.formatMoney(
+        subscription.billingAmountCents,
+        subscription.billingCurrency,
+      );
+      const body =
+        daysLeft <= 0
+          ? `${subscription.planName} trial ended on ${endDate}. Check whether you are now billed ${amount} ${subscription.billingInterval}.`
+          : `${subscription.planName} trial ends on ${endDate}. Cancel before then to avoid being billed ${amount} ${subscription.billingInterval}.`;
+
+      for (const channel of preference.channels) {
+        if (channel === 'push') {
+          await this.notificationDelivery.queueRenewalReminder({
+            subscriptionId: subscription.id,
+            channel: 'push',
+            title,
+            body,
+          });
+        } else if (channel === 'email') {
+          this.logger.log(
+            `Email trial reminder recorded for ${subscription.planName} (${serviceName}) ending on ${subscription.trialEndsAt.toISOString()}`,
+          );
+        }
+      }
+    }
+
+    await this.prisma.subscription.updateMany({
+      where: { id: { in: endingTrials.map((sub) => sub.id) } },
+      data: { trialReminderSent: true },
+    });
+
+    this.logger.log(
+      `Queued trial-ending reminders for ${endingTrials.length} subscriptions`,
+    );
+    return endingTrials.length;
   }
 
   async queueDueRenewalReminders(): Promise<number> {
@@ -104,9 +180,9 @@ export class ReminderService {
         .reduce(
           (total, subscription) =>
             total +
-            this.toMonthlyEquivalentCents(
+            toMonthlyEquivalent(
               subscription.billingAmountCents,
-              subscription.billingInterval,
+              parseBillingInterval(subscription.billingInterval),
             ),
           0,
         ),
@@ -167,22 +243,6 @@ export class ReminderService {
 
     this.logger.log(`Queued monthly budget alert for ${currency}`);
     return 1;
-  }
-
-  private toMonthlyEquivalentCents(
-    amountCents: number,
-    interval: string,
-  ): number {
-    switch (interval) {
-      case 'yearly':
-        return amountCents / 12;
-      case 'quarterly':
-        return amountCents / 3;
-      case 'monthly':
-      case 'custom':
-      default:
-        return amountCents;
-    }
   }
 
   private parseChannels(value: string): Array<'email' | 'push'> {

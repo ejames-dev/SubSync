@@ -9,6 +9,7 @@ import {
   deleteSubscription,
   updateSubscription,
 } from '../lib/api';
+import { describeCostComparison } from '../lib/utils';
 
 interface Props {
   services: ServiceProvider[];
@@ -25,9 +26,29 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
     'idle',
   );
   const [error, setError] = useState<string | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<
+    Subscription['status']
+  >(initial?.status ?? 'active');
+  const [billingAmount, setBillingAmount] = useState(
+    initial?.billingAmount?.toString() ?? '',
+  );
+  const [billingCurrency, setBillingCurrency] = useState(
+    initial?.billingCurrency ?? 'USD',
+  );
+  const [billingInterval, setBillingInterval] = useState<
+    Subscription['billingInterval']
+  >(initial?.billingInterval ?? 'monthly');
   const selectedService = services.find(
     (service) => service.id === selectedServiceId,
   );
+  const costComparison =
+    billingAmount !== '' && Number.isFinite(Number(billingAmount))
+      ? describeCostComparison(
+          Number(billingAmount),
+          billingCurrency.toUpperCase(),
+          billingInterval,
+        )
+      : null;
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -46,6 +67,10 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
       paymentLast4: (formData.get('paymentLast4') as string) || undefined,
       notes: (formData.get('notes') as string) || undefined,
       status: (formData.get('status') as Subscription['status']) || undefined,
+      trialEndsAt:
+        subscriptionStatus === 'trial'
+          ? `${formData.get('trialEndsAt') as string}T00:00:00.000Z`
+          : undefined,
     };
 
     try {
@@ -79,6 +104,7 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
   const dateValue = initial
     ? new Date(initial.nextRenewal).toISOString().split('T')[0]
     : undefined;
+  const trialEndsValue = initial?.trialEndsAt?.slice(0, 10);
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -117,7 +143,8 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
             step="0.01"
             min="0"
             required
-            defaultValue={initial?.billingAmount ?? ''}
+            value={billingAmount}
+            onChange={(event) => setBillingAmount(event.target.value)}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
@@ -125,7 +152,8 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           <label className="text-sm font-medium text-slate-700">Currency</label>
           <input
             name="billingCurrency"
-            defaultValue={initial?.billingCurrency ?? 'USD'}
+            value={billingCurrency}
+            onChange={(event) => setBillingCurrency(event.target.value)}
             required
             maxLength={3}
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
@@ -136,7 +164,12 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           <select
             name="billingInterval"
             required
-            defaultValue={initial?.billingInterval ?? 'monthly'}
+            value={billingInterval}
+            onChange={(event) =>
+              setBillingInterval(
+                event.target.value as Subscription['billingInterval'],
+              )
+            }
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="monthly">Monthly</option>
@@ -146,6 +179,11 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           </select>
         </div>
       </div>
+      {costComparison && (
+        <p className="-mt-2 text-xs text-slate-500" aria-live="polite">
+          {costComparison}
+        </p>
+      )}
       <div>
         <label className="text-sm font-medium text-slate-700">Next renewal</label>
         <input
@@ -185,7 +223,10 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
         <label className="text-sm font-medium text-slate-700">Status</label>
         <select
           name="status"
-          defaultValue={initial?.status ?? 'active'}
+          value={subscriptionStatus}
+          onChange={(event) =>
+            setSubscriptionStatus(event.target.value as Subscription['status'])
+          }
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
         >
           <option value="active">Active</option>
@@ -198,6 +239,27 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           confirm it is canceled.
         </p>
       </div>
+      {subscriptionStatus === 'trial' && (
+        <div>
+          <label
+            htmlFor="trialEndsAt"
+            className="text-sm font-medium text-slate-700"
+          >
+            Trial ends
+          </label>
+          <input
+            id="trialEndsAt"
+            name="trialEndsAt"
+            type="date"
+            required
+            defaultValue={trialEndsValue}
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            SubSync reminds you before the trial converts to a paid plan.
+          </p>
+        </div>
+      )}
       {selectedService?.cancelUrl && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-950">Ready to cancel?</p>

@@ -8,7 +8,8 @@ export type SubscriptionEventType =
   | 'created'
   | 'status_changed'
   | 'renewal'
-  | 'price_changed';
+  | 'price_changed'
+  | 'merged';
 
 export interface ServiceProvider {
   id: string;
@@ -36,6 +37,7 @@ export interface Subscription {
   nextRenewalReminderSent?: boolean;
   snoozedUntil?: string;
   statusChangedAt: string;
+  duplicateReviewedAt?: string;
 }
 
 export interface SubscriptionEvent {
@@ -100,6 +102,12 @@ export interface DashboardDuplicateGroup {
   serviceId: string;
   serviceName: string;
   count: number;
+  subscriptionIds: string[];
+}
+
+export interface DuplicateDismissResult {
+  serviceId: string;
+  dismissedCount: number;
 }
 
 export interface DashboardBudgetStatus {

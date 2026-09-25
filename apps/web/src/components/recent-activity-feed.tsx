@@ -57,7 +57,11 @@ function formatEventTitle(eventType: SubscriptionEvent['eventType']): string {
       return 'Renewal';
     case 'price_changed':
       return 'Price changed';
-    default:
-      return 'Updated';
+    case 'merged':
+      return 'Duplicates merged';
+    default: {
+      const unhandled: never = eventType;
+      return unhandled;
+    }
   }
 }

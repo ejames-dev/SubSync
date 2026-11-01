@@ -29,3 +29,16 @@ export function isRenewalSnoozed(subscription: {
 
   return new Date(subscription.snoozedUntil).getTime() > Date.now();
 }
+
+export function isSafeExternalUrl(url?: string): boolean {
+  if (!url) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}

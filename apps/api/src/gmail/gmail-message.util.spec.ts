@@ -103,5 +103,26 @@ describe('gmail-message.util', () => {
     expect(hasAuthenticatedSender(authenticated, 'attacker@example.com')).toBe(
       false,
     );
+    expect(
+      hasAuthenticatedSender(
+        authenticated,
+        '"@netflix.com" <billing@attacker.com>',
+      ),
+    ).toBe(false);
+    expect(
+      hasAuthenticatedSender(
+        {
+          payload: {
+            headers: [
+              {
+                name: 'Authentication-Results',
+                value: 'mx.google.com; dkim=pass header.d=attacker.com',
+              },
+            ],
+          },
+        },
+        '"@attacker.com" <billing@netflix.com>',
+      ),
+    ).toBe(false);
   });
 });

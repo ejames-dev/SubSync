@@ -63,7 +63,7 @@ export class DashboardService {
     }
 
     const duplicateMap = new Map<string, number>();
-    for (const subscription of subscriptions) {
+    for (const subscription of billableSubscriptions) {
       duplicateMap.set(
         subscription.serviceId,
         (duplicateMap.get(subscription.serviceId) ?? 0) + 1,

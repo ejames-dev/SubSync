@@ -8,7 +8,7 @@ import { ServiceProvider, Subscription, SubscriptionStatus } from '@subscription
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { formatCurrency } from '../lib/utils';
+import { formatCurrency, isSafeExternalUrl } from '../lib/utils';
 import { StatusBadge } from './status-badge';
 
 interface Props {
@@ -243,7 +243,7 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
                     <p className="text-xs text-slate-500">/{subscription.billingInterval}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    {service?.cancelUrl && (
+                    {service?.cancelUrl && isSafeExternalUrl(service.cancelUrl) && (
                       <a
                         href={service.cancelUrl}
                         target="_blank"

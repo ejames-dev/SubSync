@@ -100,6 +100,13 @@ describe('DashboardService', () => {
       { category: 'streaming', monthlyEquivalentSpend: 25 },
     ]);
     expect(result.activeSubscriptions).toBe(4);
+    expect(result.duplicateSubscriptions).toEqual([
+      {
+        serviceId: 'netflix',
+        serviceName: 'Netflix',
+        count: 4,
+      },
+    ]);
     expect(result.nextRenewal?.subscriptionId).toBe('monthly');
     expect(result.forecast.total).toBe(65);
     expect(result.forecast.excludedCurrencyCount).toBe(1);

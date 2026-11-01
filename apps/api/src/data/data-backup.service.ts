@@ -17,7 +17,8 @@ import { DataBackupInfo, DataRestoreResult } from '@subscription-tracker/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { getBackupDirectory, getSqliteFilePath } from './sqlite-path.util';
 
-const SQLITE_MAGIC = 'SQLite format 3';
+const SQLITE_MAGIC = 'SQLite format 3\0';
+const SQLITE_MIN_HEADER_BYTES = 100;
 const BACKUP_PREFIX = 'subsync-backup-';
 const BACKUP_SUFFIX = '.db';
 
@@ -114,8 +115,17 @@ export class DataBackupService {
   }
 
   private assertSqliteBackup(buffer: Buffer): void {
+    if (buffer.length < SQLITE_MIN_HEADER_BYTES) {
+      throw new BadRequestException('Invalid SQLite backup file.');
+    }
     const header = buffer.subarray(0, SQLITE_MAGIC.length).toString('utf8');
     if (header !== SQLITE_MAGIC) {
+      throw new BadRequestException('Invalid SQLite backup file.');
+    }
+    const rawPageSize = buffer.readUInt16BE(16);
+    const pageSize = rawPageSize === 1 ? 65536 : rawPageSize;
+    const isPowerOfTwo = (pageSize & (pageSize - 1)) === 0;
+    if (!isPowerOfTwo || pageSize < 512 || pageSize > 65536) {
       throw new BadRequestException('Invalid SQLite backup file.');
     }
   }

@@ -45,8 +45,35 @@ export function plainText(content: string): string {
 }
 
 export function senderDomain(sender: string): string | undefined {
-  const address = sender.match(/<?([^<>\s]+@[^<>\s]+)>?/)?.[1];
-  return address?.split('@')[1]?.toLowerCase();
+  const withoutQuotedDisplay = sender
+    .replace(/"(?:\\.|[^"\\])*"/g, ' ')
+    .trim();
+
+  const angleMatches = Array.from(
+    withoutQuotedDisplay.matchAll(/<([^<>]+)>/g),
+    (match) => match[1].trim(),
+  );
+  if (angleMatches.length > 1) {
+    return undefined;
+  }
+
+  const candidate =
+    angleMatches.length === 1 ? angleMatches[0] : withoutQuotedDisplay;
+  if (/\s/.test(candidate)) {
+    return undefined;
+  }
+
+  const parts = candidate.split('@');
+  if (parts.length !== 2) {
+    return undefined;
+  }
+
+  const [localPart, domainPart] = parts;
+  if (!localPart || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domainPart)) {
+    return undefined;
+  }
+
+  return domainPart.toLowerCase();
 }
 
 export function isSenderDomain(sender: string, domain: string): boolean {

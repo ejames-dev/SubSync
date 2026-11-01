@@ -63,6 +63,17 @@ describe('ReminderService', () => {
     );
 
     await expect(service.queueDueRenewalReminders()).resolves.toBe(1);
+    expect(prisma.subscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          nextRenewalReminderSent: false,
+          OR: [
+            { snoozedUntil: null },
+            { snoozedUntil: { lte: expect.any(Date) } },
+          ],
+        }),
+      }),
+    );
     expect(notificationDelivery.queueRenewalReminder).toHaveBeenCalledWith(
       expect.objectContaining({
         subscriptionId: 'sub_1',

@@ -22,7 +22,8 @@ export class ReminderService {
 
   async queueDueRenewalReminders(): Promise<number> {
     const preference = await this.notificationPreferences.getPreference();
-    const cutoff = new Date();
+    const now = new Date();
+    const cutoff = new Date(now);
     cutoff.setDate(cutoff.getDate() + preference.leadTimeDays);
 
     const dueSubscriptions = await this.prisma.subscription.findMany({
@@ -30,6 +31,7 @@ export class ReminderService {
         status: { in: ['active', 'trial', 'flagged_for_cancellation'] },
         nextRenewalReminderSent: false,
         nextRenewal: { lte: cutoff },
+        OR: [{ snoozedUntil: null }, { snoozedUntil: { lte: now } }],
       },
       include: { service: true },
     });

@@ -60,13 +60,40 @@ export function senderDomain(sender: string): string | undefined {
     sender.length > MAX_SENDER_LENGTH
       ? sender.slice(0, MAX_SENDER_LENGTH)
       : sender;
-  // The local part excludes '@' so it can't overlap with the literal '@'
-  // that follows it -- without that exclusion, a string with no '@' at all
-  // (e.g. many repeated '!') forces the regex engine to try every possible
-  // split point between the two greedy groups, causing catastrophic
-  // backtracking (ReDoS) on attacker-controlled sender strings.
-  const address = bounded.match(/<?([^<>\s@]+@[^<>\s]+)>?/)?.[1];
-  return address?.split('@')[1]?.toLowerCase();
+  // Strip quoted display names first: an '@' inside quotes (e.g.
+  // '"@attacker.com" <billing@netflix.com>') is not the addr-spec, and
+  // picking the first '@' in the raw header would let a spoofer align
+  // DKIM/SPF checks with a domain they control while the parsers match
+  // a trusted provider domain in the angle address.
+  const withoutQuotedDisplay = bounded
+    .replace(/"(?:\\.|[^"\\])*"/g, ' ')
+    .trim();
+
+  const angleMatches = Array.from(
+    withoutQuotedDisplay.matchAll(/<([^<>]+)>/g),
+    (match) => match[1].trim(),
+  );
+  if (angleMatches.length > 1) {
+    return undefined;
+  }
+
+  const candidate =
+    angleMatches.length === 1 ? angleMatches[0] : withoutQuotedDisplay;
+  if (/\s/.test(candidate)) {
+    return undefined;
+  }
+
+  const parts = candidate.split('@');
+  if (parts.length !== 2) {
+    return undefined;
+  }
+
+  const [localPart, domainPart] = parts;
+  if (!localPart || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domainPart)) {
+    return undefined;
+  }
+
+  return domainPart.toLowerCase();
 }
 
 export function isSenderDomain(sender: string, domain: string): boolean {

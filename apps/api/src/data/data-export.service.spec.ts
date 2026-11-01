@@ -1,4 +1,4 @@
-import { DataExportService } from './data-export.service';
+import { DataExportService, escapeCsv } from './data-export.service';
 
 describe('DataExportService', () => {
   const prisma = {
@@ -52,5 +52,13 @@ describe('DataExportService', () => {
     expect(csv.split('\n')[0]).toContain('serviceName');
     expect(csv).toContain('Netflix');
     expect(csv).toContain('15.49');
+  });
+
+  it('neutralizes spreadsheet formula prefixes in CSV cells', () => {
+    expect(escapeCsv('=cmd|\'/C calc\'!A0')).toBe("'=cmd|'/C calc'!A0");
+    expect(escapeCsv('+SUM(A1:A2)')).toBe("'+SUM(A1:A2)");
+    expect(escapeCsv('@HYPERLINK("https://evil.example","Click")')).toBe(
+      '"\'@HYPERLINK(""https://evil.example"",""Click"")"',
+    );
   });
 });

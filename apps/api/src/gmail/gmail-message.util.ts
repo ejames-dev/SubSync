@@ -1,3 +1,5 @@
+import { senderDomain } from '../ingest/parsers/parser.helpers';
+
 type GmailHeader = { name?: string; value?: string };
 type GmailBody = { size?: number; data?: string };
 type GmailMessagePart = {
@@ -46,11 +48,21 @@ export function hasAuthenticatedSender(
   message: GmailApiMessage,
   sender: string,
 ): boolean {
-  const senderDomain = sender.match(/@([a-z0-9.-]+)/i)?.[1]?.toLowerCase();
-  const authentication = extractHeader(message, 'Authentication-Results');
-  if (!senderDomain || !authentication) {
+  const domainFromSender = senderDomain(sender);
+  const headers = message.payload?.headers ?? [];
+  const authHeaders = headers
+    .filter(
+      (header) =>
+        header.name?.toLowerCase() === 'authentication-results' &&
+        typeof header.value === 'string',
+    )
+    .map((header) => header.value as string);
+
+  if (!domainFromSender || authHeaders.length === 0) {
     return false;
   }
+
+  const authentication = authHeaders.join('\n');
   const authenticatedDomains = Array.from(
     authentication.matchAll(
       /\b(?:dkim|spf)\s*=\s*pass\b[^;]*(?:header\.(?:d|i)|smtp\.mailfrom)\s*=\s*@?([a-z0-9.-]+)/gi,
@@ -59,9 +71,9 @@ export function hasAuthenticatedSender(
   );
   return authenticatedDomains.some(
     (domain) =>
-      domain === senderDomain ||
-      domain.endsWith(`.${senderDomain}`) ||
-      senderDomain.endsWith(`.${domain}`),
+      domain === domainFromSender ||
+      domain.endsWith(`.${domainFromSender}`) ||
+      domainFromSender.endsWith(`.${domain}`),
   );
 }
 

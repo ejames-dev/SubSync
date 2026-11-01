@@ -1,5 +1,14 @@
-const { app, BrowserWindow, dialog, Notification, ipcMain } = require('electron');
-const { existsSync, mkdirSync } = require('node:fs');
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  Notification,
+  ipcMain,
+  safeStorage,
+  shell,
+} = require('electron');
+const { randomBytes } = require('node:crypto');
+const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const net = require('node:net');
 const { applyMigrations } = require('./migrations.cjs');
@@ -66,10 +75,80 @@ function ensureLocalDatabase() {
   return applyMigrations(databasePath, migrationsDir);
 }
 
+function ensureOAuthEncryptionKey() {
+  if (process.env.OAUTH_TOKEN_ENCRYPTION_KEY?.trim()) {
+    return process.env.OAUTH_TOKEN_ENCRYPTION_KEY.trim();
+  }
+
+  const dataDir = resolve(app.getPath('userData'), 'data');
+  mkdirSync(dataDir, { recursive: true });
+  const keyFilePath = resolve(dataDir, 'oauth-token-key.bin');
+
+  try {
+    if (existsSync(keyFilePath)) {
+      const stored = readFileSync(keyFilePath);
+      if (safeStorage?.isEncryptionAvailable?.()) {
+        return safeStorage.decryptString(stored);
+      }
+      const raw = stored.toString('utf8').trim();
+      if (Buffer.from(raw, 'base64').length === 32) {
+        return raw;
+      }
+    }
+  } catch {
+    // Regenerate key if reading or decrypting fails.
+  }
+
+  const generated = randomBytes(32).toString('base64');
+  try {
+    if (safeStorage?.isEncryptionAvailable?.()) {
+      writeFileSync(keyFilePath, safeStorage.encryptString(generated), {
+        mode: 0o600,
+      });
+    } else {
+      writeFileSync(keyFilePath, generated, { encoding: 'utf8', mode: 0o600 });
+    }
+  } catch {
+    // Ephemeral fallback if userData is not writable.
+  }
+
+  return generated;
+}
+
+function isAllowedExternalUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedInAppUrl(rawUrl) {
+  if (rawUrl.startsWith('data:text/html,')) {
+    return true;
+  }
+  try {
+    const parsed = new URL(rawUrl);
+    return (
+      parsed.origin === `http://${HOST}:${WEB_PORT}` ||
+      parsed.origin === `http://localhost:${WEB_PORT}` ||
+      (parsed.origin === `http://${HOST}:${API_PORT}` &&
+        parsed.pathname.startsWith('/api/gmail/callback'))
+    );
+  } catch {
+    return false;
+  }
+}
+
 function startApi(databasePath) {
   process.env.HOST = HOST;
   process.env.API_PORT = String(API_PORT);
   process.env.DATABASE_URL = toSqliteUrl(databasePath);
+  process.env.CORS_ORIGIN =
+    process.env.CORS_ORIGIN ||
+    `http://${HOST}:${WEB_PORT},http://localhost:${WEB_PORT},http://${HOST}:3000,http://localhost:3000`;
+  process.env.OAUTH_TOKEN_ENCRYPTION_KEY = ensureOAuthEncryptionKey();
   require(getRuntimePath('api', 'dist', 'main.js'));
 }
 
@@ -95,6 +174,22 @@ function createWindow() {
       sandbox: true,
       preload: getPreloadPath(),
     },
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAllowedExternalUrl(url)) {
+      void shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!isAllowedInAppUrl(url)) {
+      event.preventDefault();
+      if (isAllowedExternalUrl(url)) {
+        void shell.openExternal(url);
+      }
+    }
   });
 
   mainWindow.loadURL(

@@ -2,11 +2,18 @@
 
 import { useEffect } from 'react';
 import { acknowledgeNotification, getPendingNotifications } from '../lib/api';
+import { getDesktopBridge } from '../lib/desktop-bridge';
 
 const POLL_INTERVAL_MS = 60_000;
 
 async function deliverPendingNotifications() {
   if (typeof window === 'undefined' || !('Notification' in window)) {
+    return;
+  }
+
+  // In the packaged Electron app, desktop/main.cjs polls and dispatches native
+  // OS notifications directly. Skip browser polling to prevent duplicate alerts.
+  if (getDesktopBridge()) {
     return;
   }
 

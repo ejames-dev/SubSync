@@ -62,8 +62,10 @@ export class DashboardService {
       );
     }
 
+    // Group billable subscriptions only: a canceled_pending plan is on its
+    // way out, so pairing it with its replacement is not a duplicate.
     const duplicateMap = new Map<string, Subscription[]>();
-    for (const subscription of subscriptions) {
+    for (const subscription of billableSubscriptions) {
       duplicateMap.set(subscription.serviceId, [
         ...(duplicateMap.get(subscription.serviceId) ?? []),
         subscription,

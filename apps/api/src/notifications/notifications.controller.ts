@@ -18,6 +18,15 @@ export class NotificationsController {
     return this.delivery.listPending(normalized as NotificationChannel);
   }
 
+  @Post('claim')
+  claimPending(
+    @Query('channel') channel?: string,
+  ): Promise<PendingRenewalNotification[]> {
+    const normalized =
+      channel === 'email' || channel === 'push' ? channel : 'push';
+    return this.delivery.claimPending(normalized as NotificationChannel);
+  }
+
   @Post(':id/ack')
   acknowledge(@Param('id') id: string): Promise<PendingRenewalNotification> {
     return this.delivery.acknowledge(id);

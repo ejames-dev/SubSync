@@ -250,15 +250,19 @@ async function waitForServer(url, label) {
 
 async function pollRenewalNotifications() {
   try {
+    // Claim atomically: the API marks each returned notification delivered
+    // in the same step, so a browser tab polling at the same time (or a
+    // second window) can never receive and display the same reminder.
     const response = await fetch(
-      `http://${HOST}:${API_PORT}/api/notifications/pending?channel=push`,
+      `http://${HOST}:${API_PORT}/api/notifications/claim?channel=push`,
+      { method: 'POST' },
     );
     if (!response.ok) {
       return;
     }
 
-    const pending = await response.json();
-    for (const item of pending) {
+    const claimed = await response.json();
+    for (const item of claimed) {
       if (Notification.isSupported()) {
         const notification = new Notification({
           title: item.title,
@@ -266,10 +270,6 @@ async function pollRenewalNotifications() {
         });
         notification.show();
       }
-
-      await fetch(`http://${HOST}:${API_PORT}/api/notifications/${item.id}/ack`, {
-        method: 'POST',
-      });
     }
   } catch {
     // Ignore transient API errors during startup or shutdown.

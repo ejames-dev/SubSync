@@ -105,6 +105,7 @@ describe('DashboardService', () => {
         serviceId: 'netflix',
         serviceName: 'Netflix',
         count: 4,
+        subscriptionIds: ['monthly', 'quarterly', 'custom', 'cad'],
       },
     ]);
     expect(result.nextRenewal?.subscriptionId).toBe('monthly');
@@ -115,6 +116,70 @@ describe('DashboardService', () => {
       { month: '2026-08', amount: 40, renewalCount: 2 },
       { month: '2026-09', amount: 15, renewalCount: 2 },
       { month: '2026-10', amount: 0, renewalCount: 0 },
+    ]);
+  });
+
+  it('hides reviewed duplicate groups until a new unreviewed entry appears', async () => {
+    const reviewedAt = '2026-07-01T00:00:00.000Z';
+    const list = jest.fn();
+    const service = new DashboardService(
+      { list } as never,
+      {
+        findAll: jest.fn().mockResolvedValue([
+          {
+            id: 'netflix',
+            name: 'Netflix',
+            category: 'streaming',
+            supportsOAuth: false,
+          },
+          {
+            id: 'spotify',
+            name: 'Spotify',
+            category: 'music',
+            supportsOAuth: false,
+          },
+        ]),
+      } as never,
+      {
+        getSettings: jest.fn().mockResolvedValue({
+          notificationPreference: {
+            id: 'default',
+            leadTimeDays: 7,
+            channels: ['push'],
+          },
+          emailForwardingAlias: 'subs@example.com',
+          budgetCurrency: 'USD',
+        }),
+      } as never,
+    );
+
+    list.mockResolvedValue([
+      subscription({ id: 'n1', duplicateReviewedAt: reviewedAt }),
+      subscription({ id: 'n2', duplicateReviewedAt: reviewedAt }),
+      subscription({ id: 's1', serviceId: 'spotify' }),
+      subscription({ id: 's2', serviceId: 'spotify' }),
+    ]);
+    expect((await service.getSummary()).duplicateSubscriptions).toEqual([
+      {
+        serviceId: 'spotify',
+        serviceName: 'Spotify',
+        count: 2,
+        subscriptionIds: ['s1', 's2'],
+      },
+    ]);
+
+    list.mockResolvedValue([
+      subscription({ id: 'n1', duplicateReviewedAt: reviewedAt }),
+      subscription({ id: 'n2', duplicateReviewedAt: reviewedAt }),
+      subscription({ id: 'n3' }),
+    ]);
+    expect((await service.getSummary()).duplicateSubscriptions).toEqual([
+      {
+        serviceId: 'netflix',
+        serviceName: 'Netflix',
+        count: 3,
+        subscriptionIds: ['n1', 'n2', 'n3'],
+      },
     ]);
   });
 

@@ -58,6 +58,14 @@ for (const target of copyTargets) {
 }
 
 copyFileSync(resolve(rootDir, 'desktop', 'main.cjs'), resolve(appDir, 'main.cjs'));
+copyFileSync(
+  resolve(rootDir, 'desktop', 'runtime-path.cjs'),
+  resolve(appDir, 'runtime-path.cjs'),
+);
+copyFileSync(
+  resolve(rootDir, 'desktop', 'server-readiness.cjs'),
+  resolve(appDir, 'server-readiness.cjs'),
+);
 copyFileSync(resolve(rootDir, 'desktop', 'preload.cjs'), resolve(appDir, 'preload.cjs'));
 copyFileSync(resolve(rootDir, 'desktop', 'updater.cjs'), resolve(appDir, 'updater.cjs'));
 copyFileSync(

@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
@@ -11,14 +11,21 @@ type PrismaMock = {
     findFirst: jest.Mock;
     create: jest.Mock;
     update: jest.Mock;
+    updateMany: jest.Mock;
     delete: jest.Mock;
+    deleteMany: jest.Mock;
   };
   subscriptionEvent: {
     create: jest.Mock;
     findMany: jest.Mock;
+    updateMany: jest.Mock;
   };
   pendingNotification: {
     create: jest.Mock;
+    updateMany: jest.Mock;
+  };
+  emailReceiptItem: {
+    updateMany: jest.Mock;
   };
 };
 
@@ -36,14 +43,21 @@ describe('SubscriptionsService', () => {
         findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
         delete: jest.fn(),
+        deleteMany: jest.fn(),
       },
       subscriptionEvent: {
         create: jest.fn(),
         findMany: jest.fn(),
+        updateMany: jest.fn(),
       },
       pendingNotification: {
         create: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      emailReceiptItem: {
+        updateMany: jest.fn(),
       },
     };
     prisma.$transaction.mockImplementation((callback) => callback(prisma));
@@ -381,5 +395,132 @@ describe('SubscriptionsService', () => {
   it('throws when subscription is missing', async () => {
     prisma.subscription.findUnique.mockResolvedValue(null);
     await expect(service.findOne('missing')).rejects.toThrow(NotFoundException);
+  });
+
+  describe('duplicate review', () => {
+    it('marks every subscription in a duplicate group as reviewed', async () => {
+      prisma.subscription.findMany.mockResolvedValue([
+        { id: 'sub_1' },
+        { id: 'sub_2' },
+      ]);
+      prisma.subscription.updateMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.dismissDuplicates('svc_spotify');
+
+      expect(prisma.subscription.updateMany).toHaveBeenCalledWith({
+        where: { serviceId: 'svc_spotify' },
+        data: { duplicateReviewedAt: expect.any(Date) },
+      });
+      expect(result).toEqual({ serviceId: 'svc_spotify', dismissedCount: 2 });
+    });
+
+    it('refuses to dismiss a service without duplicates', async () => {
+      prisma.subscription.findMany.mockResolvedValue([{ id: 'sub_1' }]);
+
+      await expect(service.dismissDuplicates('svc_spotify')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.subscription.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('moves history onto the kept subscription and deletes the rest', async () => {
+      const kept = subscriptionEntity();
+      const removed = {
+        ...subscriptionEntity(),
+        id: 'sub_2',
+        planName: 'Premium (email)',
+        autoImportSource: 'email',
+        importKey: 'spotify:account',
+        lastImportedAt: new Date('2026-06-01T00:00:00.000Z'),
+      };
+      prisma.subscription.findUnique.mockResolvedValue(kept);
+      prisma.subscription.findMany.mockResolvedValue([removed]);
+      prisma.subscription.update.mockResolvedValue({
+        ...kept,
+        importKey: removed.importKey,
+        lastImportedAt: removed.lastImportedAt,
+      });
+
+      const result = await service.mergeDuplicates({
+        keepId: 'sub_1',
+        removeIds: ['sub_2'],
+      });
+
+      const reassign = {
+        where: { subscriptionId: { in: ['sub_2'] } },
+        data: { subscriptionId: 'sub_1' },
+      };
+      expect(prisma.subscriptionEvent.updateMany).toHaveBeenCalledWith(
+        reassign,
+      );
+      expect(prisma.emailReceiptItem.updateMany).toHaveBeenCalledWith(reassign);
+      expect(prisma.pendingNotification.updateMany).toHaveBeenCalledWith(
+        reassign,
+      );
+      expect(prisma.subscription.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['sub_2'] } },
+      });
+      expect(prisma.subscription.update).toHaveBeenCalledWith({
+        where: { id: 'sub_1' },
+        data: {
+          importKey: 'spotify:account',
+          lastImportedAt: removed.lastImportedAt,
+        },
+      });
+      expect(
+        prisma.subscription.deleteMany.mock.invocationCallOrder[0],
+      ).toBeLessThan(prisma.subscription.update.mock.invocationCallOrder[0]);
+      expect(prisma.subscriptionEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          subscriptionId: 'sub_1',
+          eventType: 'merged',
+          notes: 'Merged 1 duplicate entry: Premium (email)',
+        }),
+      });
+      expect(result.id).toBe('sub_1');
+    });
+
+    it('keeps the existing import key when the kept subscription has one', async () => {
+      const kept = { ...subscriptionEntity(), importKey: 'spotify:primary' };
+      prisma.subscription.findUnique.mockResolvedValue(kept);
+      prisma.subscription.findMany.mockResolvedValue([
+        { ...subscriptionEntity(), id: 'sub_2', importKey: 'spotify:other' },
+      ]);
+      prisma.subscription.update.mockResolvedValue(kept);
+
+      await service.mergeDuplicates({ keepId: 'sub_1', removeIds: ['sub_2'] });
+
+      expect(prisma.subscription.update).toHaveBeenCalledWith({
+        where: { id: 'sub_1' },
+        data: {},
+      });
+    });
+
+    it('rejects merging subscriptions from different services', async () => {
+      prisma.subscription.findUnique.mockResolvedValue(subscriptionEntity());
+      prisma.subscription.findMany.mockResolvedValue([
+        { ...subscriptionEntity(), id: 'sub_2', serviceId: 'svc_netflix' },
+      ]);
+
+      await expect(
+        service.mergeDuplicates({ keepId: 'sub_1', removeIds: ['sub_2'] }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.subscription.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('rejects removing the kept subscription', async () => {
+      await expect(
+        service.mergeDuplicates({ keepId: 'sub_1', removeIds: ['sub_1'] }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('reports subscriptions that no longer exist', async () => {
+      prisma.subscription.findUnique.mockResolvedValue(subscriptionEntity());
+      prisma.subscription.findMany.mockResolvedValue([]);
+
+      await expect(
+        service.mergeDuplicates({ keepId: 'sub_1', removeIds: ['sub_2'] }),
+      ).rejects.toThrow('Subscriptions not found: sub_2');
+    });
   });
 });

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-14
+
+### Fixed
+- Windows portable releases now generate and publish `latest.yml` during
+  `electron-builder --publish always`, restoring in-app auto-update for CI
+  and local publish flows (fixes #41).
+
+## [1.2.0] - 2026-09-04
+
 ### Added
 - Money-awareness tools: configurable monthly budget alerts, a currency-safe
   three-month renewal forecast, provider cancellation links with a
@@ -19,13 +28,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Linux AppImage builds auto-update through the existing Settings flow.
   Automatic updates stay disabled on macOS until builds are signed; Settings
   explains this and points to GitHub Releases.
+- Spend-by-category chart on the dashboard, built on the existing category
+  breakdown endpoint.
+- Smarter Gmail email receipt imports: richer parsing, a dedicated
+  `EmailReceipt` audit trail, and a review endpoint for low-confidence
+  parses.
+- Optional Sentry error tracking for the API and web app, off unless a host
+  sets `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN`. Left unset in the published
+  desktop builds, so packaged releases send nothing.
 
 ### Changed
+- SubSync is now licensed under AGPL-3.0 (previously unlicensed); see
+  `LICENSE` and `THIRD_PARTY_NOTICES.md`.
 - `docs/release-roadmap.md` rewritten for the post-v1.1.2 state: the June 2026
   plan (largely shipped in v1.1.0–v1.1.2) is replaced with themed releases
   through v2.0.0 — v1.2.0 "Cross-platform", v1.2.x signing patches, v1.3.0
   "Smarter imports", v1.4.0 "Money awareness", and v2.0.0 "Beyond one
   machine".
+
+### Fixed
+- All 14 open CodeQL code-scanning alerts.
+
+## [1.1.3] - 2026-07-15
+
+### Fixed
+- The Windows portable app now starts its bundled Next.js server from a real
+  filesystem directory instead of Electron's ASAR archive. This fixes the
+  `ENOENT` startup failure caused by Next.js calling `process.chdir()` inside
+  `app.asar`.
+- The complete standalone web runtime, including its traced `node_modules`, is
+  included as a physical packaged resource.
+
+### Changed
+- Desktop readiness checks use bounded `node:http` probes, and the Windows
+  package pipeline now includes an automated launch smoke test that requires
+  HTTP 200 responses from both the API and dashboard.
+- Windows release assets use the stable `SubSync-{version}.exe` filename.
 
 ## [1.1.2] - 2026-07-02
 

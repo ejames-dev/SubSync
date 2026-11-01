@@ -35,16 +35,19 @@ describe('App (e2e)', () => {
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+      deleteMany: jest.fn(),
     },
     pendingNotification: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     subscriptionEvent: {
       create: jest.fn(),
       findMany: jest.fn(),
+      updateMany: jest.fn(),
     },
     gmailConnection: {
       findUnique: jest.fn(),
@@ -575,6 +578,73 @@ describe('App (e2e)', () => {
       }),
     );
     expect(prismaMock.subscriptionEvent.create).toHaveBeenCalled();
+  });
+
+  it('/api/subscriptions/duplicates/merge (POST) merges duplicates into the kept entry', async () => {
+    const entity = {
+      id: 'sub_netflix',
+      serviceId: 'svc_netflix',
+      planName: 'Standard',
+      status: 'active',
+      billingAmountCents: 1549,
+      billingCurrency: 'USD',
+      billingInterval: 'monthly',
+      nextRenewal: new Date('2026-03-18T00:00:00.000Z'),
+      paymentSource: 'card',
+      paymentLast4: '4242',
+      autoImportSource: 'manual',
+      notes: null,
+      nextRenewalReminderSent: false,
+      snoozedUntil: null,
+      statusChangedAt: new Date('2026-03-17T00:00:00.000Z'),
+      importKey: null,
+      lastImportedAt: null,
+      duplicateReviewedAt: null,
+    };
+    prismaMock.subscription.findUnique.mockResolvedValueOnce(entity);
+    prismaMock.subscription.findMany.mockResolvedValueOnce([
+      { ...entity, id: 'sub_netflix_dup', autoImportSource: 'email' },
+    ]);
+    prismaMock.subscription.update.mockResolvedValueOnce(entity);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/subscriptions/duplicates/merge')
+      .send({ keepId: 'sub_netflix', removeIds: ['sub_netflix_dup'] })
+      .expect(201);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({ id: 'sub_netflix', serviceId: 'svc_netflix' }),
+    );
+    expect(prismaMock.subscription.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ['sub_netflix_dup'] } },
+    });
+    expect(prismaMock.subscriptionEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ eventType: 'merged' }),
+    });
+  });
+
+  it('/api/subscriptions/duplicates/merge (POST) rejects an empty removal list', () => {
+    return request(app.getHttpServer())
+      .post('/api/subscriptions/duplicates/merge')
+      .send({ keepId: 'sub_netflix', removeIds: [] })
+      .expect(400);
+  });
+
+  it('/api/subscriptions/duplicates/:serviceId/dismiss (POST) marks a group as reviewed', async () => {
+    prismaMock.subscription.findMany.mockResolvedValueOnce([
+      { id: 'sub_netflix' },
+      { id: 'sub_netflix_dup' },
+    ]);
+    prismaMock.subscription.updateMany.mockResolvedValueOnce({ count: 2 });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/subscriptions/duplicates/svc_netflix/dismiss')
+      .expect(201);
+
+    expect(response.body).toEqual({
+      serviceId: 'svc_netflix',
+      dismissedCount: 2,
+    });
   });
 
   it('/api/data/export/subscriptions (GET) exports JSON subscriptions', async () => {

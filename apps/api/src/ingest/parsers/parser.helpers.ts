@@ -28,24 +28,44 @@ export function emailContent(input: ReceiptEmailInput): string {
 }
 
 export function plainText(content: string): string {
-  return content
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>|<\/div>|<\/tr>|<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&pound;/gi, '£')
-    .replace(/&euro;/gi, '€')
-    .replace(/\r/g, '')
-    .replace(/[\t ]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return (
+    content
+      .replace(/<style\b[^>]*>[\s\S]*?<\s*\/\s*style\b[^>]*>/gi, ' ')
+      .replace(/<script\b[^>]*>[\s\S]*?<\s*\/\s*script\b[^>]*>/gi, ' ')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>|<\/div>|<\/tr>|<\/li>/gi, '\n')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&pound;/gi, '£')
+      .replace(/&euro;/gi, '€')
+      // &amp; must unescape last: decoding it before the named entities above
+      // would turn a literal, already-single-encoded "&amp;pound;" into
+      // "&pound;" and then into "£", silently double-unescaping content that
+      // was never meant to become a currency symbol.
+      .replace(/&amp;/gi, '&')
+      .replace(/\r/g, '')
+      .replace(/[\t ]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }
 
+// A "From" header is never remotely this long (RFC 5322 caps an unfolded
+// line at 998 octets); bounding the input keeps the worst case for the
+// regex below trivially fast regardless of its polynomial degree.
+const MAX_SENDER_LENGTH = 998;
+
 export function senderDomain(sender: string): string | undefined {
-  const withoutQuotedDisplay = sender
+  const bounded =
+    sender.length > MAX_SENDER_LENGTH
+      ? sender.slice(0, MAX_SENDER_LENGTH)
+      : sender;
+  // Strip quoted display names first: an '@' inside quotes (e.g.
+  // '"@attacker.com" <billing@netflix.com>') is not the addr-spec, and
+  // picking the first '@' in the raw header would let a spoofer align
+  // DKIM/SPF checks with a domain they control while the parsers match
+  // a trusted provider domain in the angle address.
+  const withoutQuotedDisplay = bounded
     .replace(/"(?:\\.|[^"\\])*"/g, ' ')
     .trim();
 

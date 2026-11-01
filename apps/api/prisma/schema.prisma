@@ -61,6 +61,7 @@ model Subscription {
   updatedAt               DateTime  @updatedAt
   importKey               String?   @unique
   lastImportedAt          DateTime?
+  duplicateReviewedAt     DateTime?
 
   service              Service               @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   events               SubscriptionEvent[]

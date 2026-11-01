@@ -2,11 +2,11 @@
 
 ## Download
 1. Open the latest GitHub Release for SubSync.
-2. Download the latest `SubSync {version}.exe` file. The current documented release is `SubSync 1.1.2.exe`.
+2. Download the latest `SubSync-{version}.exe` file. The current documented release is `SubSync-1.1.3.exe`.
 3. Move the file somewhere you can keep it, such as `Downloads` or `Desktop`.
 
 ## Launch
-1. Double-click `SubSync 1.1.2.exe` or the newer release you downloaded.
+1. Double-click `SubSync-1.1.3.exe` or the newer release you downloaded.
 2. Wait for the local API, web UI, and SQLite database to initialize.
 3. If Windows SmartScreen appears, review the publisher warning and choose whether to continue.
 4. The portable app runs its local API on `127.0.0.1:43100` and its bundled web UI on `127.0.0.1:43101`.
@@ -18,7 +18,7 @@ SubSync's Windows portable executable is currently unsigned. That means Windows 
 Before running the app:
 
 1. Download it only from the official SubSync GitHub Releases page.
-2. Confirm the filename matches the published release, such as `SubSync 1.1.2.exe`.
+2. Confirm the filename matches the published release, such as `SubSync-1.1.3.exe`.
 3. If the release includes checksums, compare the downloaded file before launching.
 4. Do not continue if the file came from a third-party mirror, an email attachment, or an unexpected download prompt.
 

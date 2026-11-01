@@ -62,12 +62,14 @@ export class DashboardService {
       );
     }
 
-    const duplicateMap = new Map<string, number>();
+    // Group billable subscriptions only: a canceled_pending plan is on its
+    // way out, so pairing it with its replacement is not a duplicate.
+    const duplicateMap = new Map<string, Subscription[]>();
     for (const subscription of billableSubscriptions) {
-      duplicateMap.set(
-        subscription.serviceId,
-        (duplicateMap.get(subscription.serviceId) ?? 0) + 1,
-      );
+      duplicateMap.set(subscription.serviceId, [
+        ...(duplicateMap.get(subscription.serviceId) ?? []),
+        subscription,
+      ]);
     }
 
     return {
@@ -94,11 +96,16 @@ export class DashboardService {
         }))
         .sort((a, b) => b.monthlyEquivalentSpend - a.monthlyEquivalentSpend),
       duplicateSubscriptions: Array.from(duplicateMap.entries())
-        .filter(([, count]) => count > 1)
-        .map(([serviceId, count]) => ({
+        .filter(
+          ([, group]) =>
+            group.length > 1 &&
+            group.some((subscription) => !subscription.duplicateReviewedAt),
+        )
+        .map(([serviceId, group]) => ({
           serviceId,
           serviceName: servicesById[serviceId]?.name ?? serviceId,
-          count,
+          count: group.length,
+          subscriptionIds: group.map((subscription) => subscription.id),
         }))
         .sort(
           (a, b) =>

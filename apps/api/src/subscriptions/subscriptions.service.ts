@@ -148,6 +148,13 @@ export class SubscriptionsService {
       data: { snoozedUntil },
     });
 
+    // Withdraw any reminder that is already queued but not yet delivered:
+    // snoozing after the hourly worker queued a push would otherwise still
+    // notify the user about the renewal they just snoozed.
+    await this.prisma.pendingNotification.deleteMany({
+      where: { subscriptionId: id, deliveredAt: null },
+    });
+
     await this.recordEvent(
       id,
       'renewal',

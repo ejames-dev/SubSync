@@ -43,6 +43,7 @@ describe('App (e2e)', () => {
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+      deleteMany: jest.fn(),
     },
     subscriptionEvent: {
       create: jest.fn(),
@@ -246,6 +247,8 @@ describe('App (e2e)', () => {
     prismaMock.emailReceiptItem.deleteMany.mockResolvedValue({ count: 0 });
     prismaMock.emailReceiptItem.findMany.mockResolvedValue([]);
     prismaMock.pendingNotification.findMany.mockResolvedValue([]);
+    prismaMock.pendingNotification.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.pendingNotification.deleteMany.mockResolvedValue({ count: 0 });
     prismaMock.pendingNotification.create.mockImplementation(({ data }) =>
       Promise.resolve({
         id: 'notif_1',
@@ -492,6 +495,39 @@ describe('App (e2e)', () => {
       }),
     );
     expect(prismaMock.pendingNotification.update).toHaveBeenCalled();
+  });
+
+  it('/api/notifications/claim (POST) atomically claims pending notifications', async () => {
+    prismaMock.pendingNotification.findMany.mockResolvedValueOnce([
+      {
+        id: 'notif_1',
+        subscriptionId: 'sub_netflix',
+        channel: 'push',
+        title: 'Netflix renews soon',
+        body: 'Standard renews on Mar 18, 2026 for USD 15.49.',
+        deliveredAt: null,
+        createdAt: new Date('2026-03-17T00:00:00.000Z'),
+      },
+    ]);
+    prismaMock.pendingNotification.updateMany.mockResolvedValueOnce({
+      count: 1,
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/notifications/claim')
+      .expect(201);
+
+    expect(response.body).toEqual([
+      expect.objectContaining({
+        id: 'notif_1',
+        channel: 'push',
+        title: 'Netflix renews soon',
+      }),
+    ]);
+    expect(prismaMock.pendingNotification.updateMany).toHaveBeenCalledWith({
+      where: { id: 'notif_1', deliveredAt: null },
+      data: { deliveredAt: expect.any(Date) },
+    });
   });
 
   it('/api/notifications/preferences (GET) reads unified user settings', async () => {

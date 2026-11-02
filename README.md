@@ -172,6 +172,7 @@ All routes are prefixed with `/api`.
 | `GET` | `/notifications/preferences` | Notification preferences (unified with settings) |
 | `PUT` | `/notifications/preferences` | Update notification preferences |
 | `GET` | `/notifications/pending` | Undelivered push notifications |
+| `POST` | `/notifications/claim` | Atomically claim pending notifications for delivery |
 | `POST` | `/notifications/:id/ack` | Mark notification as delivered |
 | `GET` | `/gmail/status` | Gmail connection status *(v1.1)* |
 | `GET` | `/gmail/auth-url` | Start Gmail OAuth *(v1.1)* |

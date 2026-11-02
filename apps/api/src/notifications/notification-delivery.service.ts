@@ -24,6 +24,42 @@ export class NotificationDeliveryService {
     return records.map((record) => this.toDomain(record));
   }
 
+  /**
+   * Atomically claim pending notifications for delivery. Each record is
+   * marked delivered with a conditional update (`deliveredAt: null`), so
+   * when two pollers race — Electron plus a browser tab, or two tabs —
+   * only the poller whose update wins receives the notification and all
+   * others see it as already claimed. This replaces the racy
+   * list-then-ack flow, where every poller could display the same item
+   * before any acknowledgement landed.
+   */
+  async claimPending(
+    channel: NotificationChannel = 'push',
+    limit = 20,
+  ): Promise<PendingRenewalNotification[]> {
+    const candidates = await this.prisma.pendingNotification.findMany({
+      where: {
+        channel,
+        deliveredAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit,
+    });
+
+    const claimed: PendingRenewalNotification[] = [];
+    for (const candidate of candidates) {
+      const result = await this.prisma.pendingNotification.updateMany({
+        where: { id: candidate.id, deliveredAt: null },
+        data: { deliveredAt: new Date() },
+      });
+      if (result.count === 1) {
+        claimed.push(this.toDomain(candidate));
+      }
+    }
+
+    return claimed;
+  }
+
   async acknowledge(id: string): Promise<PendingRenewalNotification> {
     const existing = await this.prisma.pendingNotification.findUnique({
       where: { id },

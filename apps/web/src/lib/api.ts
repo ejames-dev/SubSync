@@ -262,6 +262,15 @@ export function getPendingNotifications(channel: 'push' | 'email' = 'push') {
   );
 }
 
+export function claimPendingNotifications(
+  channel: 'push' | 'email' = 'push'
+) {
+  return apiRequest<PendingRenewalNotification[]>(
+    `/notifications/claim?channel=${channel}`,
+    { method: 'POST' }
+  );
+}
+
 export function acknowledgeNotification(id: string) {
   return apiRequest<PendingRenewalNotification>(`/notifications/${id}/ack`, {
     method: 'POST',

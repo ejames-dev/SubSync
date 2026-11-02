@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { acknowledgeNotification, getPendingNotifications } from '../lib/api';
+import { claimPendingNotifications } from '../lib/api';
 import { getDesktopBridge } from '../lib/desktop-bridge';
 
 const POLL_INTERVAL_MS = 60_000;
@@ -25,10 +25,12 @@ async function deliverPendingNotifications() {
     return;
   }
 
-  const pending = await getPendingNotifications();
-  for (const notification of pending) {
+  // Claim atomically: claimed notifications are already marked delivered,
+  // so another tab (or the Electron shell) polling concurrently receives
+  // a disjoint set and cannot display duplicates.
+  const claimed = await claimPendingNotifications();
+  for (const notification of claimed) {
     new Notification(notification.title, { body: notification.body });
-    await acknowledgeNotification(notification.id);
   }
 }
 

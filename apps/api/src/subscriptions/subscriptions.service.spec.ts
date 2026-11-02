@@ -23,6 +23,7 @@ type PrismaMock = {
   pendingNotification: {
     create: jest.Mock;
     updateMany: jest.Mock;
+    deleteMany: jest.Mock;
   };
   emailReceiptItem: {
     updateMany: jest.Mock;
@@ -55,6 +56,7 @@ describe('SubscriptionsService', () => {
       pendingNotification: {
         create: jest.fn(),
         updateMany: jest.fn(),
+        deleteMany: jest.fn(),
       },
       emailReceiptItem: {
         updateMany: jest.fn(),
@@ -521,6 +523,29 @@ describe('SubscriptionsService', () => {
       await expect(
         service.mergeDuplicates({ keepId: 'sub_1', removeIds: ['sub_2'] }),
       ).rejects.toThrow('Subscriptions not found: sub_2');
+    });
+  });
+
+  it('snoozing withdraws undelivered pending notifications', async () => {
+    const entity = subscriptionEntity();
+    prisma.subscription.findUnique.mockResolvedValue(entity);
+    prisma.subscription.update.mockResolvedValue({
+      ...entity,
+      snoozedUntil: new Date('2026-03-08T00:00:00.000Z'),
+    });
+    prisma.pendingNotification.deleteMany.mockResolvedValue({ count: 1 });
+
+    const result = await service.snoozeRenewal('sub_1', 7);
+
+    expect(result.snoozedUntil).toBeDefined();
+    expect(prisma.pendingNotification.deleteMany).toHaveBeenCalledWith({
+      where: { subscriptionId: 'sub_1', deliveredAt: null },
+    });
+    expect(prisma.subscriptionEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        subscriptionId: 'sub_1',
+        eventType: 'renewal',
+      }),
     });
   });
 });

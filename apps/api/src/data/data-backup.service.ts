@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -24,6 +25,8 @@ const BACKUP_SUFFIX = '.db';
 
 @Injectable()
 export class DataBackupService {
+  private readonly logger = new Logger(DataBackupService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   listBackups(): DataBackupInfo[] {
@@ -114,13 +117,38 @@ export class DataBackupService {
       await this.prisma.$connect();
     }
 
+    await this.stripRestoredGmailTokens();
+
     return {
       restoredAt: new Date().toISOString(),
       sourceName,
       safetyBackupFileName: safetyBackup.fileName,
       message:
-        'Database restored successfully. A safety backup of the previous database was saved locally.',
+        'Database restored successfully. A safety backup of the previous database was saved locally. Gmail connections were removed from the restored database — reconnect Gmail to resume syncing.',
     };
+  }
+
+  /**
+   * A backup file can come from another machine or an older install whose
+   * OAuth tokens were encrypted under a different key — and a shared backup
+   * must never silently import someone else's Gmail refresh tokens. Drop any
+   * restored Gmail connection / in-flight OAuth state so the user explicitly
+   * reconnects after a restore.
+   */
+  private async stripRestoredGmailTokens(): Promise<void> {
+    try {
+      await this.prisma.gmailConnection.deleteMany({});
+      await this.prisma.oAuthState.deleteMany({});
+    } catch (error) {
+      // Very old backups may not have these tables at all, in which case
+      // there is nothing to strip. Log loudly either way: a silent failure
+      // here would leave imported refresh tokens in place.
+      this.logger.warn(
+        `Could not clear Gmail connection data from restored database: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   private assertSqliteBackup(buffer: Buffer): void {

@@ -9,6 +9,7 @@ import {
   deleteSubscription,
   updateSubscription,
 } from '../lib/api';
+import { isSafeExternalUrl } from '../lib/utils';
 
 interface Props {
   services: ServiceProvider[];
@@ -198,7 +199,7 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           confirm it is canceled.
         </p>
       </div>
-      {selectedService?.cancelUrl && (
+      {selectedService?.cancelUrl && isSafeExternalUrl(selectedService.cancelUrl) && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-950">Ready to cancel?</p>
           <p className="mt-1 text-sm text-amber-900">

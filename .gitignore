@@ -12,3 +12,6 @@ desktop/runtime/
 *.tsbuildinfo
 apps/api/prisma/generated/
 apps/api/prisma/*.db
+# Locally generated OAuth token encryption key (never commit)
+oauth-token-key.key
+apps/api/prisma/*.key

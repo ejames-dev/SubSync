@@ -193,7 +193,7 @@ All routes are prefixed with `/api`.
 | `GOOGLE_OAUTH_CLIENT_ID` | — | Gmail OAuth client ID |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | — | Gmail OAuth client secret |
 | `GMAIL_OAUTH_RETURN_URL` | `http://127.0.0.1:3000/connect` | Web URL used after Gmail OAuth in local development |
-| `OAUTH_TOKEN_ENCRYPTION_KEY` | derived | Base64 32-byte key for token encryption |
+| `OAUTH_TOKEN_ENCRYPTION_KEY` | local key file | Base64 32-byte key for token encryption. When unset, a random key is generated and persisted next to the database (`oauth-token-key.key`, or `OAUTH_TOKEN_KEY_FILE`); the desktop app injects a key sealed with OS secure storage instead |
 
 See [.env.example](.env.example) for the full list.
 
@@ -255,7 +255,7 @@ Release checklist: [docs/release-checklist.md](docs/release-checklist.md)
 
 | Layer | Technology |
 | --- | --- |
-| Desktop | Electron 41, electron-builder |
+| Desktop | Electron 42, electron-builder |
 | API | NestJS 10, Prisma 5, SQLite |
 | Web | Next.js 14, React 18, Tailwind CSS |
 | Shared types | TypeScript monorepo package |

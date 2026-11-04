@@ -42,7 +42,7 @@
   },
   "overrides": {
     "file-type": "21.3.3",
-    "multer": "2.2.0"
+    "multer": "2.5.0"
   },
   "eslintConfig": {
     "root": true,
@@ -128,7 +128,7 @@
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
-    "electron": "^41.10.3",
+    "electron": "^42.11.18",
     "electron-builder": "^26.15.3"
   },
   "volta": {
@@ -140,7 +140,7 @@
     "@prisma/engines": true,
     "prisma": true,
     "@sentry/cli@2.58.6": true,
-    "electron@41.10.5": true,
+    "electron@42.11.18": true,
     "electron-winstaller@5.4.0": true,
     "unrs-resolver": true
   }

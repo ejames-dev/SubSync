@@ -15,6 +15,10 @@ describe('GmailOAuthService', () => {
   beforeEach(() => {
     delete process.env.GOOGLE_OAUTH_CLIENT_ID;
     delete process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+    // Explicit key so TokenCryptoService never touches the filesystem here.
+    process.env.OAUTH_TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 3).toString(
+      'base64',
+    );
     jest.clearAllMocks();
   });
 

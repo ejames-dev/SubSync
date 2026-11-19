@@ -1,4 +1,9 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  Optional,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   advanceRenewalDate,
@@ -14,7 +19,7 @@ import { PrismaService } from '../prisma/prisma.service';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
-export class ReminderService {
+export class ReminderService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ReminderService.name);
 
   constructor(
@@ -24,6 +29,17 @@ export class ReminderService {
     @Optional() private readonly outboundAlerts?: OutboundAlertService,
     @Optional() private readonly exchangeRates?: ExchangeRateService,
   ) {}
+
+  onApplicationBootstrap() {
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+    void this.dispatchRenewalReminders().catch((error) => {
+      this.logger.warn(
+        `Initial renewal rollover check failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    });
+  }
 
   @Cron(CronExpression.EVERY_HOUR)
   async dispatchRenewalReminders() {

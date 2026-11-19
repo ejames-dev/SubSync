@@ -118,7 +118,8 @@ export class EmailIngestService {
         const autoApprove =
           service !== undefined &&
           confidence >= this.autoApproveThreshold() &&
-          (payload.source !== 'gmail' || payload.authenticatedSender === true);
+          ((payload.source !== 'gmail' && payload.source !== 'imap') ||
+            payload.authenticatedSender === true);
         const nextRenewal =
           parsedItem.nextRenewal ??
           this.inferNextRenewal(

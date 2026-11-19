@@ -162,7 +162,9 @@ export class ImapService {
 
       for (const msg of messages) {
         scanned += 1;
-        const parsed = parseRawEml(msg.rawEml);
+        const parsed = parseRawEml(msg.rawEml, {
+          trustedAuthServHost: conn.host,
+        });
         if (
           !BILLING_SUBJECT_HINT.test(
             `${parsed.subject}\n${parsed.body.slice(0, 800)}`,

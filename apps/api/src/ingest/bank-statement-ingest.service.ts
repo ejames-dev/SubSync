@@ -190,10 +190,61 @@ export class BankStatementIngestService {
     }
 
     const bodyHash = createHash('sha256').update(rawCsv).digest('hex');
+    const externalMessageId = `bank_csv:${bodyHash}`;
+    const existingReceipt = await this.prisma.emailReceipt.findUnique({
+      where: { externalMessageId },
+      include: { items: true },
+    });
+
+    if (existingReceipt) {
+      const existingItems: EmailReceiptItem[] = existingReceipt.items.map(
+        (row) => {
+          let evidence: string[] = [];
+          try {
+            const parsed = JSON.parse(row.evidenceJson ?? '[]') as unknown;
+            if (Array.isArray(parsed)) {
+              evidence = parsed.filter(
+                (entry): entry is string => typeof entry === 'string',
+              );
+            }
+          } catch {
+            evidence = [];
+          }
+          return {
+            id: row.id,
+            receiptId: existingReceipt.id,
+            serviceId: row.serviceId ?? undefined,
+            providerName: row.providerName,
+            planName: row.planName,
+            billingAmount: row.amountCents / 100,
+            billingCurrency: row.currency,
+            billingInterval: (row.interval ??
+              'monthly') as EmailReceiptItem['billingInterval'],
+            nextRenewal: row.renewalDate.toISOString(),
+            paymentSource: (row.paymentSource ??
+              'card') as EmailReceiptItem['paymentSource'],
+            confidence: row.confidence,
+            action: row.action as EmailReceiptItem['action'],
+            evidence,
+            createdAt: row.createdAt.toISOString(),
+            updatedAt: row.updatedAt.toISOString(),
+          };
+        },
+      );
+
+      return {
+        scannedRows: rows.length,
+        detectedGroups: existingItems.length,
+        receiptId: existingReceipt.id,
+        items: existingItems,
+        message: `Statement was already scanned (${existingItems.length} recurring subscription candidate${existingItems.length === 1 ? '' : 's'}).`,
+      };
+    }
+
     const receipt = await this.prisma.emailReceipt.create({
       data: {
         source: 'bank_csv',
-        externalMessageId: `bank_csv:${bodyHash}`,
+        externalMessageId,
         sender: 'local-statement@subsync.local',
         subject: `Bank CSV recurring scan (${candidates.length} detected)`,
         receivedAt: new Date(),

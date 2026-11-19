@@ -1,3 +1,5 @@
+import { senderDomain } from './parsers/parser.helpers';
+
 export interface ParsedEmlMessage {
   sender: string;
   subject: string;
@@ -7,7 +9,14 @@ export interface ParsedEmlMessage {
   body: string;
 }
 
-export function parseRawEml(rawEml: string): ParsedEmlMessage {
+export interface ParseRawEmlOptions {
+  trustedAuthServHost?: string;
+}
+
+export function parseRawEml(
+  rawEml: string,
+  options?: ParseRawEmlOptions,
+): ParsedEmlMessage {
   const normalized = rawEml.replace(/\r\n/g, '\n');
   const splitIndex = normalized.indexOf('\n\n');
   const rawHeaderBlock =
@@ -15,7 +24,9 @@ export function parseRawEml(rawEml: string): ParsedEmlMessage {
   const rawBodyBlock = splitIndex >= 0 ? normalized.slice(splitIndex + 2) : '';
 
   const headers = parseHeaders(rawHeaderBlock);
-  const sender = headers.get('from') || 'unknown@unknown.invalid';
+  const decodedSender = decodeMimeWords(
+    headers.get('from') || 'unknown@unknown.invalid',
+  );
   const subject = decodeMimeWords(headers.get('subject') || '(no subject)');
   const dateHeader = headers.get('date');
   const parsedDate = dateHeader ? new Date(dateHeader) : new Date();
@@ -28,21 +39,170 @@ export function parseRawEml(rawEml: string): ParsedEmlMessage {
     ? rawMessageId.replace(/^<|>$/g, '')
     : undefined;
 
-  const authResults = headers.get('authentication-results') ?? '';
-  const authenticatedSender = /\b(?:dkim=pass|spf=pass)\b/i.test(authResults);
+  const topAuthResults = headers.get('authentication-results') ?? '';
+  const topReceived = headers.get('received') ?? '';
+  const authenticatedSender = hasAlignedAuthentication(
+    decodedSender,
+    topAuthResults,
+    options?.trustedAuthServHost,
+    topReceived,
+  );
 
   const contentType = headers.get('content-type') ?? 'text/plain';
   const transferEncoding = headers.get('content-transfer-encoding') ?? '7bit';
   const body = extractMimeBody(rawBodyBlock, contentType, transferEncoding);
 
   return {
-    sender: decodeMimeWords(sender),
+    sender: decodedSender,
     subject,
     receivedAt,
     messageId,
     authenticatedSender,
     body,
   };
+}
+
+const MICROSOFT_DOMAINS: readonly string[] = [
+  'outlook.com',
+  'office365.com',
+  'hotmail.com',
+  'live.com',
+];
+
+const PROVIDER_AUTHSERV_ALIASES: Array<readonly string[]> = [
+  ['gmail.com', 'google.com', 'googlemail.com'],
+  MICROSOFT_DOMAINS,
+  ['icloud.com', 'me.com', 'mac.com', 'apple.com'],
+  ['yahoo.com', 'yahoodns.net'],
+  ['proton.me', 'protonmail.com', 'protonmail.ch'],
+];
+
+function registrableTail(hostname: string): string {
+  const labels = hostname
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]/g, '')
+    .split('.')
+    .filter(Boolean);
+  if (labels.length < 2) {
+    return '';
+  }
+  return labels.slice(-2).join('.');
+}
+
+function isTrustedAuthServ(authServId: string, expectedHost?: string): boolean {
+  const normalizedAuthServ = authServId
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]/g, '')
+    .split('.')
+    .filter(Boolean)
+    .join('.');
+  if (!normalizedAuthServ.includes('.')) {
+    return false;
+  }
+  if (!expectedHost) {
+    return true;
+  }
+
+  const authBase = registrableTail(normalizedAuthServ);
+  const expectedBase = registrableTail(expectedHost);
+  if (!authBase || !expectedBase) {
+    return false;
+  }
+  if (authBase === expectedBase) {
+    return true;
+  }
+
+  return PROVIDER_AUTHSERV_ALIASES.some(
+    (group) => group.includes(authBase) && group.includes(expectedBase),
+  );
+}
+
+function isMicrosoftTrustedContext(
+  expectedHost: string | undefined,
+  topReceived: string,
+): boolean {
+  if (!expectedHost) {
+    return true;
+  }
+  const expectedBase = registrableTail(expectedHost);
+  if (!MICROSOFT_DOMAINS.includes(expectedBase)) {
+    return false;
+  }
+  if (!topReceived) {
+    return true;
+  }
+  const lowerReceived = topReceived.toLowerCase();
+  return MICROSOFT_DOMAINS.some((domain) => lowerReceived.includes(domain));
+}
+
+function hasAlignedAuthentication(
+  decodedSender: string,
+  authResults: string,
+  trustedAuthServHost?: string,
+  topReceived = '',
+): boolean {
+  const domainFromSender = senderDomain(decodedSender);
+  if (!domainFromSender || !authResults) {
+    return false;
+  }
+
+  const clauses = authResults
+    .slice(0, 8192)
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (clauses.length === 0) {
+    return false;
+  }
+
+  const firstClause = clauses[0];
+  const startsWithMethod = /^(?:spf|dkim|dmarc|arc|compauth)\s*=/i.test(
+    firstClause,
+  );
+
+  let methodClauses: string[];
+  if (startsWithMethod) {
+    if (!isMicrosoftTrustedContext(trustedAuthServHost, topReceived)) {
+      return false;
+    }
+    methodClauses = clauses;
+  } else {
+    if (clauses.length < 2) {
+      return false;
+    }
+    const authServToken = firstClause.split(/\s+/)[0] ?? '';
+    if (!isTrustedAuthServ(authServToken, trustedAuthServHost)) {
+      return false;
+    }
+    methodClauses = clauses.slice(1);
+  }
+
+  for (const clause of methodClauses) {
+    if (!/\b(?:dkim|spf)\s*=\s*pass\b/i.test(clause)) {
+      continue;
+    }
+    const tokenMatch = clause.match(
+      /(?:header\.(?:d|i)|smtp\.mailfrom)\s*=\s*([^\s;]+)/i,
+    );
+    const rawToken = tokenMatch?.[1] ?? '';
+    const atIdx = rawToken.lastIndexOf('@');
+    const domain = (atIdx >= 0 ? rawToken.slice(atIdx + 1) : rawToken)
+      .toLowerCase()
+      .replace(/[^a-z0-9.-]/g, '')
+      .split('.')
+      .filter(Boolean)
+      .join('.');
+    if (
+      domain &&
+      (domain === domainFromSender ||
+        domain.endsWith(`.${domainFromSender}`) ||
+        domainFromSender.endsWith(`.${domain}`))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function parseHeaders(headerBlock: string): Map<string, string> {
@@ -55,8 +215,6 @@ function parseHeaders(headerBlock: string): Map<string, string> {
     const value = line.slice(colon + 1).trim();
     if (!map.has(key)) {
       map.set(key, value);
-    } else if (key === 'authentication-results') {
-      map.set(key, `${map.get(key)}; ${value}`);
     }
   }
   return map;

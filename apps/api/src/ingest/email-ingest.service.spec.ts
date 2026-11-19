@@ -294,4 +294,15 @@ describe('EmailIngestService', () => {
     expect(result.status).toBe('ignored');
     expect(result.message).toContain('Ignored an older receipt');
   });
+
+  it('holds unauthenticated IMAP receipts in review instead of auto-approving', async () => {
+    const result = await createService().ingest({
+      ...netflixPayload,
+      source: 'imap',
+      authenticatedSender: false,
+    });
+
+    expect(result.status).toBe('review');
+    expect(subscriptions.upsertImported).not.toHaveBeenCalled();
+  });
 });

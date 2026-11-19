@@ -67,11 +67,11 @@ export class DataImportService {
           catalog = [...catalog, service];
         }
 
-        const amount = Number(
-          String(row.billingAmount ?? '')
-            .replace(/[^0-9.-]/g, '')
-            .trim(),
-        );
+        const cleanedAmount = String(row.billingAmount ?? '')
+          .replace(/[^0-9.-]/g, '')
+          .trim();
+        const amount =
+          cleanedAmount.length > 0 ? Number(cleanedAmount) : Number.NaN;
         if (!Number.isFinite(amount) || amount < 0) {
           errors.push(
             `${rowLabel}: invalid billingAmount "${row.billingAmount ?? ''}"`,

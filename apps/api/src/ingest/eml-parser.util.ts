@@ -39,11 +39,13 @@ export function parseRawEml(
     ? rawMessageId.replace(/^<|>$/g, '')
     : undefined;
 
-  const topAuthResults = extractTopAuthenticationResults(rawHeaderBlock);
+  const topAuthResults = headers.get('authentication-results') ?? '';
+  const topReceived = headers.get('received') ?? '';
   const authenticatedSender = hasAlignedAuthentication(
     decodedSender,
     topAuthResults,
     options?.trustedAuthServHost,
+    topReceived,
   );
 
   const contentType = headers.get('content-type') ?? 'text/plain';
@@ -60,34 +62,20 @@ export function parseRawEml(
   };
 }
 
+const MICROSOFT_DOMAINS: readonly string[] = [
+  'outlook.com',
+  'office365.com',
+  'hotmail.com',
+  'live.com',
+];
+
 const PROVIDER_AUTHSERV_ALIASES: Array<readonly string[]> = [
   ['gmail.com', 'google.com', 'googlemail.com'],
-  ['outlook.com', 'office365.com', 'hotmail.com', 'live.com'],
+  MICROSOFT_DOMAINS,
   ['icloud.com', 'me.com', 'mac.com', 'apple.com'],
   ['yahoo.com', 'yahoodns.net'],
   ['proton.me', 'protonmail.com', 'protonmail.ch'],
 ];
-
-function extractTopAuthenticationResults(headerBlock: string): string {
-  const unfolded = headerBlock.replace(/\n[ \t]+/g, ' ');
-  let receivedCount = 0;
-  for (const line of unfolded.split('\n')) {
-    const colon = line.indexOf(':');
-    if (colon <= 0) continue;
-    const key = line.slice(0, colon).trim().toLowerCase();
-    if (key === 'received') {
-      receivedCount += 1;
-      continue;
-    }
-    if (key === 'authentication-results') {
-      if (receivedCount > 1) {
-        return '';
-      }
-      return line.slice(colon + 1).trim();
-    }
-  }
-  return '';
-}
 
 function registrableTail(hostname: string): string {
   const labels = hostname
@@ -129,28 +117,67 @@ function isTrustedAuthServ(authServId: string, expectedHost?: string): boolean {
   );
 }
 
+function isMicrosoftTrustedContext(
+  expectedHost: string | undefined,
+  topReceived: string,
+): boolean {
+  if (!expectedHost) {
+    return true;
+  }
+  const expectedBase = registrableTail(expectedHost);
+  if (!MICROSOFT_DOMAINS.includes(expectedBase)) {
+    return false;
+  }
+  if (!topReceived) {
+    return true;
+  }
+  const lowerReceived = topReceived.toLowerCase();
+  return MICROSOFT_DOMAINS.some((domain) => lowerReceived.includes(domain));
+}
+
 function hasAlignedAuthentication(
   decodedSender: string,
   authResults: string,
   trustedAuthServHost?: string,
+  topReceived = '',
 ): boolean {
   const domainFromSender = senderDomain(decodedSender);
   if (!domainFromSender || !authResults) {
     return false;
   }
 
-  const clauses = authResults.slice(0, 8192).split(';');
-  if (clauses.length < 2) {
+  const clauses = authResults
+    .slice(0, 8192)
+    .split(';')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  if (clauses.length === 0) {
     return false;
   }
 
-  const authServToken = clauses[0].trim().split(/\s+/)[0] ?? '';
-  if (!isTrustedAuthServ(authServToken, trustedAuthServHost)) {
-    return false;
+  const firstClause = clauses[0];
+  const startsWithMethod = /^(?:spf|dkim|dmarc|arc|compauth)\s*=/i.test(
+    firstClause,
+  );
+
+  let methodClauses: string[];
+  if (startsWithMethod) {
+    if (!isMicrosoftTrustedContext(trustedAuthServHost, topReceived)) {
+      return false;
+    }
+    methodClauses = clauses;
+  } else {
+    if (clauses.length < 2) {
+      return false;
+    }
+    const authServToken = firstClause.split(/\s+/)[0] ?? '';
+    if (!isTrustedAuthServ(authServToken, trustedAuthServHost)) {
+      return false;
+    }
+    methodClauses = clauses.slice(1);
   }
 
-  for (const rawClause of clauses.slice(1)) {
-    const clause = rawClause.trim();
+  for (const clause of methodClauses) {
     if (!/\b(?:dkim|spf)\s*=\s*pass\b/i.test(clause)) {
       continue;
     }

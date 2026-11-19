@@ -82,4 +82,42 @@ describe('parseRawEml', () => {
       ).authenticatedSender,
     ).toBe(true);
   });
+
+  it('supports multi-hop Gmail Received chains and Outlook authserv-id-less headers', () => {
+    const gmailMultiHopEml = [
+      'Received: by 2002:a05:622a:1:: with SMTP id abc123',
+      'Received: from mail.spotify.com by mx.google.com with ESMTPS id def456',
+      'Authentication-Results: mx.google.com; dkim=pass header.i=@spotify.com',
+      'From: "Spotify" <no-reply@spotify.com>',
+      'Subject: Your Spotify receipt',
+      '',
+      'Spotify Premium Individual $11.99 monthly',
+    ].join('\r\n');
+
+    expect(
+      parseRawEml(gmailMultiHopEml, { trustedAuthServHost: 'imap.gmail.com' })
+        .authenticatedSender,
+    ).toBe(true);
+
+    const outlookEml = [
+      'Received: from BN8NAM04FT012.eop-NAM04.prod.protection.outlook.com by MN2PR01MB5678.prod.outlook.com',
+      'Authentication-Results: spf=pass (sender IP is 1.2.3.4) smtp.mailfrom=spotify.com; dkim=pass header.d=spotify.com',
+      'From: "Spotify" <no-reply@spotify.com>',
+      'Subject: Your Spotify receipt',
+      '',
+      'Spotify Premium Individual $11.99 monthly',
+    ].join('\r\n');
+
+    expect(
+      parseRawEml(outlookEml, {
+        trustedAuthServHost: 'outlook.office365.com',
+      }).authenticatedSender,
+    ).toBe(true);
+
+    expect(
+      parseRawEml(outlookEml, {
+        trustedAuthServHost: 'imap.fastmail.com',
+      }).authenticatedSender,
+    ).toBe(false);
+  });
 });

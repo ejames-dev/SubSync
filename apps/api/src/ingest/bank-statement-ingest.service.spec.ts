@@ -6,6 +6,7 @@ describe('BankStatementIngestService', () => {
   it('clusters recurring monthly charges and queues review items locally', async () => {
     const prisma = {
       emailReceipt: {
+        findUnique: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue({ id: 'rcpt_bank_1' }),
       },
       emailReceiptItem: {
@@ -56,5 +57,33 @@ describe('BankStatementIngestService', () => {
         action: 'review',
       }),
     );
+
+    prisma.emailReceipt.findUnique.mockResolvedValueOnce({
+      id: 'rcpt_bank_1',
+      items: [
+        {
+          id: 'item_1',
+          receiptId: 'rcpt_bank_1',
+          serviceId: 'svc_netflix',
+          providerName: 'Netflix',
+          planName: 'Netflix Recurring Charge',
+          amountCents: 1549,
+          currency: 'USD',
+          interval: 'monthly',
+          renewalDate: new Date('2026-11-15T00:00:00.000Z'),
+          paymentSource: 'card',
+          confidence: 92,
+          action: 'review',
+          evidenceJson: '[]',
+          createdAt: new Date('2026-11-19T00:00:00.000Z'),
+          updatedAt: new Date('2026-11-19T00:00:00.000Z'),
+        },
+      ],
+    });
+
+    const duplicateScan = await analyzer.analyzeCsv(csv, 'USD');
+    expect(duplicateScan.receiptId).toBe('rcpt_bank_1');
+    expect(duplicateScan.detectedGroups).toBe(1);
+    expect(prisma.emailReceipt.create).toHaveBeenCalledTimes(1);
   });
 });

@@ -125,4 +125,22 @@ describe('DataImportService', () => {
     });
     expect(prisma.subscription.update).toHaveBeenCalledTimes(1);
   });
+
+  it('skips rows with blank billingAmount instead of overwriting price with zero', async () => {
+    const csv = [
+      'serviceName,planName,billingAmount,nextRenewal',
+      'Netflix,Standard,,2026-12-01',
+    ].join('\n');
+
+    const result = await service.importSubscriptions({
+      content: csv,
+      format: 'csv',
+    });
+
+    expect(result.skipped).toBe(1);
+    expect(result.created).toBe(0);
+    expect(result.updated).toBe(0);
+    expect(prisma.subscription.create).not.toHaveBeenCalled();
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+  });
 });

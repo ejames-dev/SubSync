@@ -1,3 +1,5 @@
+import { senderDomain } from './parsers/parser.helpers';
+
 export interface ParsedEmlMessage {
   sender: string;
   subject: string;
@@ -15,7 +17,9 @@ export function parseRawEml(rawEml: string): ParsedEmlMessage {
   const rawBodyBlock = splitIndex >= 0 ? normalized.slice(splitIndex + 2) : '';
 
   const headers = parseHeaders(rawHeaderBlock);
-  const sender = headers.get('from') || 'unknown@unknown.invalid';
+  const decodedSender = decodeMimeWords(
+    headers.get('from') || 'unknown@unknown.invalid',
+  );
   const subject = decodeMimeWords(headers.get('subject') || '(no subject)');
   const dateHeader = headers.get('date');
   const parsedDate = dateHeader ? new Date(dateHeader) : new Date();
@@ -29,20 +33,61 @@ export function parseRawEml(rawEml: string): ParsedEmlMessage {
     : undefined;
 
   const authResults = headers.get('authentication-results') ?? '';
-  const authenticatedSender = /\b(?:dkim=pass|spf=pass)\b/i.test(authResults);
+  const authenticatedSender = hasAlignedAuthentication(
+    decodedSender,
+    authResults,
+  );
 
   const contentType = headers.get('content-type') ?? 'text/plain';
   const transferEncoding = headers.get('content-transfer-encoding') ?? '7bit';
   const body = extractMimeBody(rawBodyBlock, contentType, transferEncoding);
 
   return {
-    sender: decodeMimeWords(sender),
+    sender: decodedSender,
     subject,
     receivedAt,
     messageId,
     authenticatedSender,
     body,
   };
+}
+
+function hasAlignedAuthentication(
+  decodedSender: string,
+  authResults: string,
+): boolean {
+  const domainFromSender = senderDomain(decodedSender);
+  if (!domainFromSender || !authResults) {
+    return false;
+  }
+
+  for (const rawClause of authResults.slice(0, 8192).split(';')) {
+    const clause = rawClause.trim();
+    if (!/\b(?:dkim|spf)\s*=\s*pass\b/i.test(clause)) {
+      continue;
+    }
+    const tokenMatch = clause.match(
+      /(?:header\.(?:d|i)|smtp\.mailfrom)\s*=\s*([^\s;]+)/i,
+    );
+    const rawToken = tokenMatch?.[1] ?? '';
+    const atIdx = rawToken.lastIndexOf('@');
+    const domain = (atIdx >= 0 ? rawToken.slice(atIdx + 1) : rawToken)
+      .toLowerCase()
+      .replace(/[^a-z0-9.-]/g, '')
+      .split('.')
+      .filter(Boolean)
+      .join('.');
+    if (
+      domain &&
+      (domain === domainFromSender ||
+        domain.endsWith(`.${domainFromSender}`) ||
+        domainFromSender.endsWith(`.${domain}`))
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function parseHeaders(headerBlock: string): Map<string, string> {

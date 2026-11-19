@@ -28,4 +28,19 @@ describe('parseRawEml', () => {
     expect(parsed.body).toContain('Spotify Premium Individual');
     expect(parsed.body).toContain('$11.99 monthly');
   });
+
+  it('marks authenticatedSender false when SPF/DKIM domain does not align with From domain', () => {
+    const spoofedEml = [
+      'From: "Spotify" <no-reply@spotify.com>',
+      'Subject: Your Spotify receipt',
+      'Date: Wed, 01 Jul 2026 12:00:00 +0000',
+      'Authentication-Results: mx.example.com; dkim=pass header.d=attacker.example; spf=pass smtp.mailfrom=bounce@attacker.example',
+      'Content-Type: text/plain; charset="UTF-8"',
+      '',
+      'Spotify Premium Individual $11.99 monthly',
+    ].join('\r\n');
+
+    const parsed = parseRawEml(spoofedEml);
+    expect(parsed.authenticatedSender).toBe(false);
+  });
 });

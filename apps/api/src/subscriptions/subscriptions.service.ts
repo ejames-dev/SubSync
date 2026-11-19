@@ -4,11 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BulkSubscriptionsResult,
   DuplicateDismissResult,
   NotificationChannel,
   Subscription,
   SubscriptionEvent,
 } from '@subscription-tracker/types';
+import { BulkSubscriptionsDto } from './dto/bulk-subscriptions.dto';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { MergeDuplicatesDto } from './dto/merge-duplicates.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
@@ -136,6 +138,76 @@ export class SubscriptionsService {
   async remove(id: string): Promise<void> {
     await this.getEntityOrThrow(id);
     await this.prisma.subscription.delete({ where: { id } });
+  }
+
+  async bulkUpdate(
+    dto: BulkSubscriptionsDto,
+  ): Promise<BulkSubscriptionsResult> {
+    const uniqueIds = Array.from(new Set(dto.ids));
+    if (dto.action === 'delete') {
+      const { count } = await this.prisma.subscription.deleteMany({
+        where: { id: { in: uniqueIds } },
+      });
+      return { action: dto.action, affectedCount: count };
+    }
+
+    if (dto.action === 'snooze') {
+      const days = dto.snoozeDays ?? 7;
+      let affectedCount = 0;
+      for (const id of uniqueIds) {
+        const existing = await this.prisma.subscription.findUnique({
+          where: { id },
+        });
+        if (!existing) continue;
+        await this.snoozeRenewal(id, days);
+        affectedCount += 1;
+      }
+      return { action: dto.action, affectedCount };
+    }
+
+    const targetStatus: Subscription['status'] = (() => {
+      switch (dto.action) {
+        case 'pause':
+          return 'paused';
+        case 'activate':
+          return 'active';
+        case 'flag_cancel':
+          return 'flagged_for_cancellation';
+        case 'archive':
+          return 'canceled';
+        default: {
+          const exhaustiveCheck: never = dto.action;
+          return exhaustiveCheck;
+        }
+      }
+    })();
+
+    const now = new Date();
+    const existingRows = await this.prisma.subscription.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, status: true },
+    });
+    const { count } = await this.prisma.subscription.updateMany({
+      where: { id: { in: uniqueIds } },
+      data: {
+        status: targetStatus,
+        statusChangedAt: now,
+      },
+    });
+    if (targetStatus === 'paused' || targetStatus === 'canceled') {
+      await this.prisma.pendingNotification.deleteMany({
+        where: {
+          subscriptionId: { in: uniqueIds },
+          deliveredAt: null,
+        },
+      });
+    }
+    for (const row of existingRows) {
+      if (row.status !== targetStatus) {
+        await this.recordEvent(row.id, 'status_changed', targetStatus);
+      }
+    }
+    return { action: dto.action, affectedCount: count };
   }
 
   async snoozeRenewal(id: string, days = 7): Promise<Subscription> {

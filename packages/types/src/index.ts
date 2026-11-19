@@ -132,6 +132,19 @@ export interface DashboardDuplicateGroup {
   subscriptionIds: string[];
 }
 
+export type BulkSubscriptionAction =
+  | 'pause'
+  | 'activate'
+  | 'flag_cancel'
+  | 'archive'
+  | 'snooze'
+  | 'delete';
+
+export interface BulkSubscriptionsResult {
+  action: BulkSubscriptionAction;
+  affectedCount: number;
+}
+
 export interface DuplicateDismissResult {
   serviceId: string;
   dismissedCount: number;
@@ -239,6 +252,11 @@ export interface AppUpdateStatus {
   availableVersion?: string;
   percent?: number;
   message?: string;
+}
+
+export interface DesktopShellSettings {
+  minimizeToTray: boolean;
+  launchAtLogin: boolean;
 }
 
 export interface EmailIngestResult {

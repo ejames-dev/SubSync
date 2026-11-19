@@ -2,6 +2,7 @@
 
 import { Suspense, type FormEvent, useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import type {
   DashboardSummary,
   ServiceProvider,
@@ -219,6 +220,9 @@ export function DashboardClient() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Delete this subscription?')) {
+      return;
+    }
     setError(null);
     try {
       await deleteSubscription(id);
@@ -420,13 +424,21 @@ export function DashboardClient() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Upcoming renewals
               </h2>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void loadData()}
-              >
-                Refresh
-              </Button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/calendar"
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
+                  Open calendar &rarr;
+                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadData()}
+                >
+                  Refresh
+                </Button>
+              </div>
             </div>
             <div className="space-y-3">
               {loading ? (
@@ -567,6 +579,7 @@ export function DashboardClient() {
               <SubscriptionsGrid
                 subscriptions={subscriptions}
                 servicesById={servicesById}
+                onChanged={loadData}
               />
             </Suspense>
           </div>
@@ -574,9 +587,18 @@ export function DashboardClient() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Add subscription</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle>Quick add</CardTitle>
+              <Link
+                href="/subscriptions/new"
+                className="text-xs font-medium text-blue-600 hover:underline"
+              >
+                Full form &rarr;
+              </Link>
+            </div>
             <p className="text-sm text-slate-500">
-              This writes directly to the local SQLite-backed API.
+              Add a plan quickly, or open the full form for custom services,
+              trials, and tags.
             </p>
           </CardHeader>
           <CardContent>

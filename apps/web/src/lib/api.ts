@@ -1,6 +1,8 @@
 import { cache } from 'react';
 import type {
   BillingInterval,
+  BulkSubscriptionAction,
+  BulkSubscriptionsResult,
   DashboardSummary,
   DataBackupInfo,
   DataRestoreResult,
@@ -161,6 +163,17 @@ export function snoozeSubscription(id: string, days = 7) {
   return apiRequest<Subscription>(`/subscriptions/${id}/snooze`, {
     method: 'POST',
     body: JSON.stringify({ days }),
+  });
+}
+
+export function bulkUpdateSubscriptions(payload: {
+  ids: string[];
+  action: BulkSubscriptionAction;
+  snoozeDays?: number;
+}) {
+  return apiRequest<BulkSubscriptionsResult>('/subscriptions/bulk', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
 

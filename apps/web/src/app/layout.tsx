@@ -8,8 +8,18 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'SubSync | Subscription Tracker',
-  description: 'Track streaming & media subscriptions in one place.',
+  description: 'Track subscriptions, renewals, and recurring spend locally.',
 };
+
+const themeInitScript = `
+(function() {
+  try {
+    var stored = localStorage.getItem('subsync-theme');
+    var dark = stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (dark) document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({
   children,
@@ -17,7 +27,10 @@ export default function RootLayout({
   children: ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className={inter.className}>
         <SiteShell>{children}</SiteShell>
       </body>

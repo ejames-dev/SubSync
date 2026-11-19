@@ -12,6 +12,7 @@ import {
   restoreStoredDatabaseBackup,
   updateSettings,
 } from '../lib/api';
+import { DesktopSettingsCard } from './desktop-settings-card';
 import { DesktopUpdateCard } from './desktop-update-card';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -242,6 +243,8 @@ export function SettingsClient() {
           </form>
         </CardContent>
       </Card>
+
+      <DesktopSettingsCard />
 
       <DesktopUpdateCard />
 

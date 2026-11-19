@@ -59,6 +59,10 @@ for (const target of copyTargets) {
 
 copyFileSync(resolve(rootDir, 'desktop', 'main.cjs'), resolve(appDir, 'main.cjs'));
 copyFileSync(
+  resolve(rootDir, 'desktop', 'desktop-shell.cjs'),
+  resolve(appDir, 'desktop-shell.cjs'),
+);
+copyFileSync(
   resolve(rootDir, 'desktop', 'runtime-path.cjs'),
   resolve(appDir, 'runtime-path.cjs'),
 );

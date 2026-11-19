@@ -9,11 +9,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
+import { BulkSubscriptionsDto } from './dto/bulk-subscriptions.dto';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { MergeDuplicatesDto } from './dto/merge-duplicates.dto';
 import { SnoozeSubscriptionDto } from './dto/snooze-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import {
+  BulkSubscriptionsResult,
   DuplicateDismissResult,
   Subscription,
   SubscriptionEvent,
@@ -44,6 +46,13 @@ export class SubscriptionsController {
   @Get(':id/events')
   async events(@Param('id') id: string): Promise<SubscriptionEvent[]> {
     return this.subscriptions.listEvents(id);
+  }
+
+  @Post('bulk')
+  async bulk(
+    @Body() dto: BulkSubscriptionsDto,
+  ): Promise<BulkSubscriptionsResult> {
+    return this.subscriptions.bulkUpdate(dto);
   }
 
   @Post('duplicates/merge')

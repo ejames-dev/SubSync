@@ -146,14 +146,6 @@ model SubscriptionEvent {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
-model NotificationPreference {
-  id           String   @id
-  leadTimeDays Int      @default(7)
-  channels     String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
 model GmailConnection {
   id              String    @id @default("default")
   email           String?

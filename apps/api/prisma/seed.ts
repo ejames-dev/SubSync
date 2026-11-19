@@ -119,14 +119,15 @@ async function seedServices() {
   }
 }
 
-async function seedNotificationPreferences() {
-  await prisma.notificationPreference.upsert({
+async function seedUserSettings() {
+  await prisma.userSettings.upsert({
     where: { id: 'default' },
     update: {},
     create: {
       id: 'default',
       leadTimeDays: 7,
-      channels: JSON.stringify(['email']),
+      notificationChannels: JSON.stringify(['email', 'push']),
+      budgetCurrency: 'USD',
     },
   });
 }
@@ -195,7 +196,7 @@ async function seedSubscriptions() {
 
 async function main() {
   await seedServices();
-  await seedNotificationPreferences();
+  await seedUserSettings();
   await seedSubscriptions();
 }
 

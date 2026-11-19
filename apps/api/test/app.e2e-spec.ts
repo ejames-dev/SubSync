@@ -23,11 +23,6 @@ describe('App (e2e)', () => {
       findUnique: jest.fn(),
       upsert: jest.fn(),
     },
-    notificationPreference: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      upsert: jest.fn(),
-    },
     subscription: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -126,26 +121,6 @@ describe('App (e2e)', () => {
       budgetCurrency: 'USD',
       budgetAlertTriggered: false,
     });
-    prismaMock.notificationPreference.findUnique.mockResolvedValue(null);
-    prismaMock.notificationPreference.create.mockImplementation(({ data }) =>
-      Promise.resolve({
-        id: data.id,
-        leadTimeDays: 7,
-        channels: data.channels,
-        createdAt: new Date('2026-03-17T00:00:00.000Z'),
-        updatedAt: new Date('2026-03-17T00:00:00.000Z'),
-      }),
-    );
-    prismaMock.notificationPreference.upsert.mockImplementation(
-      ({ create, update }) =>
-        Promise.resolve({
-          id: 'default',
-          leadTimeDays: update?.leadTimeDays ?? create.leadTimeDays,
-          channels: update?.channels ?? create.channels,
-          createdAt: new Date('2026-03-17T00:00:00.000Z'),
-          updatedAt: new Date('2026-03-17T00:00:00.000Z'),
-        }),
-    );
     prismaMock.subscription.findMany.mockResolvedValue([
       {
         id: 'sub_netflix',

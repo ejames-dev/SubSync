@@ -200,21 +200,15 @@ export class DataController {
 
   @Post('sync/push')
   pushEncryptedSync(
-    @Body() body: { passphrase?: string; folderPath?: string },
+    @Body() body: { passphrase?: string },
   ): Promise<EncryptedSyncResult> {
-    return this.syncService.pushToSyncFolder(
-      body?.passphrase ?? '',
-      body?.folderPath,
-    );
+    return this.syncService.pushToSyncFolder(body?.passphrase ?? '');
   }
 
   @Post('sync/pull')
   pullEncryptedSync(
-    @Body() body: { passphrase?: string; folderPath?: string },
+    @Body() body: { passphrase?: string },
   ): Promise<EncryptedSyncResult> {
-    return this.syncService.pullFromSyncFolder(
-      body?.passphrase ?? '',
-      body?.folderPath,
-    );
+    return this.syncService.pullFromSyncFolder(body?.passphrase ?? '');
   }
 }

@@ -558,23 +558,17 @@ export async function importEncryptedSyncSnapshot(
   return (await response.json()) as EncryptedSyncResult;
 }
 
-export function pushEncryptedSyncFolder(
-  passphrase: string,
-  folderPath?: string
-) {
+export function pushEncryptedSyncFolder(passphrase: string) {
   return apiRequest<EncryptedSyncResult>('/data/sync/push', {
     method: 'POST',
-    body: JSON.stringify({ passphrase, folderPath }),
+    body: JSON.stringify({ passphrase }),
   });
 }
 
-export function pullEncryptedSyncFolder(
-  passphrase: string,
-  folderPath?: string
-) {
+export function pullEncryptedSyncFolder(passphrase: string) {
   return apiRequest<EncryptedSyncResult>('/data/sync/pull', {
     method: 'POST',
-    body: JSON.stringify({ passphrase, folderPath }),
+    body: JSON.stringify({ passphrase }),
   });
 }
 

@@ -280,10 +280,12 @@ export class EmailIngestService {
   ): string {
     const planSlug =
       item.planName
+        .slice(0, 120)
         .toLowerCase()
         .replace(/\bimported plan\b/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'default';
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
+        .join('-') || 'default';
     return item.paymentLast4
       ? `${serviceId}:${planSlug}:${item.paymentLast4}`
       : `${serviceId}:${planSlug}`;

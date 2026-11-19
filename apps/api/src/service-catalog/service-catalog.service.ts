@@ -30,9 +30,11 @@ export class ServiceCatalogService {
     }
 
     const baseSlug = trimmedName
+      .slice(0, 120)
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+      .join('_')
       .slice(0, 40);
     const slug = baseSlug || 'provider';
     const candidateBase = `svc_custom_${slug}`;

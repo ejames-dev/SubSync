@@ -161,14 +161,29 @@ export function EcosystemSettingsCards() {
     }
   };
 
+  const persistSyncFolderIfEdited = async () => {
+    const desired = syncFolderPath.trim() || null;
+    if (!settings || desired === (settings.syncFolderPath ?? null)) {
+      return;
+    }
+    const updated = await updateSettings({
+      leadTimeDays: settings.notificationPreference.leadTimeDays,
+      channels: settings.notificationPreference.channels,
+      monthlyBudgetCents: settings.monthlyBudget
+        ? Math.round(settings.monthlyBudget.amount * 100)
+        : null,
+      budgetCurrency: settings.budgetCurrency,
+      syncFolderPath: desired,
+    });
+    setSettings(updated);
+  };
+
   const handlePushSync = async () => {
     setBusy(true);
     setSyncMessage(null);
     try {
-      const res = await pushEncryptedSyncFolder(
-        syncPassphrase,
-        syncFolderPath.trim() || undefined,
-      );
+      await persistSyncFolderIfEdited();
+      const res = await pushEncryptedSyncFolder(syncPassphrase);
       setSyncMessage(res.message);
     } catch (err) {
       setSyncMessage(err instanceof Error ? err.message : 'Sync push failed.');
@@ -181,10 +196,8 @@ export function EcosystemSettingsCards() {
     setBusy(true);
     setSyncMessage(null);
     try {
-      const res = await pullEncryptedSyncFolder(
-        syncPassphrase,
-        syncFolderPath.trim() || undefined,
-      );
+      await persistSyncFolderIfEdited();
+      const res = await pullEncryptedSyncFolder(syncPassphrase);
       setSyncMessage(res.message);
     } catch (err) {
       setSyncMessage(err instanceof Error ? err.message : 'Sync pull failed.');

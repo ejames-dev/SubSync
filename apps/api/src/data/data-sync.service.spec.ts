@@ -11,8 +11,18 @@ import {
 
 describe('DataSyncService', () => {
   const tempDir = mkdtempSync(join(tmpdir(), 'subsync-enc-sync-'));
+  const previousSyncRoot = process.env.SYNC_ROOT_DIR;
+
+  beforeAll(() => {
+    process.env.SYNC_ROOT_DIR = tempDir;
+  });
 
   afterAll(() => {
+    if (previousSyncRoot === undefined) {
+      delete process.env.SYNC_ROOT_DIR;
+    } else {
+      process.env.SYNC_ROOT_DIR = previousSyncRoot;
+    }
     rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -96,5 +106,20 @@ describe('DataSyncService', () => {
     const pullRes = await syncService.pullFromSyncFolder('secret-passphrase');
     expect(pullRes.subscriptionsCount).toBe(1);
     expect(upsertedSubs).toHaveLength(1);
+  });
+
+  it('rejects sync folders outside the allowed sync root', async () => {
+    const prisma = {
+      userSettings: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ syncFolderPath: '../outside-sync-root' }),
+      },
+    };
+    const syncService = new DataSyncService(prisma as unknown as PrismaService);
+
+    await expect(
+      syncService.pushToSyncFolder('secret-passphrase'),
+    ).rejects.toThrow(BadRequestException);
   });
 });

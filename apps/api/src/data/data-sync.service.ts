@@ -5,10 +5,11 @@ import {
   scryptSync,
 } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve, sep } from 'node:path';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { EncryptedSyncResult } from '@subscription-tracker/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { getSyncAllowedRoot } from './sqlite-path.util';
 
 const MAGIC_HEADER = 'SUBSYNC_ENC_V1';
 const SALT_LEN = 16;
@@ -197,15 +198,12 @@ export class DataSyncService {
     };
   }
 
-  async pushToSyncFolder(
-    passphrase: string,
-    folderOverride?: string,
-  ): Promise<EncryptedSyncResult> {
-    const folder = await this.resolveSyncFolder(folderOverride);
+  async pushToSyncFolder(passphrase: string): Promise<EncryptedSyncResult> {
+    this.assertPassphrase(passphrase);
+    const { folder, filePath } = await this.resolveSyncPaths();
     const snapshot = await this.captureSnapshot();
     const encrypted = encryptSnapshot(JSON.stringify(snapshot), passphrase);
     mkdirSync(folder, { recursive: true });
-    const filePath = join(folder, SYNC_FILENAME);
     writeFileSync(filePath, encrypted);
 
     return {
@@ -217,12 +215,9 @@ export class DataSyncService {
     };
   }
 
-  async pullFromSyncFolder(
-    passphrase: string,
-    folderOverride?: string,
-  ): Promise<EncryptedSyncResult> {
-    const folder = await this.resolveSyncFolder(folderOverride);
-    const filePath = join(folder, SYNC_FILENAME);
+  async pullFromSyncFolder(passphrase: string): Promise<EncryptedSyncResult> {
+    this.assertPassphrase(passphrase);
+    const { filePath } = await this.resolveSyncPaths();
     if (!existsSync(filePath)) {
       throw new BadRequestException(
         `No encrypted sync snapshot found at ${filePath}.`,
@@ -233,19 +228,37 @@ export class DataSyncService {
     return { ...res, filePath };
   }
 
-  private async resolveSyncFolder(override?: string): Promise<string> {
-    if (override?.trim()) {
-      return resolve(override.trim());
-    }
+  private async resolveSyncPaths(): Promise<{
+    folder: string;
+    filePath: string;
+  }> {
     const settings = await this.prisma.userSettings.findUnique({
       where: { id: 'default' },
     });
-    if (!settings?.syncFolderPath?.trim()) {
+    const rawFolder = settings?.syncFolderPath?.trim();
+    if (!rawFolder) {
       throw new BadRequestException(
         'Configure a sync folder path in Settings first.',
       );
     }
-    return resolve(settings.syncFolderPath.trim());
+    if (rawFolder.includes('\0')) {
+      throw new BadRequestException('Invalid sync folder path.');
+    }
+
+    const allowedRoot = resolve(getSyncAllowedRoot());
+    const folder = resolve(allowedRoot, rawFolder);
+    if (folder !== allowedRoot && !folder.startsWith(allowedRoot + sep)) {
+      throw new BadRequestException(
+        `Sync folder must be inside ${allowedRoot}.`,
+      );
+    }
+
+    const filePath = resolve(folder, SYNC_FILENAME);
+    if (!filePath.startsWith(allowedRoot + sep)) {
+      throw new BadRequestException('Invalid sync file path.');
+    }
+
+    return { folder, filePath };
   }
 
   private assertPassphrase(passphrase: string): void {

@@ -175,3 +175,16 @@ model ProcessedGmailMessage {
   messageId   String   @id
   processedAt DateTime @default(now())
 }
+
+model ImapConnection {
+  id           String    @id @default("default")
+  host         String
+  port         Int       @default(993)
+  tls          Boolean   @default(true)
+  username     String
+  passwordEnc  String
+  mailbox      String    @default("INBOX")
+  connectedAt  DateTime  @default(now())
+  lastSyncedAt DateTime?
+  updatedAt    DateTime  @updatedAt
+}

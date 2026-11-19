@@ -12,6 +12,7 @@ import { SettingsModule } from './settings/settings.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DataModule } from './data/data.module';
 import { GmailModule } from './gmail/gmail.module';
+import { ImapModule } from './imap/imap.module';
 import { InsightsModule } from './insights/insights.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { InsightsModule } from './insights/insights.module';
     IntegrationsModule,
     IngestModule,
     GmailModule,
+    ImapModule,
     InsightsModule,
     DataModule,
     NotificationPreferencesModule,

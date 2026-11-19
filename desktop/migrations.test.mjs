@@ -64,6 +64,7 @@ describe('applyMigrations', () => {
         'UserSettings',
         'IntegrationConnection',
         'GmailConnection',
+        'ImapConnection',
         'PendingNotification',
         'EmailReceipt',
         'EmailReceiptItem',

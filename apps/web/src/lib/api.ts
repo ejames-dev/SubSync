@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import type {
+  BankCsvIngestResult,
   BillingInterval,
   BulkSubscriptionAction,
   BulkSubscriptionsResult,
@@ -12,6 +13,8 @@ import type {
   GmailAuthUrlResponse,
   GmailConnectionStatus,
   GmailSyncResult,
+  ImapConnectionStatus,
+  ImapSyncResult,
   IntegrationConnection,
   NotificationPreference,
   PendingRenewalNotification,
@@ -19,6 +22,8 @@ import type {
   ServiceProvider,
   Subscription,
   SubscriptionEvent,
+  SubscriptionImportColumnMap,
+  SubscriptionImportResult,
   UserSettings,
   YearlyReview,
 } from '@subscription-tracker/types';
@@ -399,6 +404,88 @@ export function restoreStoredDatabaseBackup(fileName: string) {
     `/data/restore/${encodeURIComponent(fileName)}`,
     { method: 'POST' }
   );
+}
+
+export async function importSubscriptionsFile(
+  file: File,
+  columnMap?: SubscriptionImportColumnMap
+) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (columnMap) {
+    const cleaned = Object.fromEntries(
+      Object.entries(columnMap).filter(([, v]) => Boolean(v && v.trim()))
+    );
+    if (Object.keys(cleaned).length > 0) {
+      formData.append('columnMap', JSON.stringify(cleaned));
+    }
+  }
+  const response = await fetch(`${getApiBaseUrl()}/data/import/subscriptions`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Subscription import failed');
+  }
+  return (await response.json()) as SubscriptionImportResult;
+}
+
+export async function ingestEmlFile(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${getApiBaseUrl()}/ingest/eml`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'EML import failed');
+  }
+  return (await response.json()) as EmailIngestResult;
+}
+
+export async function ingestBankCsvFile(file: File, currency = 'USD') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('currency', currency);
+  const response = await fetch(`${getApiBaseUrl()}/ingest/bank-csv`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Bank statement analysis failed');
+  }
+  return (await response.json()) as BankCsvIngestResult;
+}
+
+export function getImapStatus() {
+  return apiRequest<ImapConnectionStatus>('/imap/status');
+}
+
+export function connectImap(payload: {
+  host: string;
+  port?: number;
+  tls?: boolean;
+  username: string;
+  password: string;
+  mailbox?: string;
+}) {
+  return apiRequest<ImapConnectionStatus>('/imap/connect', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function syncImapBillingEmails() {
+  return apiRequest<ImapSyncResult>('/imap/sync', { method: 'POST' });
+}
+
+export function disconnectImap() {
+  return apiRequest<ImapConnectionStatus>('/imap/disconnect', {
+    method: 'DELETE',
+  });
 }
 
 type CreateSubscriptionPayload = {

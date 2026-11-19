@@ -6,6 +6,8 @@ export type ReceiptBillingInterval =
 
 export type ReceiptPaymentSource = 'card' | 'paypal';
 
+export type ReceiptLifecycleIntent = 'renewal' | 'cancellation' | 'trial_start';
+
 export interface ReceiptEmailInput {
   sender: string;
   subject: string;
@@ -30,6 +32,8 @@ export interface ParsedReceiptItem {
   billingCurrency: string;
   billingInterval?: ReceiptBillingInterval;
   nextRenewal?: string;
+  trialEndsAt?: string;
+  lifecycleIntent?: ReceiptLifecycleIntent;
   paymentSource?: ReceiptPaymentSource;
   paymentLast4?: string;
   confidence: number;

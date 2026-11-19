@@ -29,6 +29,8 @@ type ImportedSubscriptionInput = {
   billingCurrency: string;
   billingInterval: Subscription['billingInterval'];
   nextRenewal: string;
+  trialEndsAt?: string;
+  lifecycleIntent?: 'renewal' | 'cancellation' | 'trial_start';
   paymentSource?: Subscription['paymentSource'];
   paymentLast4?: string;
   notes?: string;
@@ -370,15 +372,18 @@ export class SubscriptionsService {
     const existing =
       byImportKey ??
       (await db.subscription.findFirst({
-        where: input.paymentLast4
-          ? {
-              serviceId: input.serviceId,
-              OR: [
-                { planName: input.planName },
-                { paymentLast4: input.paymentLast4 },
-              ],
-            }
-          : { serviceId: input.serviceId, planName: input.planName },
+        where:
+          input.lifecycleIntent === 'cancellation'
+            ? { serviceId: input.serviceId }
+            : input.paymentLast4
+              ? {
+                  serviceId: input.serviceId,
+                  OR: [
+                    { planName: input.planName },
+                    { paymentLast4: input.paymentLast4 },
+                  ],
+                }
+              : { serviceId: input.serviceId, planName: input.planName },
         orderBy: { updatedAt: 'desc' },
       }));
 
@@ -393,10 +398,44 @@ export class SubscriptionsService {
         return { mode: 'ignored', subscription: this.toDomain(existing) };
       }
 
+      if (input.lifecycleIntent === 'cancellation') {
+        const effectiveDate = new Date(input.nextRenewal);
+        const nextStatus: Subscription['status'] =
+          effectiveDate.getTime() <= observedAt.getTime()
+            ? 'canceled'
+            : 'canceled_pending';
+        const updated = await db.subscription.update({
+          where: { id: existing.id },
+          data: {
+            status: nextStatus,
+            statusChangedAt: observedAt,
+            nextRenewal: effectiveDate,
+            notes: input.notes ?? existing.notes,
+            importKey: existing.importKey ?? input.importKey,
+            lastImportedAt: observedAt,
+          },
+        });
+        await this.recordEvent(
+          updated.id,
+          'status_changed',
+          nextStatus,
+          'Cancellation confirmation imported from email',
+          undefined,
+          db,
+        );
+        return { mode: 'updated', subscription: this.toDomain(updated) };
+      }
+
       const newAmountCents = this.toAmountCents(input.billingAmount);
       const priceChanged =
         existing.billingAmountCents !== newAmountCents ||
         existing.billingCurrency !== input.billingCurrency;
+      const nextStatus: Subscription['status'] =
+        input.lifecycleIntent === 'trial_start'
+          ? 'trial'
+          : existing.status === 'flagged_for_cancellation'
+            ? existing.status
+            : 'active';
       const updated = await db.subscription.update({
         where: { id: existing.id },
         data: {
@@ -404,16 +443,16 @@ export class SubscriptionsService {
           billingCurrency: input.billingCurrency,
           billingInterval: input.billingInterval,
           nextRenewal: new Date(input.nextRenewal),
+          ...(input.trialEndsAt
+            ? { trialEndsAt: new Date(input.trialEndsAt) }
+            : {}),
           paymentSource: input.paymentSource,
           paymentLast4: input.paymentLast4,
           notes: input.notes,
           autoImportSource: input.autoImportSource,
-          status:
-            existing.status === 'flagged_for_cancellation'
-              ? existing.status
-              : 'active',
+          status: nextStatus,
           nextRenewalReminderSent: false,
-          importKey: input.importKey ?? existing.importKey,
+          importKey: existing.importKey ?? input.importKey,
           lastImportedAt: observedAt,
         },
       });
@@ -458,9 +497,16 @@ export class SubscriptionsService {
       };
     }
 
+    const initialStatus: Subscription['status'] =
+      input.lifecycleIntent === 'cancellation'
+        ? 'canceled_pending'
+        : input.lifecycleIntent === 'trial_start'
+          ? 'trial'
+          : 'active';
+
     const created = await db.subscription.create({
       data: {
-        status: 'active',
+        status: initialStatus,
         autoImportSource: input.autoImportSource,
         service: { connect: { id: input.serviceId } },
         planName: input.planName,
@@ -468,6 +514,9 @@ export class SubscriptionsService {
         billingCurrency: input.billingCurrency,
         billingInterval: input.billingInterval,
         nextRenewal: new Date(input.nextRenewal),
+        ...(input.trialEndsAt
+          ? { trialEndsAt: new Date(input.trialEndsAt) }
+          : {}),
         paymentSource: input.paymentSource,
         paymentLast4: input.paymentLast4,
         notes: input.notes,

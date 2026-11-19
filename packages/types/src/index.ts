@@ -311,9 +311,16 @@ export interface EmailReceiptItem {
   updatedAt: string;
 }
 
+export type EmailReceiptSource =
+  | 'gmail'
+  | 'manual'
+  | 'eml'
+  | 'imap'
+  | 'bank_csv';
+
 export interface EmailReceipt {
   id: string;
-  source: 'gmail' | 'manual';
+  source: EmailReceiptSource;
   externalMessageId?: string;
   sender: string;
   subject: string;
@@ -389,4 +396,52 @@ export interface DataRestoreResult {
   sourceName: string;
   safetyBackupFileName: string;
   message: string;
+}
+
+export interface SubscriptionImportColumnMap {
+  serviceName?: string;
+  planName?: string;
+  billingAmount?: string;
+  billingCurrency?: string;
+  billingInterval?: string;
+  nextRenewal?: string;
+  status?: string;
+  paymentSource?: string;
+  paymentLast4?: string;
+  notes?: string;
+}
+
+export interface SubscriptionImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface BankCsvIngestResult {
+  scannedRows: number;
+  detectedGroups: number;
+  receiptId?: string;
+  items: EmailReceiptItem[];
+  message: string;
+}
+
+export interface ImapConnectionStatus {
+  connected: boolean;
+  host?: string;
+  port?: number;
+  username?: string;
+  mailbox?: string;
+  tls?: boolean;
+  connectedAt?: string;
+  lastSyncedAt?: string;
+}
+
+export interface ImapSyncResult {
+  scanned: number;
+  imported: number;
+  review: number;
+  skipped: number;
+  failed: number;
+  syncedAt: string;
 }

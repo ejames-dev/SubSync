@@ -4,6 +4,7 @@ import {
   BillingInterval,
   EmailIngestResult,
   EmailReceiptItem,
+  EmailReceiptSource,
   ServiceProvider,
   Subscription,
 } from '@subscription-tracker/types';
@@ -18,7 +19,7 @@ import { EmailReceipt as PrismaEmailReceipt } from '../../prisma/generated/clien
 
 type IngestRequest = EmailIngestPayload & {
   externalMessageId?: string;
-  source?: 'gmail' | 'manual';
+  source?: EmailReceiptSource;
   authenticatedSender?: boolean;
 };
 
@@ -159,10 +160,13 @@ export class EmailIngestService {
           billingInterval: (parsedItem.billingInterval ??
             'monthly') as BillingInterval,
           nextRenewal,
+          trialEndsAt: parsedItem.trialEndsAt,
+          lifecycleIntent: parsedItem.lifecycleIntent,
           paymentSource: parsedItem.paymentSource,
           paymentLast4: parsedItem.paymentLast4,
           notes: `Imported from ${parsed.parserId} receipt "${payload.subject}" on ${payload.receivedAt}`,
           autoImportSource: 'email',
+          importKey: this.buildImportKey(service.id, parsedItem),
           observedAt: payload.receivedAt,
           priceChangeNotification: {
             channels: notificationPreference.channels,
@@ -268,6 +272,21 @@ export class EmailIngestService {
 
   private normalizeName(value: string): string {
     return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  private buildImportKey(
+    serviceId: string,
+    item: { planName: string; paymentLast4?: string },
+  ): string {
+    const planSlug =
+      item.planName
+        .toLowerCase()
+        .replace(/\bimported plan\b/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'default';
+    return item.paymentLast4
+      ? `${serviceId}:${planSlug}:${item.paymentLast4}`
+      : `${serviceId}:${planSlug}`;
   }
 
   private autoApproveThreshold(): number {

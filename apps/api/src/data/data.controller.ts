@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Param,
@@ -12,14 +13,21 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { memoryStorage } from 'multer';
-import { DataBackupInfo, DataRestoreResult } from '@subscription-tracker/types';
+import {
+  DataBackupInfo,
+  DataRestoreResult,
+  SubscriptionImportColumnMap,
+  SubscriptionImportResult,
+} from '@subscription-tracker/types';
 import { DataBackupService } from './data-backup.service';
 import { DataExportService } from './data-export.service';
+import { DataImportService } from './data-import.service';
 
 @Controller('data')
 export class DataController {
   constructor(
     private readonly exportService: DataExportService,
+    private readonly importService: DataImportService,
     private readonly backupService: DataBackupService,
   ) {}
 
@@ -49,6 +57,58 @@ export class DataController {
       `attachment; filename="subsync-subscriptions-${timestamp}.json"`,
     );
     response.send(json);
+  }
+
+  @Post('import/subscriptions')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  async importSubscriptions(
+    @UploadedFile()
+    file: { buffer: Buffer; originalname?: string } | undefined,
+    @Body()
+    body: {
+      content?: string;
+      format?: 'csv' | 'json';
+      columnMap?: string | SubscriptionImportColumnMap;
+    },
+  ): Promise<SubscriptionImportResult> {
+    const content = file?.buffer
+      ? file.buffer.toString('utf8')
+      : (body?.content ?? '');
+    if (!content.trim()) {
+      throw new BadRequestException(
+        'Provide a CSV/JSON file upload or content string.',
+      );
+    }
+
+    const inferredFormat: 'csv' | 'json' | undefined =
+      body?.format ??
+      (file?.originalname?.toLowerCase().endsWith('.json')
+        ? 'json'
+        : file?.originalname?.toLowerCase().endsWith('.csv')
+          ? 'csv'
+          : undefined);
+
+    let parsedMap: SubscriptionImportColumnMap | undefined;
+    if (typeof body?.columnMap === 'string' && body.columnMap.trim()) {
+      try {
+        parsedMap = JSON.parse(body.columnMap) as SubscriptionImportColumnMap;
+      } catch {
+        throw new BadRequestException('Invalid columnMap JSON.');
+      }
+    } else if (body?.columnMap && typeof body.columnMap === 'object') {
+      parsedMap = body.columnMap;
+    }
+
+    return this.importService.importSubscriptions({
+      content,
+      format: inferredFormat,
+      columnMap: parsedMap,
+    });
   }
 
   @Get('backups')

@@ -51,6 +51,12 @@ describe('App (e2e)', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    imapConnection: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
     oAuthState: {
       create: jest.fn(),
       findUnique: jest.fn(),

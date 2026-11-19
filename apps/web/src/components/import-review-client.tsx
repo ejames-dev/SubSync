@@ -350,7 +350,15 @@ function ReceiptReviewCard({
             </p>
             <p className="mt-1 text-xs text-slate-400">
               {formatDate(receipt.receivedAt)} ·{' '}
-              {receipt.source === 'gmail' ? 'Gmail sync' : 'Manual import'}
+              {receipt.source === 'gmail'
+                ? 'Gmail sync'
+                : receipt.source === 'imap'
+                  ? 'IMAP sync'
+                  : receipt.source === 'eml'
+                    ? '.eml upload'
+                    : receipt.source === 'bank_csv'
+                      ? 'Bank CSV scan'
+                      : 'Manual import'}
               {receipt.parserId
                 ? ` · ${receipt.parserId} v${receipt.parserVersion ?? 1}`
                 : ''}

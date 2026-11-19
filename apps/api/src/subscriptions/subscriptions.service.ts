@@ -578,6 +578,12 @@ export class SubscriptionsService {
       ...(dto.tags !== undefined
         ? { tagsJson: this.serializeTags(dto.tags) }
         : {}),
+      ...(dto.totalSeats != null ? { totalSeats: dto.totalSeats } : {}),
+      ...(dto.sharedSeats != null ? { sharedSeats: dto.sharedSeats } : {}),
+      ...(dto.personalShare != null
+        ? { personalShareCents: this.toAmountCents(dto.personalShare) }
+        : {}),
+      ...(dto.bundleParentId ? { bundleParentId: dto.bundleParentId } : {}),
       paymentSource: dto.paymentSource,
       paymentLast4: dto.paymentLast4,
       notes: dto.notes,
@@ -624,6 +630,21 @@ export class SubscriptionsService {
     }
     if (dto.tags !== undefined) {
       data.tagsJson = this.serializeTags(dto.tags);
+    }
+    if (dto.totalSeats !== undefined) {
+      data.totalSeats = dto.totalSeats ?? null;
+    }
+    if (dto.sharedSeats !== undefined) {
+      data.sharedSeats = dto.sharedSeats ?? null;
+    }
+    if (dto.personalShare !== undefined) {
+      data.personalShareCents =
+        dto.personalShare === null
+          ? null
+          : this.toAmountCents(dto.personalShare);
+    }
+    if (dto.bundleParentId !== undefined) {
+      data.bundleParentId = dto.bundleParentId || null;
     }
     if (dto.paymentSource !== undefined) data.paymentSource = dto.paymentSource;
     if (dto.paymentLast4 !== undefined) data.paymentLast4 = dto.paymentLast4;
@@ -679,6 +700,12 @@ export class SubscriptionsService {
         ? { leadTimeDaysOverride: sub.leadTimeDaysOverride }
         : {}),
       ...(tags.length > 0 ? { tags } : {}),
+      ...(sub.totalSeats != null ? { totalSeats: sub.totalSeats } : {}),
+      ...(sub.sharedSeats != null ? { sharedSeats: sub.sharedSeats } : {}),
+      ...(sub.personalShareCents != null
+        ? { personalShare: this.fromAmountCents(sub.personalShareCents) }
+        : {}),
+      ...(sub.bundleParentId ? { bundleParentId: sub.bundleParentId } : {}),
       paymentSource: this.toPaymentSource(sub.paymentSource),
       paymentLast4: sub.paymentLast4 ?? undefined,
       autoImportSource: this.toAutoImportSource(sub.autoImportSource),

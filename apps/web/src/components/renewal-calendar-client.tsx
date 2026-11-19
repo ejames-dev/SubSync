@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import type { ServiceProvider, Subscription } from '@subscription-tracker/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { listServices, listSubscriptions } from '../lib/api';
+import { getApiBaseUrl, listServices, listSubscriptions } from '../lib/api';
 import { projectMonthOccurrences } from '../lib/calendar';
 import { formatCurrency } from '../lib/utils';
 import { Badge } from './ui/badge';
@@ -121,6 +121,23 @@ export function RenewalCalendarClient() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`${getApiBaseUrl()}/calendar/renewals.ics`}
+            className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-xs font-medium text-slate-700 hover:bg-slate-100"
+          >
+            Download .ics feed
+          </a>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              void navigator.clipboard.writeText(
+                `${getApiBaseUrl()}/calendar/renewals.ics`,
+              )
+            }
+          >
+            Copy .ics URL
+          </Button>
           <Button variant="outline" size="sm" onClick={goPrevMonth}>
             <ChevronLeft className="h-4 w-4" />
           </Button>

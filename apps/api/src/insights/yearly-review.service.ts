@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import {
   YearlyReview,
   YearlyReviewPriceIncrease,
   YearlyReviewSignal,
   YearlyReviewSpendTotal,
 } from '@subscription-tracker/types';
+import { ExchangeRateService } from '../fx/exchange-rate.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 
 type ReviewEvent = {
   eventType: string;
@@ -45,7 +47,11 @@ type ParsedPriceChange = {
 
 @Injectable()
 export class YearlyReviewService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly exchangeRates?: ExchangeRateService,
+    @Optional() private readonly settings?: SettingsService,
+  ) {}
 
   async getReview(year: number, now = new Date()): Promise<YearlyReview> {
     const periodStart = new Date(Date.UTC(year, 0, 1));
@@ -57,6 +63,42 @@ export class YearlyReviewService {
         events: { orderBy: { occurredAt: 'desc' } },
       },
     })) as ReviewSubscription[];
+
+    const spendByCurrency = this.buildSpendTotals(
+      subscriptions,
+      periodStart,
+      periodEndExclusive,
+    );
+
+    let normalizedSpend: YearlyReview['normalizedSpend'];
+    if (this.exchangeRates && this.settings) {
+      const [userSettings, rateMap] = await Promise.all([
+        this.settings.getSettings(),
+        this.exchangeRates.getRateMap(),
+      ]);
+      const targetCurrency =
+        userSettings.budgetCurrency?.toUpperCase() ?? 'USD';
+      let total = 0;
+      let excludedCurrencyCount = 0;
+      for (const bucket of spendByCurrency) {
+        const converted = this.exchangeRates.convert(
+          bucket.amount,
+          bucket.currency,
+          targetCurrency,
+          rateMap,
+        );
+        if (converted === null) {
+          excludedCurrencyCount += 1;
+        } else {
+          total += converted;
+        }
+      }
+      normalizedSpend = {
+        currency: targetCurrency,
+        amount: Math.round(total * 100) / 100,
+        excludedCurrencyCount,
+      };
+    }
 
     return {
       year,
@@ -70,11 +112,8 @@ export class YearlyReviewService {
       isEstimate: true,
       methodology:
         'Estimated from tracked renewal dates, billing intervals, creation dates, and recorded price changes. Currency totals stay separate, and increases are ranked by percentage rather than comparing face values across currencies. It is not a bank or usage ledger; deleted subscriptions and unrecorded payments are not included.',
-      spendByCurrency: this.buildSpendTotals(
-        subscriptions,
-        periodStart,
-        periodEndExclusive,
-      ),
+      spendByCurrency,
+      ...(normalizedSpend ? { normalizedSpend } : {}),
       biggestPriceIncreases: this.buildPriceIncreases(
         subscriptions,
         periodStart,

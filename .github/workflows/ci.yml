@@ -36,8 +36,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Migrate local SQLite schema
+        run: npm run prisma:migrate --workspace api
+
       - name: Test
         run: npm test
+
+      - name: API end-to-end tests
+        run: npm run test:e2e --workspace api
 
       - name: Build desktop bundle
         run: npm run build:desktop

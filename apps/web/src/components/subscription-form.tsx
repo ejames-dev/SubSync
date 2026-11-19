@@ -94,6 +94,10 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean);
+    const rawTotalSeats = formData.get('totalSeats') as string | null;
+    const rawSharedSeats = formData.get('sharedSeats') as string | null;
+    const rawPersonalShare = formData.get('personalShare') as string | null;
+    const rawBundleParent = formData.get('bundleParentId') as string | null;
 
     const payload = {
       serviceId: selectedServiceId || (formData.get('serviceId') as string),
@@ -121,6 +125,19 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           ? Number(rawLeadOverride)
           : null,
       tags,
+      totalSeats:
+        rawTotalSeats !== null && rawTotalSeats.trim() !== ''
+          ? Number(rawTotalSeats)
+          : null,
+      sharedSeats:
+        rawSharedSeats !== null && rawSharedSeats.trim() !== ''
+          ? Number(rawSharedSeats)
+          : null,
+      personalShare:
+        rawPersonalShare !== null && rawPersonalShare.trim() !== ''
+          ? Number(rawPersonalShare)
+          : null,
+      bundleParentId: rawBundleParent?.trim() ? rawBundleParent.trim() : null,
       paymentSource:
         (formData.get('paymentSource') as Subscription['paymentSource']) ||
         undefined,
@@ -433,6 +450,74 @@ export function SubscriptionForm({ services, mode, initial }: Props) {
           defaultValue={initial?.tags?.join(', ') ?? ''}
           className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
         />
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div>
+          <p className="text-sm font-medium text-slate-800">
+            Household splitting &amp; bundle link (optional)
+          </p>
+          <p className="text-xs text-slate-500">
+            Track shared family plans so dashboard totals reflect your personal
+            share while keeping gross card charges accurate.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <div>
+            <label className="text-xs font-medium text-slate-700">
+              Total seats
+            </label>
+            <input
+              name="totalSeats"
+              type="number"
+              min="1"
+              max="100"
+              placeholder="e.g. 6"
+              defaultValue={initial?.totalSeats ?? ''}
+              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-700">
+              Shared seats reimbursed
+            </label>
+            <input
+              name="sharedSeats"
+              type="number"
+              min="0"
+              max="100"
+              placeholder="e.g. 4"
+              defaultValue={initial?.sharedSeats ?? ''}
+              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-700">
+              Personal share override
+            </label>
+            <input
+              name="personalShare"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Auto from seats"
+              defaultValue={initial?.personalShare ?? ''}
+              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-slate-700">
+              Bundle parent ID
+            </label>
+            <input
+              name="bundleParentId"
+              type="text"
+              placeholder="Parent subscription ID"
+              defaultValue={initial?.bundleParentId ?? ''}
+              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
+            />
+          </div>
+        </div>
       </div>
 
       {selectedService?.cancelUrl &&

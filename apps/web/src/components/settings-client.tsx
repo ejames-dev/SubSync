@@ -14,6 +14,7 @@ import {
 } from '../lib/api';
 import { DesktopSettingsCard } from './desktop-settings-card';
 import { DesktopUpdateCard } from './desktop-update-card';
+import { EcosystemSettingsCards } from './ecosystem-settings-cards';
 import { SubscriptionImportCard } from './subscription-import-card';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -357,6 +358,8 @@ export function SettingsClient() {
       </Card>
 
       <SubscriptionImportCard />
+
+      <EcosystemSettingsCards />
 
       <Card>
         <CardHeader>

@@ -290,6 +290,17 @@ export function DashboardClient() {
             </p>
             <p className="text-xs text-slate-500">
               Normalized monthly equivalent
+              {summary?.grossMonthlyEquivalentSpend !== undefined &&
+              summary.grossMonthlyEquivalentSpend !==
+                summary.budget.monthlyEquivalentSpend
+                ? ` · Gross card: ${formatCurrency(
+                    summary.grossMonthlyEquivalentSpend,
+                    summary.budget.currency
+                  )}`
+                : ''}
+              {summary?.convertedCurrencyCount
+                ? ` · ${summary.convertedCurrencyCount} FX-converted`
+                : ''}
               {summary?.budget.excludedCurrencyCount
                 ? ` · ${summary.budget.excludedCurrencyCount} other-currency plan${summary.budget.excludedCurrencyCount === 1 ? '' : 's'} excluded`
                 : ''}

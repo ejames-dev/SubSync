@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
-    "test": "echo 'No web tests yet' && exit 0"
+    "test": "node --experimental-strip-types --test src/lib/calendar.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",

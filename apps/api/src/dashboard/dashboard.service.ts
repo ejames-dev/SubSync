@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { DashboardSummary, Subscription } from '@subscription-tracker/types';
 import {
   addMonthsClampedUtc,
@@ -6,9 +6,17 @@ import {
   isBillableStatus,
   toMonthlyEquivalent,
 } from '../common/billing-interval.util';
+import { ExchangeRateService } from '../fx/exchange-rate.service';
 import { ServiceCatalogService } from '../service-catalog/service-catalog.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+
+interface NormalizedSubscription {
+  subscription: Subscription;
+  netAmount: number;
+  grossAmount: number;
+  converted: boolean;
+}
 
 @Injectable()
 export class DashboardService {
@@ -16,13 +24,17 @@ export class DashboardService {
     private readonly subscriptions: SubscriptionsService,
     private readonly serviceCatalog: ServiceCatalogService,
     private readonly settings: SettingsService,
+    @Optional() private readonly exchangeRates?: ExchangeRateService,
   ) {}
 
   async getSummary(): Promise<DashboardSummary> {
-    const [services, subscriptions, settings] = await Promise.all([
+    const [services, subscriptions, settings, rateMap] = await Promise.all([
       this.serviceCatalog.findAll(),
       this.subscriptions.list(),
       this.settings.getSettings(),
+      this.exchangeRates
+        ? this.exchangeRates.getRateMap()
+        : Promise.resolve(null),
     ]);
     const servicesById = Object.fromEntries(
       services.map((service) => [service.id, service]),
@@ -34,18 +46,68 @@ export class DashboardService {
       .slice()
       .sort((a, b) => a.nextRenewal.localeCompare(b.nextRenewal));
     const budgetCurrency = settings.budgetCurrency?.toUpperCase() ?? 'USD';
-    const budgetSubscriptions = billableSubscriptions.filter(
-      (subscription) =>
-        subscription.billingCurrency.toUpperCase() === budgetCurrency,
-    );
+
+    const normalized: NormalizedSubscription[] = [];
+    for (const sub of billableSubscriptions) {
+      const subCurrency = sub.billingCurrency.toUpperCase();
+      const rawPersonal = this.personalBillingAmount(sub);
+      const rawGross = sub.billingAmount;
+
+      if (subCurrency === budgetCurrency) {
+        normalized.push({
+          subscription: sub,
+          netAmount: rawPersonal,
+          grossAmount: rawGross,
+          converted: false,
+        });
+      } else if (rateMap && this.exchangeRates) {
+        const convPersonal = this.exchangeRates.convert(
+          rawPersonal,
+          subCurrency,
+          budgetCurrency,
+          rateMap,
+        );
+        const convGross = this.exchangeRates.convert(
+          rawGross,
+          subCurrency,
+          budgetCurrency,
+          rateMap,
+        );
+        if (convPersonal !== null && convGross !== null) {
+          normalized.push({
+            subscription: sub,
+            netAmount: convPersonal,
+            grossAmount: convGross,
+            converted: true,
+          });
+        }
+      }
+    }
+
+    const excludedCurrencyCount =
+      billableSubscriptions.length - normalized.length;
+    const convertedCurrencyCount = normalized.filter((n) => n.converted).length;
+
     const budgetMonthlySpend = this.roundCurrency(
-      budgetSubscriptions.reduce(
-        (sum, subscription) =>
+      normalized.reduce(
+        (sum, entry) =>
           sum +
           toMonthlyEquivalent(
-            subscription.billingAmount,
-            subscription.billingInterval,
-            subscription.customIntervalDays,
+            entry.netAmount,
+            entry.subscription.billingInterval,
+            entry.subscription.customIntervalDays,
+          ),
+        0,
+      ),
+    );
+    const grossMonthlySpend = this.roundCurrency(
+      normalized.reduce(
+        (sum, entry) =>
+          sum +
+          toMonthlyEquivalent(
+            entry.grossAmount,
+            entry.subscription.billingInterval,
+            entry.subscription.customIntervalDays,
           ),
         0,
       ),
@@ -64,22 +126,25 @@ export class DashboardService {
     }
 
     const spendByCategoryMap = new Map<string, number>();
-    for (const subscription of budgetSubscriptions) {
+    for (const entry of normalized) {
       const category =
-        servicesById[subscription.serviceId]?.category ?? 'other';
+        servicesById[entry.subscription.serviceId]?.category ?? 'other';
       spendByCategoryMap.set(
         category,
         (spendByCategoryMap.get(category) ?? 0) +
           toMonthlyEquivalent(
-            subscription.billingAmount,
-            subscription.billingInterval,
-            subscription.customIntervalDays,
+            entry.netAmount,
+            entry.subscription.billingInterval,
+            entry.subscription.customIntervalDays,
           ),
       );
     }
 
     const duplicateMap = new Map<string, Subscription[]>();
     for (const subscription of billableSubscriptions) {
+      if (subscription.bundleParentId) {
+        continue;
+      }
       duplicateMap.set(subscription.serviceId, [
         ...(duplicateMap.get(subscription.serviceId) ?? []),
         subscription,
@@ -88,6 +153,8 @@ export class DashboardService {
 
     return {
       monthlyEquivalentSpend: budgetMonthlySpend,
+      grossMonthlyEquivalentSpend: grossMonthlySpend,
+      convertedCurrencyCount,
       activeSubscriptions: billableSubscriptions.length,
       upcomingRenewalCount: billableSubscriptions.filter((subscription) =>
         this.isWithinDays(subscription.nextRenewal, 14),
@@ -136,21 +203,41 @@ export class DashboardService {
         overBudget:
           budgetThreshold !== undefined &&
           budgetMonthlySpend >= budgetThreshold,
-        excludedCurrencyCount:
-          billableSubscriptions.length - budgetSubscriptions.length,
+        excludedCurrencyCount,
       },
       forecast: this.buildForecast(
-        budgetSubscriptions,
+        normalized,
         budgetCurrency,
-        billableSubscriptions.length - budgetSubscriptions.length,
+        excludedCurrencyCount,
+        rateMap,
       ),
     };
   }
 
+  private personalBillingAmount(sub: Subscription): number {
+    if (sub.personalShare !== undefined && Number.isFinite(sub.personalShare)) {
+      return sub.personalShare;
+    }
+    if (
+      sub.totalSeats &&
+      sub.totalSeats > 1 &&
+      sub.sharedSeats &&
+      sub.sharedSeats > 0
+    ) {
+      const keptSeats = Math.max(
+        0,
+        sub.totalSeats - Math.min(sub.sharedSeats, sub.totalSeats),
+      );
+      return (sub.billingAmount * keptSeats) / sub.totalSeats;
+    }
+    return sub.billingAmount;
+  }
+
   private buildForecast(
-    subscriptions: Subscription[],
+    entries: NormalizedSubscription[],
     currency: string,
     excludedCurrencyCount: number,
+    rateMap: Map<string, number> | null,
   ): DashboardSummary['forecast'] {
     const horizonStart = new Date();
     const horizonEnd = addMonthsClampedUtc(horizonStart, 3);
@@ -170,7 +257,8 @@ export class DashboardService {
       monthCursor = addMonthsClampedUtc(monthCursor, 1, 1);
     }
 
-    for (const subscription of subscriptions) {
+    for (const entry of entries) {
+      const subscription = entry.subscription;
       const renewalAnchor = new Date(subscription.nextRenewal);
       if (Number.isNaN(renewalAnchor.getTime())) {
         continue;
@@ -185,7 +273,7 @@ export class DashboardService {
           this.addForecastRenewal(
             months,
             renewalAnchor,
-            this.chargeAmountForStep(subscription, 0),
+            this.chargeAmountForStep(entry, 0, currency, rateMap),
           );
         }
         continue;
@@ -208,7 +296,7 @@ export class DashboardService {
         this.addForecastRenewal(
           months,
           renewal,
-          this.chargeAmountForStep(subscription, step),
+          this.chargeAmountForStep(entry, step, currency, rateMap),
         );
         step += 1;
         renewal = advanceRenewalDate(
@@ -242,9 +330,12 @@ export class DashboardService {
   }
 
   private chargeAmountForStep(
-    subscription: Subscription,
+    entry: NormalizedSubscription,
     step: number,
+    targetCurrency: string,
+    rateMap: Map<string, number> | null,
   ): number {
+    const subscription = entry.subscription;
     if (
       subscription.status === 'trial' &&
       subscription.postTrialAmount !== undefined
@@ -254,10 +345,24 @@ export class DashboardService {
         : new Date(subscription.nextRenewal);
       const anchor = new Date(subscription.nextRenewal);
       if (step > 0 || anchor >= trialEnd) {
+        if (
+          subscription.billingCurrency.toUpperCase() !== targetCurrency &&
+          rateMap &&
+          this.exchangeRates
+        ) {
+          return (
+            this.exchangeRates.convert(
+              subscription.postTrialAmount,
+              subscription.billingCurrency,
+              targetCurrency,
+              rateMap,
+            ) ?? entry.netAmount
+          );
+        }
         return subscription.postTrialAmount;
       }
     }
-    return subscription.billingAmount;
+    return entry.netAmount;
   }
 
   private addForecastRenewal(

@@ -11,7 +11,6 @@ export type DesktopBridge = {
   quitAndInstall: () => Promise<void>;
   getDesktopSettings?: () => Promise<DesktopShellSettings>;
   updateDesktopSettings?: (
-    /* eslint-disable-next-line no-unused-vars */
     settings: Partial<DesktopShellSettings>,
   ) => Promise<DesktopShellSettings>;
 };

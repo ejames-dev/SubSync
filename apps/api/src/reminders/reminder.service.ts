@@ -1,12 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   advanceRenewalDate,
   normalizeBillingInterval,
   toMonthlyEquivalent,
 } from '../common/billing-interval.util';
+import { ExchangeRateService } from '../fx/exchange-rate.service';
 import { NotificationDeliveryService } from '../notifications/notification-delivery.service';
 import { NotificationPreferencesService } from '../notifications/notification-preferences.service';
+import { OutboundAlertService } from '../notifications/outbound-alert.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -19,6 +21,8 @@ export class ReminderService {
     private readonly prisma: PrismaService,
     private readonly notificationPreferences: NotificationPreferencesService,
     private readonly notificationDelivery: NotificationDeliveryService,
+    @Optional() private readonly outboundAlerts?: OutboundAlertService,
+    @Optional() private readonly exchangeRates?: ExchangeRateService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
@@ -268,10 +272,26 @@ export class ReminderService {
             body,
           });
         } else if (channel === 'email') {
-          this.logger.log(
-            `Email reminder recorded for ${subscription.planName} (${serviceName}) due on ${targetDate.toISOString()}`,
-          );
+          const sent = this.outboundAlerts
+            ? await this.outboundAlerts.sendSmtpEmailIfConfigured({
+                title,
+                body,
+                subscriptionId: subscription.id,
+              })
+            : false;
+          if (!sent) {
+            this.logger.log(
+              `Email reminder recorded for ${subscription.planName} (${serviceName}) due on ${targetDate.toISOString()}`,
+            );
+          }
         }
+      }
+      if (this.outboundAlerts) {
+        await this.outboundAlerts.sendWebhookIfConfigured({
+          title,
+          body,
+          subscriptionId: subscription.id,
+        });
       }
     }
 
@@ -306,22 +326,37 @@ export class ReminderService {
         customIntervalDays: true,
       },
     });
+    const rateMap = this.exchangeRates
+      ? await this.exchangeRates.getRateMap()
+      : null;
     const monthlyEquivalentCents = Math.round(
-      subscriptions
-        .filter(
-          (subscription) =>
-            subscription.billingCurrency.toUpperCase() === currency,
-        )
-        .reduce(
-          (total, subscription) =>
-            total +
-            toMonthlyEquivalent(
-              subscription.billingAmountCents,
-              normalizeBillingInterval(subscription.billingInterval),
-              subscription.customIntervalDays,
-            ),
-          0,
-        ),
+      subscriptions.reduce((total, subscription) => {
+        const subCur = subscription.billingCurrency.toUpperCase();
+        let cents = subscription.billingAmountCents;
+        if (subCur !== currency) {
+          if (!rateMap || !this.exchangeRates) {
+            return total;
+          }
+          const converted = this.exchangeRates.convert(
+            cents,
+            subCur,
+            currency,
+            rateMap,
+          );
+          if (converted === null) {
+            return total;
+          }
+          cents = converted;
+        }
+        return (
+          total +
+          toMonthlyEquivalent(
+            cents,
+            normalizeBillingInterval(subscription.billingInterval),
+            subscription.customIntervalDays,
+          )
+        );
+      }, 0),
     );
 
     if (monthlyEquivalentCents < settings.monthlyBudgetCents) {
@@ -366,8 +401,19 @@ export class ReminderService {
             body,
           });
         } else {
-          this.logger.log(`Email budget alert recorded: ${body}`);
+          const sent = this.outboundAlerts
+            ? await this.outboundAlerts.sendSmtpEmailIfConfigured({
+                title,
+                body,
+              })
+            : false;
+          if (!sent) {
+            this.logger.log(`Email budget alert recorded: ${body}`);
+          }
         }
+      }
+      if (this.outboundAlerts) {
+        await this.outboundAlerts.sendWebhookIfConfigured({ title, body });
       }
     } catch (error) {
       await this.prisma.userSettings.updateMany({

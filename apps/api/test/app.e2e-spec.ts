@@ -12,6 +12,8 @@ describe('App (e2e)', () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       upsert: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
     integrationConnection: {
       findMany: jest.fn(),
@@ -57,6 +59,10 @@ describe('App (e2e)', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    exchangeRate: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+    },
     oAuthState: {
       create: jest.fn(),
       findUnique: jest.fn(),
@@ -87,6 +93,7 @@ describe('App (e2e)', () => {
     );
     prismaMock.service.findMany.mockResolvedValue([]);
     prismaMock.service.findUnique.mockResolvedValue(null);
+    prismaMock.exchangeRate.findMany.mockResolvedValue([]);
     prismaMock.service.upsert.mockImplementation(({ create }) =>
       Promise.resolve({
         ...create,
@@ -733,5 +740,82 @@ describe('App (e2e)', () => {
       emailForwardingAlias: 'subs+general@subsync.app',
       budgetCurrency: 'USD',
     });
+  });
+
+  it('/api/services (POST) creates a custom service and /api/calendar/renewals.ics exports VCALENDAR', async () => {
+    prismaMock.service.create.mockResolvedValue({
+      id: 'svc_custom_linear',
+      name: 'Linear',
+      category: 'saas',
+      supportsOAuth: false,
+      isCustom: true,
+      description: 'Issue tracking',
+      logoUrl: null,
+      cancelUrl: null,
+    });
+
+    const createdSvc = await request(app.getHttpServer())
+      .post('/api/services')
+      .send({ name: 'Linear', category: 'saas', description: 'Issue tracking' })
+      .expect(201);
+
+    expect(createdSvc.body).toEqual(
+      expect.objectContaining({
+        id: 'svc_custom_linear',
+        name: 'Linear',
+        category: 'saas',
+        isCustom: true,
+      }),
+    );
+
+    prismaMock.subscription.findMany.mockResolvedValue([
+      {
+        id: 'sub_linear',
+        serviceId: 'svc_custom_linear',
+        planName: 'Basic',
+        status: 'active',
+        billingAmountCents: 1000,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        customIntervalDays: null,
+        nextRenewal: new Date('2026-12-01T00:00:00.000Z'),
+        trialEndsAt: null,
+        postTrialAmountCents: null,
+        leadTimeDaysOverride: null,
+        tagsJson: null,
+        totalSeats: null,
+        sharedSeats: null,
+        personalShareCents: null,
+        bundleParentId: null,
+        paymentSource: 'card',
+        paymentLast4: '4242',
+        autoImportSource: 'manual',
+        notes: null,
+        nextRenewalReminderSent: false,
+        snoozedUntil: null,
+        statusChangedAt: new Date('2026-11-19T00:00:00.000Z'),
+        createdAt: new Date('2026-11-19T00:00:00.000Z'),
+        updatedAt: new Date('2026-11-19T00:00:00.000Z'),
+        importKey: null,
+        lastImportedAt: null,
+        duplicateReviewedAt: null,
+      },
+    ]);
+
+    const icsResp = await request(app.getHttpServer())
+      .get('/api/calendar/renewals.ics')
+      .expect(200);
+
+    expect(icsResp.headers['content-type']).toContain('text/calendar');
+    expect(icsResp.text).toContain('BEGIN:VCALENDAR');
+    expect(icsResp.text).toContain('UID:subsync-sub_linear@subsync.local');
+
+    const fxResp = await request(app.getHttpServer())
+      .get('/api/exchange-rates')
+      .expect(200);
+    expect(Array.isArray(fxResp.body)).toBe(true);
+    expect(fxResp.body).toEqual(
+      expect.arrayContaining([expect.objectContaining({ currency: 'EUR' })]),
+    );
   });
 });

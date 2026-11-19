@@ -65,6 +65,28 @@ export class CreateSubscriptionDto {
   tags?: string[];
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  totalSeats?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  sharedSeats?: number | null;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  personalShare?: number | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  bundleParentId?: string | null;
+
+  @IsOptional()
   @IsIn(['card', 'paypal', 'gift', 'other'])
   paymentSource?: 'card' | 'paypal' | 'gift' | 'other';
 

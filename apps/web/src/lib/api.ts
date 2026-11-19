@@ -10,6 +10,8 @@ import type {
   DuplicateDismissResult,
   EmailReceipt,
   EmailIngestResult,
+  EncryptedSyncResult,
+  ExchangeRateEntry,
   GmailAuthUrlResponse,
   GmailConnectionStatus,
   GmailSyncResult,
@@ -229,13 +231,28 @@ export function getSettings() {
 export function updateSettings(payload: {
   leadTimeDays: number;
   channels: Array<'email' | 'push'>;
-  monthlyBudgetCents: number | null;
-  budgetCurrency: string;
+  monthlyBudgetCents?: number | null;
+  budgetCurrency?: string;
+  webhookUrl?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUsername?: string | null;
+  smtpPassword?: string | null;
+  smtpFrom?: string | null;
+  smtpTo?: string | null;
+  syncFolderPath?: string | null;
 }) {
   return apiRequest<UserSettings>('/settings', {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+}
+
+export function sendTestOutboundAlert() {
+  return apiRequest<{ webhookSent: boolean; smtpSent: boolean }>(
+    '/settings/test-alert',
+    { method: 'POST' }
+  );
 }
 
 export function ingestEmail(payload: {
@@ -488,6 +505,79 @@ export function disconnectImap() {
   });
 }
 
+export function listExchangeRates() {
+  return apiRequest<ExchangeRateEntry[]>('/exchange-rates');
+}
+
+export function upsertExchangeRate(currency: string, rateToUsd: number) {
+  return apiRequest<ExchangeRateEntry>(
+    `/exchange-rates/${encodeURIComponent(currency)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ rateToUsd }),
+    }
+  );
+}
+
+export function refreshExchangeRates() {
+  return apiRequest<ExchangeRateEntry[]>('/exchange-rates/refresh', {
+    method: 'POST',
+  });
+}
+
+export async function downloadEncryptedSyncSnapshot(passphrase: string) {
+  const response = await fetch(`${getApiBaseUrl()}/data/sync/export`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ passphrase }),
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Encrypted sync export failed');
+  }
+  const blob = await response.blob();
+  const fallback = `subsync-sync-${new Date().toISOString().slice(0, 10)}.subsync.enc`;
+  triggerBrowserDownload(blob, getDownloadFileName(response, fallback));
+}
+
+export async function importEncryptedSyncSnapshot(
+  file: File,
+  passphrase: string
+) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('passphrase', passphrase);
+  const response = await fetch(`${getApiBaseUrl()}/data/sync/import`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Encrypted sync import failed');
+  }
+  return (await response.json()) as EncryptedSyncResult;
+}
+
+export function pushEncryptedSyncFolder(
+  passphrase: string,
+  folderPath?: string
+) {
+  return apiRequest<EncryptedSyncResult>('/data/sync/push', {
+    method: 'POST',
+    body: JSON.stringify({ passphrase, folderPath }),
+  });
+}
+
+export function pullEncryptedSyncFolder(
+  passphrase: string,
+  folderPath?: string
+) {
+  return apiRequest<EncryptedSyncResult>('/data/sync/pull', {
+    method: 'POST',
+    body: JSON.stringify({ passphrase, folderPath }),
+  });
+}
+
 type CreateSubscriptionPayload = {
   serviceId: string;
   planName: string;
@@ -500,6 +590,10 @@ type CreateSubscriptionPayload = {
   postTrialAmount?: number | null;
   leadTimeDaysOverride?: number | null;
   tags?: string[];
+  totalSeats?: number | null;
+  sharedSeats?: number | null;
+  personalShare?: number | null;
+  bundleParentId?: string | null;
   paymentSource?: Subscription['paymentSource'];
   paymentLast4?: string;
   autoImportSource?: Subscription['autoImportSource'];

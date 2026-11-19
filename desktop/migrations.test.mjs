@@ -65,6 +65,7 @@ describe('applyMigrations', () => {
         'IntegrationConnection',
         'GmailConnection',
         'ImapConnection',
+        'ExchangeRate',
         'PendingNotification',
         'EmailReceipt',
         'EmailReceiptItem',

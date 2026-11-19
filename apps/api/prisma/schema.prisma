@@ -40,6 +40,14 @@ model UserSettings {
   monthlyBudgetCents   Int?
   budgetCurrency       String  @default("USD")
   budgetAlertTriggered Boolean @default(false)
+  webhookUrl           String?
+  smtpHost             String?
+  smtpPort             Int?
+  smtpUsername         String?
+  smtpPasswordEnc      String?
+  smtpFrom             String?
+  smtpTo               String?
+  syncFolderPath       String?
 }
 
 model Subscription {
@@ -56,6 +64,10 @@ model Subscription {
   postTrialAmountCents    Int?
   leadTimeDaysOverride    Int?
   tagsJson                String?
+  totalSeats              Int?
+  sharedSeats             Int?
+  personalShareCents      Int?
+  bundleParentId          String?
   paymentSource           String?
   paymentLast4            String?
   autoImportSource        String?
@@ -187,4 +199,11 @@ model ImapConnection {
   connectedAt  DateTime  @default(now())
   lastSyncedAt DateTime?
   updatedAt    DateTime  @updatedAt
+}
+
+model ExchangeRate {
+  currency         String   @id
+  rateToUsd        Float
+  isManualOverride Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
 }

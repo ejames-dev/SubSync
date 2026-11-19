@@ -57,6 +57,10 @@ export interface Subscription {
   postTrialAmount?: number;
   leadTimeDaysOverride?: number;
   tags?: string[];
+  totalSeats?: number;
+  sharedSeats?: number;
+  personalShare?: number;
+  bundleParentId?: string;
   paymentSource?: 'card' | 'paypal' | 'gift' | 'other';
   paymentLast4?: string;
   autoImportSource?: 'oauth' | 'email' | 'manual';
@@ -98,6 +102,15 @@ export interface PendingRenewalNotification {
   createdAt: string;
 }
 
+export interface SmtpSettingsSummary {
+  host?: string;
+  port?: number;
+  username?: string;
+  hasPassword: boolean;
+  from?: string;
+  to?: string;
+}
+
 export interface UserSettings {
   notificationPreference: NotificationPreference;
   emailForwardingAlias: string;
@@ -107,6 +120,9 @@ export interface UserSettings {
     currency: string;
     alertTriggered: boolean;
   };
+  webhookUrl?: string;
+  smtp?: SmtpSettingsSummary;
+  syncFolderPath?: string;
 }
 
 export type IntegrationSource = 'oauth' | 'email' | 'manual';
@@ -176,6 +192,8 @@ export interface SpendForecast {
 
 export interface DashboardSummary {
   monthlyEquivalentSpend: number;
+  grossMonthlyEquivalentSpend?: number;
+  convertedCurrencyCount?: number;
   activeSubscriptions: number;
   upcomingRenewalCount: number;
   nextRenewal?: {
@@ -232,6 +250,11 @@ export interface YearlyReview {
   isEstimate: true;
   methodology: string;
   spendByCurrency: YearlyReviewSpendTotal[];
+  normalizedSpend?: {
+    currency: string;
+    amount: number;
+    excludedCurrencyCount: number;
+  };
   biggestPriceIncreases: YearlyReviewPriceIncrease[];
   reviewSignals: YearlyReviewSignal[];
 }
@@ -444,4 +467,19 @@ export interface ImapSyncResult {
   skipped: number;
   failed: number;
   syncedAt: string;
+}
+
+export interface ExchangeRateEntry {
+  currency: string;
+  rateToUsd: number;
+  isManualOverride: boolean;
+  updatedAt: string;
+}
+
+export interface EncryptedSyncResult {
+  filePath?: string;
+  syncedAt: string;
+  subscriptionsCount: number;
+  servicesCount: number;
+  message: string;
 }

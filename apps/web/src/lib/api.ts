@@ -13,6 +13,7 @@ import type {
   IntegrationConnection,
   NotificationPreference,
   PendingRenewalNotification,
+  ServiceCategory,
   ServiceProvider,
   Subscription,
   SubscriptionEvent,
@@ -88,6 +89,35 @@ export const updateNotificationPreference = (payload: {
 
 export function listServices() {
   return getServices();
+}
+
+export function createCustomService(payload: {
+  name: string;
+  category: ServiceCategory;
+  description?: string;
+  logoUrl?: string;
+  cancelUrl?: string;
+}) {
+  return apiRequest<ServiceProvider>('/services', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateService(
+  id: string,
+  payload: Partial<{
+    name: string;
+    category: ServiceCategory;
+    description?: string;
+    logoUrl?: string;
+    cancelUrl?: string;
+  }>
+) {
+  return apiRequest<ServiceProvider>(`/services/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
 }
 
 export function listSubscriptions() {
@@ -364,7 +394,12 @@ type CreateSubscriptionPayload = {
   billingAmount: number;
   billingCurrency: string;
   billingInterval: BillingInterval;
+  customIntervalDays?: number | null;
   nextRenewal: string;
+  trialEndsAt?: string | null;
+  postTrialAmount?: number | null;
+  leadTimeDaysOverride?: number | null;
+  tags?: string[];
   paymentSource?: Subscription['paymentSource'];
   paymentLast4?: string;
   autoImportSource?: Subscription['autoImportSource'];

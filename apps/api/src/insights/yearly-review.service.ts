@@ -25,6 +25,7 @@ type ReviewSubscription = {
   billingAmountCents: number;
   billingCurrency: string;
   billingInterval: string;
+  customIntervalDays?: number | null;
   nextRenewal: Date;
   statusChangedAt: Date;
   createdAt: Date;
@@ -99,8 +100,12 @@ export class YearlyReviewService {
     >();
 
     for (const subscription of subscriptions) {
+      if (subscription.status === 'paused') {
+        continue;
+      }
       const subscriptionEnd =
-        subscription.status === 'canceled_pending'
+        subscription.status === 'canceled_pending' ||
+        subscription.status === 'canceled'
           ? this.minDate(periodEndExclusive, subscription.statusChangedAt)
           : periodEndExclusive;
       const firstTrackedAt = this.maxDate(periodStart, subscription.createdAt);
@@ -224,6 +229,8 @@ export class YearlyReviewService {
       .filter(
         (subscription) =>
           subscription.status !== 'canceled_pending' &&
+          subscription.status !== 'canceled' &&
+          subscription.status !== 'paused' &&
           subscription.createdAt.getTime() <= asOf.getTime(),
       )
       .map((subscription): YearlyReviewSignal | null => {
@@ -270,6 +277,35 @@ export class YearlyReviewService {
     start: Date,
     endExclusive: Date,
   ): Date[] {
+    if (
+      subscription.billingInterval === 'weekly' ||
+      (subscription.billingInterval === 'custom' &&
+        subscription.customIntervalDays &&
+        subscription.customIntervalDays > 0)
+    ) {
+      const stepDays =
+        subscription.billingInterval === 'weekly'
+          ? 7
+          : (subscription.customIntervalDays ?? 30);
+      const stepMs = stepDays * 24 * 60 * 60 * 1000;
+      let cursor = new Date(subscription.nextRenewal);
+      while (cursor.getTime() >= endExclusive.getTime()) {
+        cursor = new Date(cursor.getTime() - stepMs);
+      }
+      while (cursor.getTime() - stepMs >= start.getTime()) {
+        cursor = new Date(cursor.getTime() - stepMs);
+      }
+      while (cursor.getTime() < start.getTime()) {
+        cursor = new Date(cursor.getTime() + stepMs);
+      }
+      const renewals: Date[] = [];
+      while (cursor.getTime() < endExclusive.getTime()) {
+        renewals.push(cursor);
+        cursor = new Date(cursor.getTime() + stepMs);
+      }
+      return renewals;
+    }
+
     if (subscription.billingInterval === 'custom') {
       return subscription.nextRenewal.getTime() >= start.getTime() &&
         subscription.nextRenewal.getTime() < endExclusive.getTime()

@@ -1,4 +1,8 @@
-export type ReceiptBillingInterval = 'monthly' | 'quarterly' | 'yearly';
+export type ReceiptBillingInterval =
+  | 'weekly'
+  | 'monthly'
+  | 'quarterly'
+  | 'yearly';
 
 export type ReceiptPaymentSource = 'card' | 'paypal';
 

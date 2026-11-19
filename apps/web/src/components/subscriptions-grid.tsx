@@ -19,23 +19,29 @@ interface Props {
 const STATUS_LABELS: Record<SubscriptionStatus, string> = {
   active: 'Active',
   trial: 'Trial',
+  paused: 'Paused',
   flagged_for_cancellation: 'Review to cancel',
   canceled_pending: 'Cancels soon',
+  canceled: 'Canceled',
 };
 
 const STATUS_ORDER: SubscriptionStatus[] = [
   'active',
   'trial',
+  'paused',
   'flagged_for_cancellation',
   'canceled_pending',
+  'canceled',
 ];
 const STATUS_NONE_VALUE = 'none';
 
 const INITIAL_STATUS_FLAGS: Record<SubscriptionStatus, boolean> = {
   active: true,
   trial: true,
+  paused: true,
   flagged_for_cancellation: true,
   canceled_pending: true,
+  canceled: false,
 };
 
 export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
@@ -92,8 +98,10 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
       {
         active: 0,
         trial: 0,
+        paused: 0,
         flagged_for_cancellation: 0,
         canceled_pending: 0,
+        canceled: 0,
       } as Record<SubscriptionStatus, number>,
     );
   }, [subscriptions]);
@@ -104,7 +112,7 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
       if (!query.trim()) return true;
       const haystack = `${subscription.planName} ${
         servicesById[subscription.serviceId]?.name ?? ''
-      }`.toLowerCase();
+      } ${(subscription.tags ?? []).join(' ')}`.toLowerCase();
       return haystack.includes(query.toLowerCase());
     });
   }, [subscriptions, enabledStatuses, query, servicesById]);
@@ -168,7 +176,7 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {STATUS_ORDER.map((status) => (
           <button
             key={status}
@@ -228,6 +236,30 @@ export function SubscriptionsGrid({ subscriptions, servicesById }: Props) {
                       {subscription.autoImportSource ?? 'manual'}
                     </Badge>
                   </div>
+                  {subscription.tags && subscription.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {subscription.tags.map((tag) => (
+                        <Badge key={tag} variant="default">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {subscription.status === 'trial' && (
+                    <p className="text-xs font-medium text-amber-700">
+                      Trial ends{' '}
+                      {(subscription.trialEndsAt ?? subscription.nextRenewal).slice(
+                        0,
+                        10,
+                      )}
+                      {subscription.postTrialAmount !== undefined
+                        ? ` · then ${formatCurrency(
+                            subscription.postTrialAmount,
+                            subscription.billingCurrency,
+                          )}`
+                        : ''}
+                    </p>
+                  )}
                   {subscription.notes && (
                     <p className="text-sm text-slate-600">“{summarizeNote(subscription.notes)}”</p>
                   )}
@@ -290,8 +322,10 @@ function decodeStatusParam(param: string | null): Record<SubscriptionStatus, boo
     return {
       active: false,
       trial: false,
+      paused: false,
       flagged_for_cancellation: false,
       canceled_pending: false,
+      canceled: false,
     };
   }
 

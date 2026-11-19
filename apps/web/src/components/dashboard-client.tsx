@@ -54,6 +54,11 @@ const categoryLabels: Record<SpendCategory, string> = {
   streaming: 'Streaming',
   music: 'Music',
   gaming: 'Gaming',
+  saas: 'SaaS',
+  productivity: 'Productivity',
+  cloud: 'Cloud',
+  utilities: 'Utilities',
+  fitness: 'Fitness',
   other: 'Other',
 };
 
@@ -75,6 +80,31 @@ const categoryStyles: Record<
     bar: 'bg-amber-500',
     bg: 'bg-amber-50',
     dot: 'bg-amber-500',
+  },
+  saas: {
+    bar: 'bg-indigo-500',
+    bg: 'bg-indigo-50',
+    dot: 'bg-indigo-500',
+  },
+  productivity: {
+    bar: 'bg-blue-500',
+    bg: 'bg-blue-50',
+    dot: 'bg-blue-500',
+  },
+  cloud: {
+    bar: 'bg-violet-500',
+    bg: 'bg-violet-50',
+    dot: 'bg-violet-500',
+  },
+  utilities: {
+    bar: 'bg-teal-500',
+    bg: 'bg-teal-50',
+    dot: 'bg-teal-500',
+  },
+  fitness: {
+    bar: 'bg-rose-500',
+    bg: 'bg-rose-50',
+    dot: 'bg-rose-500',
   },
   other: {
     bar: 'bg-slate-500',
@@ -129,7 +159,12 @@ export function DashboardClient() {
     services.map((service) => [service.id, service])
   );
   const upcomingRenewals = subscriptions
-    .filter((subscription) => !isRenewalSnoozed(subscription))
+    .filter(
+      (subscription) =>
+        subscription.status !== 'canceled' &&
+        subscription.status !== 'paused' &&
+        !isRenewalSnoozed(subscription)
+    )
     .slice()
     .sort((a, b) => a.nextRenewal.localeCompare(b.nextRenewal))
     .slice(0, 3);
@@ -617,6 +652,7 @@ export function DashboardClient() {
                       })
                     }
                   >
+                    <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
                     <option value="quarterly">Quarterly</option>

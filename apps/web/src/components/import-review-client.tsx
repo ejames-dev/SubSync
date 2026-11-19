@@ -9,6 +9,7 @@ import type {
 } from '@subscription-tracker/types';
 import {
   approveEmailReceiptItem,
+  createCustomService,
   listEmailReceipts,
   listServices,
   rejectEmailReceiptItem,
@@ -42,6 +43,7 @@ type ReceiptItemActionHandler = (
 /* eslint-enable no-unused-vars */
 
 const billingIntervals: BillingInterval[] = [
+  'weekly',
   'monthly',
   'quarterly',
   'yearly',
@@ -202,6 +204,34 @@ export function ImportReviewClient() {
     }
   }
 
+  async function handleQuickCreateService(item: EmailReceiptItem) {
+    const providerName = (
+      drafts[item.id]?.providerName || item.providerName
+    ).trim();
+    if (!providerName) {
+      setError('Provider name is empty.');
+      return;
+    }
+    setPendingItemId(item.id);
+    setError(null);
+    try {
+      const created = await createCustomService({
+        name: providerName,
+        category: 'other',
+      });
+      setServices((current) => [...current, created]);
+      updateDraft(item, 'serviceId', created.id);
+      updateDraft(item, 'providerName', created.name);
+      setMessage(`Created custom service "${created.name}".`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not create custom service.',
+      );
+    } finally {
+      setPendingItemId(null);
+    }
+  }
+
   function removeReviewedItem(receiptId: string, itemId: string) {
     setReceipts((current) =>
       current.flatMap((receipt) => {
@@ -279,6 +309,7 @@ export function ImportReviewClient() {
             onDraftChange={updateDraft}
             onApprove={handleApprove}
             onReject={handleReject}
+            onCreateCustomService={handleQuickCreateService}
           />
         ))
       )}
@@ -294,6 +325,7 @@ function ReceiptReviewCard({
   onDraftChange,
   onApprove,
   onReject,
+  onCreateCustomService,
 }: {
   receipt: EmailReceipt;
   services: ServiceProvider[];
@@ -302,6 +334,8 @@ function ReceiptReviewCard({
   onDraftChange: DraftChangeHandler;
   onApprove: ReceiptItemActionHandler;
   onReject: ReceiptItemActionHandler;
+  /* eslint-disable-next-line no-unused-vars */
+  onCreateCustomService: (item: EmailReceiptItem) => Promise<void>;
 }) {
   const reviewItems = receipt.items.filter((item) => item.action === 'review');
 
@@ -347,6 +381,7 @@ function ReceiptReviewCard({
             onChange={onDraftChange}
             onApprove={() => onApprove(receipt, item)}
             onReject={() => onReject(receipt, item)}
+            onCreateCustomService={() => onCreateCustomService(item)}
           />
         ))}
       </CardContent>
@@ -363,6 +398,7 @@ function ReceiptItemEditor({
   onChange,
   onApprove,
   onReject,
+  onCreateCustomService,
 }: {
   item: EmailReceiptItem;
   draft: ItemDraft;
@@ -372,6 +408,7 @@ function ReceiptItemEditor({
   onChange: DraftChangeHandler;
   onApprove: () => Promise<void>;
   onReject: () => Promise<void>;
+  onCreateCustomService: () => Promise<void>;
 }) {
   const inputClass =
     'mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900';
@@ -422,6 +459,16 @@ function ReceiptItemEditor({
               </option>
             ))}
           </select>
+          {!draft.serviceId && (
+            <button
+              type="button"
+              disabled={actionsDisabled}
+              onClick={() => void onCreateCustomService()}
+              className="mt-1 text-xs font-medium text-blue-600 hover:underline"
+            >
+              + Add &ldquo;{item.providerName}&rdquo; as custom service
+            </button>
+          )}
         </label>
         <label className="text-sm font-medium text-slate-700">
           Plan

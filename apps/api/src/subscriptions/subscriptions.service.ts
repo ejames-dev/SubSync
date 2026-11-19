@@ -443,7 +443,20 @@ export class SubscriptionsService {
       billingAmountCents: this.toAmountCents(dto.billingAmount),
       billingCurrency: dto.billingCurrency,
       billingInterval: dto.billingInterval,
+      ...(dto.customIntervalDays != null
+        ? { customIntervalDays: dto.customIntervalDays }
+        : {}),
       nextRenewal: new Date(dto.nextRenewal),
+      ...(dto.trialEndsAt ? { trialEndsAt: new Date(dto.trialEndsAt) } : {}),
+      ...(dto.postTrialAmount != null
+        ? { postTrialAmountCents: this.toAmountCents(dto.postTrialAmount) }
+        : {}),
+      ...(dto.leadTimeDaysOverride != null
+        ? { leadTimeDaysOverride: dto.leadTimeDaysOverride }
+        : {}),
+      ...(dto.tags !== undefined
+        ? { tagsJson: this.serializeTags(dto.tags) }
+        : {}),
       paymentSource: dto.paymentSource,
       paymentLast4: dto.paymentLast4,
       notes: dto.notes,
@@ -468,10 +481,28 @@ export class SubscriptionsService {
     if (dto.billingInterval !== undefined) {
       data.billingInterval = dto.billingInterval;
     }
+    if (dto.customIntervalDays !== undefined) {
+      data.customIntervalDays = dto.customIntervalDays ?? null;
+    }
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.nextRenewal !== undefined) {
       data.nextRenewal = new Date(dto.nextRenewal);
       data.nextRenewalReminderSent = false;
+    }
+    if (dto.trialEndsAt !== undefined) {
+      data.trialEndsAt = dto.trialEndsAt ? new Date(dto.trialEndsAt) : null;
+    }
+    if (dto.postTrialAmount !== undefined) {
+      data.postTrialAmountCents =
+        dto.postTrialAmount === null
+          ? null
+          : this.toAmountCents(dto.postTrialAmount);
+    }
+    if (dto.leadTimeDaysOverride !== undefined) {
+      data.leadTimeDaysOverride = dto.leadTimeDaysOverride ?? null;
+    }
+    if (dto.tags !== undefined) {
+      data.tagsJson = this.serializeTags(dto.tags);
     }
     if (dto.paymentSource !== undefined) data.paymentSource = dto.paymentSource;
     if (dto.paymentLast4 !== undefined) data.paymentLast4 = dto.paymentLast4;
@@ -504,6 +535,7 @@ export class SubscriptionsService {
   }
 
   private toDomain(sub: PrismaSubscription): Subscription {
+    const tags = this.parseTags(sub.tagsJson ?? null);
     return {
       id: sub.id,
       serviceId: sub.serviceId,
@@ -512,7 +544,20 @@ export class SubscriptionsService {
       billingAmount: this.fromAmountCents(sub.billingAmountCents),
       billingCurrency: sub.billingCurrency,
       billingInterval: this.toBillingInterval(sub.billingInterval),
+      ...(sub.customIntervalDays != null
+        ? { customIntervalDays: sub.customIntervalDays }
+        : {}),
       nextRenewal: sub.nextRenewal.toISOString(),
+      ...(sub.trialEndsAt
+        ? { trialEndsAt: sub.trialEndsAt.toISOString() }
+        : {}),
+      ...(sub.postTrialAmountCents != null
+        ? { postTrialAmount: this.fromAmountCents(sub.postTrialAmountCents) }
+        : {}),
+      ...(sub.leadTimeDaysOverride != null
+        ? { leadTimeDaysOverride: sub.leadTimeDaysOverride }
+        : {}),
+      ...(tags.length > 0 ? { tags } : {}),
       paymentSource: this.toPaymentSource(sub.paymentSource),
       paymentLast4: sub.paymentLast4 ?? undefined,
       autoImportSource: this.toAutoImportSource(sub.autoImportSource),
@@ -548,8 +593,10 @@ export class SubscriptionsService {
   private toStatus(value: string): Subscription['status'] {
     if (
       value === 'trial' ||
+      value === 'paused' ||
       value === 'flagged_for_cancellation' ||
-      value === 'canceled_pending'
+      value === 'canceled_pending' ||
+      value === 'canceled'
     ) {
       return value;
     }
@@ -558,6 +605,7 @@ export class SubscriptionsService {
 
   private toBillingInterval(value: string): Subscription['billingInterval'] {
     if (
+      value === 'weekly' ||
       value === 'yearly' ||
       value === 'quarterly' ||
       value === 'custom' ||
@@ -566,6 +614,25 @@ export class SubscriptionsService {
       return value;
     }
     return 'monthly';
+  }
+
+  private serializeTags(tags: string[]): string | null {
+    const normalized = Array.from(
+      new Set(tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0)),
+    );
+    return normalized.length > 0 ? JSON.stringify(normalized) : null;
+  }
+
+  private parseTags(tagsJson: string | null): string[] {
+    if (!tagsJson) return [];
+    try {
+      const parsed = JSON.parse(tagsJson) as unknown;
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === 'string')
+        : [];
+    } catch {
+      return [];
+    }
   }
 
   private toEventType(value: string): SubscriptionEvent['eventType'] {

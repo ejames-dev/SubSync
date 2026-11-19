@@ -144,6 +144,9 @@ export function detectInterval(
   if (/\b(?:quarterly|every three months|per quarter)\b/i.test(content)) {
     return 'quarterly';
   }
+  if (/\b(?:weekly|every week|per week|\/\s*week)\b/i.test(content)) {
+    return 'weekly';
+  }
   if (/\b(?:monthly|per month|\/\s*month)\b/i.test(content)) {
     return 'monthly';
   }

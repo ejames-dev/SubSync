@@ -81,11 +81,17 @@ describe('applyMigrations', () => {
         'importKey',
         'lastImportedAt',
         'duplicateReviewedAt',
+        'customIntervalDays',
+        'trialEndsAt',
+        'postTrialAmountCents',
+        'leadTimeDaysOverride',
+        'tagsJson',
       ]) {
         assert.ok(subscriptionColumns.includes(column), `missing Subscription.${column}`);
       }
       assert.ok(columnNames(db, 'Service').includes('logoUrl'));
       assert.ok(columnNames(db, 'Service').includes('cancelUrl'));
+      assert.ok(columnNames(db, 'Service').includes('isCustom'));
       for (const column of [
         'monthlyBudgetCents',
         'budgetCurrency',

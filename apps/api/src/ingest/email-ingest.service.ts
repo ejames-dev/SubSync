@@ -286,13 +286,15 @@ export class EmailIngestService {
 
   private inferNextRenewal(
     receivedAt: string,
-    interval: 'monthly' | 'quarterly' | 'yearly',
+    interval: 'weekly' | 'monthly' | 'quarterly' | 'yearly',
   ): string {
     const next = new Date(receivedAt);
     if (interval === 'yearly') {
       next.setFullYear(next.getFullYear() + 1);
     } else if (interval === 'quarterly') {
       next.setMonth(next.getMonth() + 3);
+    } else if (interval === 'weekly') {
+      next.setDate(next.getDate() + 7);
     } else {
       next.setMonth(next.getMonth() + 1);
     }
@@ -373,7 +375,12 @@ export class EmailIngestService {
   }
 
   private toBillingInterval(value: string): BillingInterval {
-    if (value === 'yearly' || value === 'quarterly' || value === 'custom') {
+    if (
+      value === 'weekly' ||
+      value === 'yearly' ||
+      value === 'quarterly' ||
+      value === 'custom'
+    ) {
       return value;
     }
     return 'monthly';

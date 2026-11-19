@@ -13,6 +13,7 @@ model Service {
   name          String
   category      String
   supportsOAuth Boolean                @default(false)
+  isCustom      Boolean                @default(false)
   description   String?
   logoUrl       String?
   cancelUrl     String?
@@ -49,7 +50,12 @@ model Subscription {
   billingAmountCents      Int
   billingCurrency         String
   billingInterval         String    @default("monthly")
+  customIntervalDays      Int?
   nextRenewal             DateTime
+  trialEndsAt             DateTime?
+  postTrialAmountCents    Int?
+  leadTimeDaysOverride    Int?
+  tagsJson                String?
   paymentSource           String?
   paymentLast4            String?
   autoImportSource        String?

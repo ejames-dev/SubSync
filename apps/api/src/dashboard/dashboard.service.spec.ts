@@ -230,4 +230,69 @@ describe('DashboardService', () => {
       14, 10, 10, 0,
     ]);
   });
+
+  it('computes weekly and customIntervalDays cadences while excluding paused and canceled plans', async () => {
+    jest.setSystemTime(new Date('2026-07-01T00:00:00.000Z'));
+    const service = new DashboardService(
+      {
+        list: jest.fn().mockResolvedValue([
+          subscription({
+            id: 'weekly',
+            billingAmount: 12,
+            billingInterval: 'weekly',
+            nextRenewal: '2026-07-01T00:00:00.000Z',
+          }),
+          subscription({
+            id: 'biweekly',
+            billingAmount: 14,
+            billingInterval: 'custom',
+            customIntervalDays: 14,
+            nextRenewal: '2026-07-01T00:00:00.000Z',
+          }),
+          subscription({
+            id: 'paused',
+            billingAmount: 50,
+            status: 'paused',
+            nextRenewal: '2026-07-05T00:00:00.000Z',
+          }),
+          subscription({
+            id: 'archived',
+            billingAmount: 50,
+            status: 'canceled',
+            nextRenewal: '2026-07-05T00:00:00.000Z',
+          }),
+        ]),
+      } as never,
+      {
+        findAll: jest.fn().mockResolvedValue([
+          {
+            id: 'netflix',
+            name: 'Netflix',
+            category: 'saas',
+            supportsOAuth: false,
+          },
+        ]),
+      } as never,
+      {
+        getSettings: jest.fn().mockResolvedValue({
+          notificationPreference: {
+            id: 'default',
+            leadTimeDays: 7,
+            channels: ['push'],
+          },
+          emailForwardingAlias: 'subs@example.com',
+          budgetCurrency: 'USD',
+        }),
+      } as never,
+    );
+
+    const result = await service.getSummary();
+
+    expect(result.activeSubscriptions).toBe(2);
+    expect(result.monthlyEquivalentSpend).toBe(82.42);
+    expect(result.spendByCategory).toEqual([
+      { category: 'saas', monthlyEquivalentSpend: 82.42 },
+    ]);
+    expect(result.forecast.total).toBeGreaterThan(200);
+  });
 });

@@ -1,11 +1,15 @@
 import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsISO8601,
   IsNumber,
   IsOptional,
   IsString,
-  IsISO8601,
-  Min,
-  IsIn,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { BillingInterval, Subscription } from '@subscription-tracker/types';
 
@@ -26,11 +30,39 @@ export class CreateSubscriptionDto {
   @MaxLength(3)
   billingCurrency!: string;
 
-  @IsIn(['monthly', 'yearly', 'quarterly', 'custom'])
+  @IsIn(['weekly', 'monthly', 'yearly', 'quarterly', 'custom'])
   billingInterval!: BillingInterval;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  customIntervalDays?: number | null;
 
   @IsISO8601()
   nextRenewal!: string;
+
+  @IsOptional()
+  @IsISO8601()
+  trialEndsAt?: string | null;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  postTrialAmount?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  leadTimeDaysOverride?: number | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  tags?: string[];
 
   @IsOptional()
   @IsIn(['card', 'paypal', 'gift', 'other'])
@@ -42,7 +74,14 @@ export class CreateSubscriptionDto {
   paymentLast4?: string;
 
   @IsOptional()
-  @IsIn(['active', 'trial', 'flagged_for_cancellation', 'canceled_pending'])
+  @IsIn([
+    'active',
+    'trial',
+    'paused',
+    'flagged_for_cancellation',
+    'canceled_pending',
+    'canceled',
+  ])
   status?: Subscription['status'];
 
   @IsOptional()

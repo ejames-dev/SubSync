@@ -8,6 +8,8 @@ describe('ServiceCatalogService', () => {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       upsert: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
   };
   let service: ServiceCatalogService;
@@ -106,5 +108,58 @@ describe('ServiceCatalogService', () => {
         cancelUrl: 'https://support.spotify.com/us/article/cancel-premium/',
       }),
     ]);
+  });
+
+  it('creates and updates custom services with expanded categories', async () => {
+    prisma.service.findUnique.mockResolvedValueOnce(null);
+    prisma.service.create.mockImplementation(({ data }) =>
+      Promise.resolve(data),
+    );
+
+    const created = await service.createCustom({
+      name: 'ChatGPT Plus',
+      category: 'saas',
+      cancelUrl: 'https://chatgpt.com/#settings',
+    });
+
+    expect(created).toEqual({
+      id: 'svc_custom_chatgpt_plus',
+      name: 'ChatGPT Plus',
+      category: 'saas',
+      supportsOAuth: false,
+      isCustom: true,
+      description: undefined,
+      logoUrl: undefined,
+      cancelUrl: 'https://chatgpt.com/#settings',
+    });
+
+    prisma.service.findUnique.mockResolvedValueOnce({
+      id: 'svc_custom_chatgpt_plus',
+      name: 'ChatGPT Plus',
+      category: 'saas',
+      supportsOAuth: false,
+      isCustom: true,
+      description: null,
+      logoUrl: null,
+      cancelUrl: 'https://chatgpt.com/#settings',
+    });
+    prisma.service.update.mockImplementation(({ data }) =>
+      Promise.resolve({
+        id: 'svc_custom_chatgpt_plus',
+        name: data.name ?? 'ChatGPT Plus',
+        category: data.category ?? 'saas',
+        supportsOAuth: false,
+        isCustom: true,
+        description: data.description ?? null,
+        logoUrl: null,
+        cancelUrl: 'https://chatgpt.com/#settings',
+      }),
+    );
+
+    const updated = await service.update('svc_custom_chatgpt_plus', {
+      description: 'AI assistant subscription',
+    });
+    expect(updated.description).toBe('AI assistant subscription');
+    expect(updated.isCustom).toBe(true);
   });
 });

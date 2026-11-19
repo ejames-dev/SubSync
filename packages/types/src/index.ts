@@ -1,9 +1,30 @@
+export const SERVICE_CATEGORIES = [
+  'streaming',
+  'music',
+  'gaming',
+  'saas',
+  'productivity',
+  'cloud',
+  'utilities',
+  'fitness',
+  'other',
+] as const;
+
+export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+
 export type SubscriptionStatus =
   | 'active'
   | 'trial'
+  | 'paused'
   | 'flagged_for_cancellation'
-  | 'canceled_pending';
-export type BillingInterval = 'monthly' | 'yearly' | 'quarterly' | 'custom';
+  | 'canceled_pending'
+  | 'canceled';
+export type BillingInterval =
+  | 'weekly'
+  | 'monthly'
+  | 'yearly'
+  | 'quarterly'
+  | 'custom';
 export type SubscriptionEventType =
   | 'created'
   | 'status_changed'
@@ -14,8 +35,9 @@ export type SubscriptionEventType =
 export interface ServiceProvider {
   id: string;
   name: string;
-  category: 'streaming' | 'music' | 'gaming' | 'other';
+  category: ServiceCategory;
   supportsOAuth: boolean;
+  isCustom?: boolean;
   description?: string;
   logoUrl?: string;
   cancelUrl?: string;
@@ -29,7 +51,12 @@ export interface Subscription {
   billingAmount: number;
   billingCurrency: string;
   billingInterval: BillingInterval;
+  customIntervalDays?: number;
   nextRenewal: string; // ISO date
+  trialEndsAt?: string;
+  postTrialAmount?: number;
+  leadTimeDaysOverride?: number;
+  tags?: string[];
   paymentSource?: 'card' | 'paypal' | 'gift' | 'other';
   paymentLast4?: string;
   autoImportSource?: 'oauth' | 'email' | 'manual';

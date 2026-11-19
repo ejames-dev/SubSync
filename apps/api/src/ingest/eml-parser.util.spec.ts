@@ -43,4 +43,43 @@ describe('parseRawEml', () => {
     const parsed = parseRawEml(spoofedEml);
     expect(parsed.authenticatedSender).toBe(false);
   });
+
+  it('ignores injected lower Authentication-Results headers and untrusted authserv-ids', () => {
+    const injectedHeaderEml = [
+      'Received: from attacker.example by mx.fastmail.com',
+      'Authentication-Results: mx.fastmail.com; dkim=fail header.d=spotify.com; spf=fail smtp.mailfrom=spotify.com',
+      'From: "Spotify" <no-reply@spotify.com>',
+      'Subject: Your Spotify receipt',
+      'Authentication-Results: mx.fastmail.com; dkim=pass header.d=spotify.com',
+      '',
+      'Spotify Premium Individual $11.99 monthly',
+    ].join('\r\n');
+
+    expect(
+      parseRawEml(injectedHeaderEml, {
+        trustedAuthServHost: 'imap.fastmail.com',
+      }).authenticatedSender,
+    ).toBe(false);
+
+    const untrustedAuthServEml = [
+      'Authentication-Results: mx.evil-relay.org; dkim=pass header.d=spotify.com',
+      'From: "Spotify" <no-reply@spotify.com>',
+      'Subject: Your Spotify receipt',
+      '',
+      'Spotify Premium Individual $11.99 monthly',
+    ].join('\r\n');
+
+    expect(
+      parseRawEml(untrustedAuthServEml, {
+        trustedAuthServHost: 'imap.fastmail.com',
+      }).authenticatedSender,
+    ).toBe(false);
+
+    expect(
+      parseRawEml(
+        untrustedAuthServEml.replace('mx.evil-relay.org', 'mx.google.com'),
+        { trustedAuthServHost: 'imap.gmail.com' },
+      ).authenticatedSender,
+    ).toBe(true);
+  });
 });

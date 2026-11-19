@@ -9,7 +9,14 @@ export interface ParsedEmlMessage {
   body: string;
 }
 
-export function parseRawEml(rawEml: string): ParsedEmlMessage {
+export interface ParseRawEmlOptions {
+  trustedAuthServHost?: string;
+}
+
+export function parseRawEml(
+  rawEml: string,
+  options?: ParseRawEmlOptions,
+): ParsedEmlMessage {
   const normalized = rawEml.replace(/\r\n/g, '\n');
   const splitIndex = normalized.indexOf('\n\n');
   const rawHeaderBlock =
@@ -32,10 +39,11 @@ export function parseRawEml(rawEml: string): ParsedEmlMessage {
     ? rawMessageId.replace(/^<|>$/g, '')
     : undefined;
 
-  const authResults = headers.get('authentication-results') ?? '';
+  const topAuthResults = extractTopAuthenticationResults(rawHeaderBlock);
   const authenticatedSender = hasAlignedAuthentication(
     decodedSender,
-    authResults,
+    topAuthResults,
+    options?.trustedAuthServHost,
   );
 
   const contentType = headers.get('content-type') ?? 'text/plain';
@@ -52,16 +60,96 @@ export function parseRawEml(rawEml: string): ParsedEmlMessage {
   };
 }
 
+const PROVIDER_AUTHSERV_ALIASES: Array<readonly string[]> = [
+  ['gmail.com', 'google.com', 'googlemail.com'],
+  ['outlook.com', 'office365.com', 'hotmail.com', 'live.com'],
+  ['icloud.com', 'me.com', 'mac.com', 'apple.com'],
+  ['yahoo.com', 'yahoodns.net'],
+  ['proton.me', 'protonmail.com', 'protonmail.ch'],
+];
+
+function extractTopAuthenticationResults(headerBlock: string): string {
+  const unfolded = headerBlock.replace(/\n[ \t]+/g, ' ');
+  let receivedCount = 0;
+  for (const line of unfolded.split('\n')) {
+    const colon = line.indexOf(':');
+    if (colon <= 0) continue;
+    const key = line.slice(0, colon).trim().toLowerCase();
+    if (key === 'received') {
+      receivedCount += 1;
+      continue;
+    }
+    if (key === 'authentication-results') {
+      if (receivedCount > 1) {
+        return '';
+      }
+      return line.slice(colon + 1).trim();
+    }
+  }
+  return '';
+}
+
+function registrableTail(hostname: string): string {
+  const labels = hostname
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]/g, '')
+    .split('.')
+    .filter(Boolean);
+  if (labels.length < 2) {
+    return '';
+  }
+  return labels.slice(-2).join('.');
+}
+
+function isTrustedAuthServ(authServId: string, expectedHost?: string): boolean {
+  const normalizedAuthServ = authServId
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]/g, '')
+    .split('.')
+    .filter(Boolean)
+    .join('.');
+  if (!normalizedAuthServ.includes('.')) {
+    return false;
+  }
+  if (!expectedHost) {
+    return true;
+  }
+
+  const authBase = registrableTail(normalizedAuthServ);
+  const expectedBase = registrableTail(expectedHost);
+  if (!authBase || !expectedBase) {
+    return false;
+  }
+  if (authBase === expectedBase) {
+    return true;
+  }
+
+  return PROVIDER_AUTHSERV_ALIASES.some(
+    (group) => group.includes(authBase) && group.includes(expectedBase),
+  );
+}
+
 function hasAlignedAuthentication(
   decodedSender: string,
   authResults: string,
+  trustedAuthServHost?: string,
 ): boolean {
   const domainFromSender = senderDomain(decodedSender);
   if (!domainFromSender || !authResults) {
     return false;
   }
 
-  for (const rawClause of authResults.slice(0, 8192).split(';')) {
+  const clauses = authResults.slice(0, 8192).split(';');
+  if (clauses.length < 2) {
+    return false;
+  }
+
+  const authServToken = clauses[0].trim().split(/\s+/)[0] ?? '';
+  if (!isTrustedAuthServ(authServToken, trustedAuthServHost)) {
+    return false;
+  }
+
+  for (const rawClause of clauses.slice(1)) {
     const clause = rawClause.trim();
     if (!/\b(?:dkim|spf)\s*=\s*pass\b/i.test(clause)) {
       continue;
@@ -100,8 +188,6 @@ function parseHeaders(headerBlock: string): Map<string, string> {
     const value = line.slice(colon + 1).trim();
     if (!map.has(key)) {
       map.set(key, value);
-    } else if (key === 'authentication-results') {
-      map.set(key, `${map.get(key)}; ${value}`);
     }
   }
   return map;

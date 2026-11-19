@@ -1,5 +1,6 @@
 import {
   detectInterval,
+  detectLifecycleIntent,
   detectPayment,
   detectRenewalDate,
   emailContent,
@@ -28,7 +29,7 @@ const SPOTIFY_PLANS = [
 
 export const spotifyReceiptParser: EmailReceiptParser = {
   id: 'spotify',
-  version: 1,
+  version: 2,
   matches(input: ReceiptEmailInput): boolean {
     return (
       isSenderDomain(input.sender, 'spotify.com') ||
@@ -38,13 +39,14 @@ export const spotifyReceiptParser: EmailReceiptParser = {
   parse(input: ReceiptEmailInput): ReceiptParseResult {
     const content = plainText(emailContent(input));
     const money = findPreferredMoney(content);
+    const lifecycleIntent = detectLifecycleIntent(content);
     const plan = SPOTIFY_PLANS.find((candidate) =>
       new RegExp(`\\b${candidate}\\b`, 'i').test(content),
     );
     const renewal = detectRenewalDate(content);
     const payment = detectPayment(content);
 
-    if (!money) {
+    if (!money && lifecycleIntent !== 'cancellation') {
       return {
         parserId: this.id,
         parserVersion: this.version,
@@ -68,13 +70,16 @@ export const spotifyReceiptParser: EmailReceiptParser = {
         {
           providerName: 'Spotify',
           planName,
-          billingAmount: money.amount,
-          billingCurrency: money.currency,
+          billingAmount: money?.amount ?? 0,
+          billingCurrency: money?.currency ?? 'USD',
           billingInterval: detectInterval(content),
           nextRenewal: renewal?.iso,
+          trialEndsAt:
+            lifecycleIntent === 'trial_start' ? renewal?.iso : undefined,
+          lifecycleIntent,
           ...payment,
           confidence,
-          evidence: evidence(money.raw, plan, renewal?.raw),
+          evidence: evidence(money?.raw ?? 'cancellation', plan, renewal?.raw),
         },
       ],
       warnings: plan ? [] : ['The Spotify plan name was not identified.'],

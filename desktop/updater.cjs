@@ -10,9 +10,11 @@ let status = {
 let updaterConfigured = false;
 
 // electron-updater refuses to install updates into an unsigned app on macOS,
-// so surface a clear disabled state instead of a code-signature error at
-// download time. Revisit once macOS builds are signed.
-const UPDATES_SUPPORTED = process.platform !== 'darwin';
+// so enable macOS auto-updates when signed builds set SUBSYNC_MACOS_SIGNED=true
+// and surface a clear message on unsigned macOS builds.
+const UPDATES_SUPPORTED =
+  process.platform !== 'darwin' ||
+  process.env.SUBSYNC_MACOS_SIGNED === 'true';
 const MACOS_UPDATES_MESSAGE =
   'Automatic updates require a signed macOS build. Download new versions from GitHub Releases.';
 

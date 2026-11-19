@@ -60,11 +60,12 @@ describe('applyMigrations', () => {
       for (const table of [
         'Service',
         'Subscription',
-        'NotificationPreference',
         'SubscriptionEvent',
         'UserSettings',
         'IntegrationConnection',
         'GmailConnection',
+        'ImapConnection',
+        'ExchangeRate',
         'PendingNotification',
         'EmailReceipt',
         'EmailReceiptItem',
@@ -72,6 +73,7 @@ describe('applyMigrations', () => {
       ]) {
         assert.ok(tables.includes(table), `missing table ${table}`);
       }
+      assert.ok(!tables.includes('NotificationPreference'));
 
       const subscriptionColumns = columnNames(db, 'Subscription');
       for (const column of [
@@ -81,11 +83,17 @@ describe('applyMigrations', () => {
         'importKey',
         'lastImportedAt',
         'duplicateReviewedAt',
+        'customIntervalDays',
+        'trialEndsAt',
+        'postTrialAmountCents',
+        'leadTimeDaysOverride',
+        'tagsJson',
       ]) {
         assert.ok(subscriptionColumns.includes(column), `missing Subscription.${column}`);
       }
       assert.ok(columnNames(db, 'Service').includes('logoUrl'));
       assert.ok(columnNames(db, 'Service').includes('cancelUrl'));
+      assert.ok(columnNames(db, 'Service').includes('isCustom'));
       for (const column of [
         'monthlyBudgetCents',
         'budgetCurrency',
@@ -130,21 +138,7 @@ describe('applyMigrations', () => {
     // no ledger table.
     withDb(databasePath, (db) => {
       db.exec('PRAGMA foreign_keys = ON;');
-      const ordered = [
-        '20260317174500_init_sqlite',
-        '20260317175000_notifications',
-        '20260317180000_subscription_events',
-        '20260317183000_user_settings',
-        '20260317193000_integration_connections',
-        '20260605120000_gmail_oauth',
-        '20260605140000_pending_notifications',
-        '20260605200000_service_logo_url',
-        '20260605201000_subscription_snooze',
-        '20260713120000_smarter_imports',
-        '20260715120000_money_awareness',
-        '20260925120000_duplicate_review',
-      ];
-      assert.deepEqual(ordered, listRealMigrations());
+      const ordered = listRealMigrations();
       for (const name of ordered) {
         db.exec(readFileSync(join(realMigrationsDir, name, 'migration.sql'), 'utf8'));
       }

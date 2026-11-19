@@ -11,8 +11,6 @@ async function deliverPendingNotifications() {
     return;
   }
 
-  // In the packaged Electron app, desktop/main.cjs polls and dispatches native
-  // OS notifications directly. Skip browser polling to prevent duplicate alerts.
   if (getDesktopBridge()) {
     return;
   }
@@ -25,12 +23,18 @@ async function deliverPendingNotifications() {
     return;
   }
 
-  // Claim atomically: claimed notifications are already marked delivered,
-  // so another tab (or the Electron shell) polling concurrently receives
-  // a disjoint set and cannot display duplicates.
   const claimed = await claimPendingNotifications();
   for (const notification of claimed) {
-    new Notification(notification.title, { body: notification.body });
+    const toast = new Notification(notification.title, {
+      body: notification.body,
+    });
+    toast.onclick = () => {
+      window.focus();
+      const target = notification.subscriptionId
+        ? `/subscriptions/${encodeURIComponent(notification.subscriptionId)}`
+        : '/dashboard';
+      window.location.assign(target);
+    };
   }
 }
 

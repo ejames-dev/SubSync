@@ -13,6 +13,7 @@ model Service {
   name          String
   category      String
   supportsOAuth Boolean                @default(false)
+  isCustom      Boolean                @default(false)
   description   String?
   logoUrl       String?
   cancelUrl     String?
@@ -39,6 +40,14 @@ model UserSettings {
   monthlyBudgetCents   Int?
   budgetCurrency       String  @default("USD")
   budgetAlertTriggered Boolean @default(false)
+  webhookUrl           String?
+  smtpHost             String?
+  smtpPort             Int?
+  smtpUsername         String?
+  smtpPasswordEnc      String?
+  smtpFrom             String?
+  smtpTo               String?
+  syncFolderPath       String?
 }
 
 model Subscription {
@@ -49,7 +58,16 @@ model Subscription {
   billingAmountCents      Int
   billingCurrency         String
   billingInterval         String    @default("monthly")
+  customIntervalDays      Int?
   nextRenewal             DateTime
+  trialEndsAt             DateTime?
+  postTrialAmountCents    Int?
+  leadTimeDaysOverride    Int?
+  tagsJson                String?
+  totalSeats              Int?
+  sharedSeats             Int?
+  personalShareCents      Int?
+  bundleParentId          String?
   paymentSource           String?
   paymentLast4            String?
   autoImportSource        String?
@@ -146,14 +164,6 @@ model SubscriptionEvent {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }
 
-model NotificationPreference {
-  id           String   @id
-  leadTimeDays Int      @default(7)
-  channels     String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
 model GmailConnection {
   id              String    @id @default("default")
   email           String?
@@ -176,4 +186,24 @@ model OAuthState {
 model ProcessedGmailMessage {
   messageId   String   @id
   processedAt DateTime @default(now())
+}
+
+model ImapConnection {
+  id           String    @id @default("default")
+  host         String
+  port         Int       @default(993)
+  tls          Boolean   @default(true)
+  username     String
+  passwordEnc  String
+  mailbox      String    @default("INBOX")
+  connectedAt  DateTime  @default(now())
+  lastSyncedAt DateTime?
+  updatedAt    DateTime  @updatedAt
+}
+
+model ExchangeRate {
+  currency         String   @id
+  rateToUsd        Float
+  isManualOverride Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
 }

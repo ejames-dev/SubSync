@@ -2,15 +2,24 @@ const {
   app,
   BrowserWindow,
   dialog,
+  Menu,
+  nativeImage,
   Notification,
   ipcMain,
   safeStorage,
   shell,
+  Tray,
 } = require('electron');
 const { randomBytes } = require('node:crypto');
 const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const net = require('node:net');
+const {
+  buildTrayTooltipSummary,
+  readDesktopPreferences,
+  resolveNotificationTargetUrl,
+  writeDesktopPreferences,
+} = require('./desktop-shell.cjs');
 const { applyMigrations } = require('./migrations.cjs');
 const { resolveRuntimePath } = require('./runtime-path.cjs');
 const { getServerStatus } = require('./server-readiness.cjs');
@@ -28,11 +37,52 @@ const HOST = '127.0.0.1';
 const STARTUP_TIMEOUT_MS = 15000;
 
 let mainWindow = null;
+let tray = null;
+let isQuitting = false;
+let runtimeReady = false;
 let notificationPollTimer = null;
-let startupUrl = `http://${HOST}:${WEB_PORT}/dashboard`;
+const baseWebOrigin = `http://${HOST}:${WEB_PORT}`;
+let startupUrl = `${baseWebOrigin}/dashboard`;
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.evannewman.subsync');
+}
 
 function getRuntimePath(...parts) {
   return resolveRuntimePath(app.getAppPath(), process.resourcesPath, ...parts);
+}
+
+function getDesktopPreferencesPath() {
+  return resolve(app.getPath('userData'), 'data', 'desktop-preferences.json');
+}
+
+function getDesktopSettings() {
+  const stored = readDesktopPreferences(getDesktopPreferencesPath());
+  try {
+    const loginState = app.getLoginItemSettings?.();
+    if (typeof loginState?.openAtLogin === 'boolean') {
+      return {
+        ...stored,
+        launchAtLogin: loginState.openAtLogin,
+      };
+    }
+  } catch {
+    // Ignore login-item inspection errors in unpackaged/headless environments.
+  }
+  return stored;
+}
+
+function applyDesktopSettings(partial) {
+  const next = writeDesktopPreferences(getDesktopPreferencesPath(), partial);
+  if (typeof partial?.launchAtLogin === 'boolean') {
+    try {
+      app.setLoginItemSettings?.({ openAtLogin: next.launchAtLogin });
+    } catch {
+      // Ignore unsupported login-item registration in dev/Linux environments.
+    }
+  }
+  refreshTrayMenu();
+  return getDesktopSettings();
 }
 
 function getPreloadPath() {
@@ -159,21 +209,112 @@ function startWeb() {
   require(getRuntimePath('web', 'apps', 'web', 'server.js'));
 }
 
-function createWindow() {
+function openTargetUrl(targetUrl) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createWindow(runtimeReady ? targetUrl : undefined);
+  } else {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.show();
+    mainWindow.focus();
+    if (runtimeReady && targetUrl) {
+      void mainWindow.loadURL(targetUrl);
+    }
+  }
+}
+
+function createTray() {
+  if (tray) {
+    return;
+  }
+  try {
+    const iconPath = getIconPath();
+    const icon = existsSync(iconPath)
+      ? nativeImage.createFromPath(iconPath)
+      : nativeImage.createEmpty();
+    tray = new Tray(icon);
+    tray.setToolTip('SubSync — Local Subscription Command Center');
+    tray.on('click', () => {
+      openTargetUrl(startupUrl);
+    });
+    refreshTrayMenu();
+  } catch {
+    tray = null;
+  }
+}
+
+function refreshTrayMenu(summaryText) {
+  if (!tray) {
+    return;
+  }
+  const prefs = getDesktopSettings();
+  const statusLabel = summaryText || 'Background sync & reminders active';
+  const contextMenu = Menu.buildFromTemplate([
+    { label: statusLabel, enabled: false },
+    { type: 'separator' },
+    {
+      label: 'Open Dashboard',
+      click: () => openTargetUrl(`${baseWebOrigin}/dashboard`),
+    },
+    {
+      label: 'Open Renewal Calendar',
+      click: () => openTargetUrl(`${baseWebOrigin}/calendar`),
+    },
+    { type: 'separator' },
+    {
+      label: 'Keep running in tray on close',
+      type: 'checkbox',
+      checked: prefs.minimizeToTray,
+      click: (menuItem) => {
+        applyDesktopSettings({ minimizeToTray: menuItem.checked });
+      },
+    },
+    {
+      label: 'Launch at OS login',
+      type: 'checkbox',
+      checked: prefs.launchAtLogin,
+      click: (menuItem) => {
+        applyDesktopSettings({ launchAtLogin: menuItem.checked });
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit SubSync',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(contextMenu);
+}
+
+function createWindow(initialTargetUrl) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
     minWidth: 1024,
     minHeight: 720,
     backgroundColor: '#f8fafc',
-    // The .ico only decodes on Windows; macOS ignores the option and Linux
-    // AppImage gets its icon from the packaged desktop entry instead.
     icon: process.platform === 'win32' ? getIconPath() : undefined,
     webPreferences: {
       contextIsolation: true,
       sandbox: true,
       preload: getPreloadPath(),
     },
+  });
+
+  mainWindow.on('close', (event) => {
+    const prefs = getDesktopSettings();
+    if (!isQuitting && prefs.minimizeToTray && tray) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -191,6 +332,11 @@ function createWindow() {
       }
     }
   });
+
+  if (initialTargetUrl) {
+    void mainWindow.loadURL(initialTargetUrl);
+    return;
+  }
 
   mainWindow.loadURL(
     `data:text/html,${encodeURIComponent(`
@@ -210,7 +356,7 @@ function assertPortAvailable(port, label) {
   return new Promise((resolvePromise, rejectPromise) => {
     const server = net.createServer();
     server.unref();
-    server.on('error', (error) => {
+    server.on('error', () => {
       rejectPromise(
         new Error(
           `${label} port ${port} is already in use. Close the conflicting process and launch SubSync again.`,
@@ -248,11 +394,28 @@ async function waitForServer(url, label) {
   );
 }
 
+async function refreshTraySummaryFromApi() {
+  if (!tray) {
+    return;
+  }
+  try {
+    const response = await fetch(
+      `http://${HOST}:${API_PORT}/api/dashboard/summary`,
+    );
+    if (!response.ok) {
+      return;
+    }
+    const summary = await response.json();
+    const tooltip = buildTrayTooltipSummary(summary);
+    tray.setToolTip(tooltip);
+    refreshTrayMenu(tooltip);
+  } catch {
+    // Ignore transient summary errors.
+  }
+}
+
 async function pollRenewalNotifications() {
   try {
-    // Claim atomically: the API marks each returned notification delivered
-    // in the same step, so a browser tab polling at the same time (or a
-    // second window) can never receive and display the same reminder.
     const response = await fetch(
       `http://${HOST}:${API_PORT}/api/notifications/claim?channel=push`,
       { method: 'POST' },
@@ -268,9 +431,14 @@ async function pollRenewalNotifications() {
           title: item.title,
           body: item.body,
         });
+        const targetUrl = resolveNotificationTargetUrl(baseWebOrigin, item);
+        notification.on('click', () => {
+          openTargetUrl(targetUrl);
+        });
         notification.show();
       }
     }
+    await refreshTraySummaryFromApi();
   } catch {
     // Ignore transient API errors during startup or shutdown.
   }
@@ -304,8 +472,9 @@ async function initializeDesktopRuntime() {
   await waitForServer(`http://${HOST}:${API_PORT}/api/services`, 'API');
   startWeb();
   await waitForServer(startupUrl, 'Web UI');
+  runtimeReady = true;
   startNotificationPolling();
-  if (mainWindow) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
     await mainWindow.loadURL(startupUrl);
   }
 }
@@ -316,8 +485,13 @@ function registerDesktopBridge() {
   ipcMain.handle('subsync:check-for-updates', () => checkForUpdates());
   ipcMain.handle('subsync:download-update', () => downloadUpdate());
   ipcMain.handle('subsync:quit-and-install', () => {
+    isQuitting = true;
     quitAndInstall();
   });
+  ipcMain.handle('subsync:get-desktop-settings', () => getDesktopSettings());
+  ipcMain.handle('subsync:update-desktop-settings', (_event, partial) =>
+    applyDesktopSettings(partial),
+  );
 }
 
 const singleInstance = app.requestSingleInstanceLock();
@@ -326,25 +500,34 @@ if (!singleInstance) {
 }
 
 app.on('second-instance', () => {
-  if (!mainWindow) {
-    return;
-  }
-  if (mainWindow.isMinimized()) {
-    mainWindow.restore();
-  }
-  mainWindow.focus();
+  openTargetUrl(startupUrl);
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
+  stopNotificationPolling();
 });
 
 app.whenReady().then(() => {
   try {
     registerDesktopBridge();
     setupUpdater();
+    const initialSettings = getDesktopSettings();
+    if (initialSettings.launchAtLogin) {
+      try {
+        app.setLoginItemSettings?.({ openAtLogin: true });
+      } catch {
+        // Ignore on unsupported environments.
+      }
+    }
+    createTray();
     createWindow();
     void initializeDesktopRuntime().catch((error) => {
       dialog.showErrorBox(
         'SubSync failed to start',
         error instanceof Error ? error.stack ?? error.message : String(error),
       );
+      isQuitting = true;
       app.quit();
     });
   } catch (error) {
@@ -352,19 +535,26 @@ app.whenReady().then(() => {
       'SubSync failed to initialize',
       error instanceof Error ? error.stack ?? error.message : String(error),
     );
+    isQuitting = true;
     app.quit();
   }
 });
 
 app.on('window-all-closed', () => {
-  stopNotificationPolling();
+  const prefs = getDesktopSettings();
+  if (!isQuitting && prefs.minimizeToTray && tray) {
+    return;
+  }
   if (process.platform !== 'darwin') {
+    stopNotificationPolling();
     app.quit();
   }
 });
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    createWindow(runtimeReady ? startupUrl : undefined);
+  } else {
+    openTargetUrl();
   }
 });

@@ -9,6 +9,6 @@ import { TokenCryptoService } from './token-crypto.service';
   imports: [IngestModule],
   controllers: [GmailController],
   providers: [TokenCryptoService, GmailOAuthService, GmailSyncService],
-  exports: [GmailOAuthService, GmailSyncService],
+  exports: [GmailOAuthService, GmailSyncService, TokenCryptoService],
 })
 export class GmailModule {}

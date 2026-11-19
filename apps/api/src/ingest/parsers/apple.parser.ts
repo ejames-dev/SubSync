@@ -1,6 +1,7 @@
 import {
   averageConfidence,
   detectInterval,
+  detectLifecycleIntent,
   detectPayment,
   detectRenewalDate,
   emailContent,
@@ -21,6 +22,40 @@ const NON_PRODUCT_LINE =
 const DATE_OR_PAYMENT_LINE =
   /(?:renews?|billing date|next charge|\b(?:visa|mastercard|amex|card)\b|\*{2,}\d{4})/i;
 const TOTAL_LINE = /\b(?:subtotal|tax|total|balance|amount paid)\b/i;
+
+export function resolveAppleCatalogProvider(productLine: string): string {
+  if (/\bicloud\+?\b/i.test(productLine)) {
+    return 'iCloud+';
+  }
+  if (/\bapple\s*tv\+?\b/i.test(productLine)) {
+    return 'Apple TV+';
+  }
+  if (/\bapple\s*music\b/i.test(productLine)) {
+    return 'Apple Music';
+  }
+  if (/\byoutube\s*(?:premium|music)\b/i.test(productLine)) {
+    return 'YouTube Premium';
+  }
+  if (/\bdisney\+?\b/i.test(productLine)) {
+    return 'Disney+';
+  }
+  if (/\bhulu\b/i.test(productLine)) {
+    return 'Hulu';
+  }
+  if (/\bparamount\+?\b/i.test(productLine)) {
+    return 'Paramount+';
+  }
+  if (/\bpeacock\b/i.test(productLine)) {
+    return 'Peacock';
+  }
+  if (/\bcrunchyroll\b/i.test(productLine)) {
+    return 'Crunchyroll';
+  }
+  if (/\b(?:hbo\s*max|max)\b/i.test(productLine)) {
+    return 'HBO Max';
+  }
+  return productLine;
+}
 
 function productName(
   lines: string[],
@@ -55,7 +90,7 @@ function productName(
 
 export const appleReceiptParser: EmailReceiptParser = {
   id: 'apple',
-  version: 1,
+  version: 2,
   matches(input: ReceiptEmailInput): boolean {
     return (
       isSenderDomain(input.sender, 'apple.com') ||
@@ -70,6 +105,7 @@ export const appleReceiptParser: EmailReceiptParser = {
       .filter(Boolean);
     const trustedSender = isSenderDomain(input.sender, 'apple.com');
     const payment = detectPayment(content);
+    const lifecycleIntent = detectLifecycleIntent(content);
     const items: ParsedReceiptItem[] = [];
     const warnings: string[] = [];
 
@@ -93,15 +129,19 @@ export const appleReceiptParser: EmailReceiptParser = {
       const confidence = Number(
         (trustedSender ? (renewal || interval ? 0.95 : 0.86) : 0.65).toFixed(2),
       );
+      const providerName = resolveAppleCatalogProvider(name);
 
       items.push({
-        providerName: name,
+        providerName,
         merchantName: 'Apple',
         planName: name,
         billingAmount: money.amount,
         billingCurrency: money.currency,
         billingInterval: interval,
         nextRenewal: renewal?.iso,
+        trialEndsAt:
+          lifecycleIntent === 'trial_start' ? renewal?.iso : undefined,
+        lifecycleIntent,
         ...payment,
         confidence,
         evidence: evidence(money.raw, name, renewal?.raw),

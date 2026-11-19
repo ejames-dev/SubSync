@@ -1,13 +1,12 @@
-import { ArrayNotEmpty, IsArray, IsIn, IsInt, Max, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, Max, Min } from 'class-validator';
 
 export class UpdateNotificationPreferenceDto {
   @IsInt()
-  @Min(1)
-  @Max(30)
+  @Min(0)
+  @Max(365)
   leadTimeDays!: number;
 
   @IsArray()
-  @ArrayNotEmpty()
   @IsIn(['email', 'push'], { each: true })
   channels!: Array<'email' | 'push'>;
 }

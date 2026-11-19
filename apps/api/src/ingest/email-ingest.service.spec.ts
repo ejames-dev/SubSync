@@ -108,6 +108,7 @@ describe('EmailIngestService', () => {
       expect.objectContaining({
         serviceId: 'svc_netflix',
         billingAmount: 15.49,
+        importKey: 'svc_netflix:netflix-standard',
         observedAt: receivedAt,
       }),
     );

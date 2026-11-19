@@ -37,7 +37,7 @@ export class ReviewEmailReceiptItemDto {
   billingCurrency?: string;
 
   @IsOptional()
-  @IsIn(['monthly', 'yearly', 'quarterly', 'custom'])
+  @IsIn(['weekly', 'monthly', 'yearly', 'quarterly', 'custom'])
   billingInterval?: BillingInterval;
 
   @IsOptional()

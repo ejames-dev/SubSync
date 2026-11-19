@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { UserSettings } from '@subscription-tracker/types';
+import { TokenCryptoService } from '../gmail/token-crypto.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
@@ -8,7 +9,14 @@ const EMAIL_FORWARDING_ALIAS = 'subs+general@subsync.app';
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly tokenCrypto: TokenCryptoService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() tokenCrypto?: TokenCryptoService,
+  ) {
+    this.tokenCrypto = tokenCrypto ?? new TokenCryptoService();
+  }
 
   async getSettings(): Promise<UserSettings> {
     const settings = await this.prisma.userSettings.upsert({
@@ -45,6 +53,36 @@ export class SettingsService {
       existing.monthlyBudgetCents !== monthlyBudgetCents ||
       existing.budgetCurrency !== budgetCurrency;
 
+    const smtpPasswordEnc =
+      dto.smtpPassword === undefined
+        ? (existing?.smtpPasswordEnc ?? null)
+        : dto.smtpPassword === null || dto.smtpPassword.trim() === ''
+          ? null
+          : this.tokenCrypto.encrypt(dto.smtpPassword);
+
+    const extraUpdate = {
+      ...(dto.webhookUrl !== undefined
+        ? { webhookUrl: dto.webhookUrl?.trim() || null }
+        : {}),
+      ...(dto.smtpHost !== undefined
+        ? { smtpHost: dto.smtpHost?.trim() || null }
+        : {}),
+      ...(dto.smtpPort !== undefined ? { smtpPort: dto.smtpPort ?? null } : {}),
+      ...(dto.smtpUsername !== undefined
+        ? { smtpUsername: dto.smtpUsername?.trim() || null }
+        : {}),
+      ...(dto.smtpPassword !== undefined ? { smtpPasswordEnc } : {}),
+      ...(dto.smtpFrom !== undefined
+        ? { smtpFrom: dto.smtpFrom?.trim() || null }
+        : {}),
+      ...(dto.smtpTo !== undefined
+        ? { smtpTo: dto.smtpTo?.trim() || null }
+        : {}),
+      ...(dto.syncFolderPath !== undefined
+        ? { syncFolderPath: dto.syncFolderPath?.trim() || null }
+        : {}),
+    };
+
     const settings = await this.prisma.userSettings.upsert({
       where: { id: SETTINGS_ID },
       update: {
@@ -53,6 +91,7 @@ export class SettingsService {
         monthlyBudgetCents,
         budgetCurrency,
         ...(budgetChanged ? { budgetAlertTriggered: false } : {}),
+        ...extraUpdate,
       },
       create: {
         id: SETTINGS_ID,
@@ -61,6 +100,7 @@ export class SettingsService {
         monthlyBudgetCents,
         budgetCurrency,
         budgetAlertTriggered: false,
+        ...extraUpdate,
       },
     });
 
@@ -73,6 +113,14 @@ export class SettingsService {
     monthlyBudgetCents?: number | null;
     budgetCurrency?: string | null;
     budgetAlertTriggered?: boolean;
+    webhookUrl?: string | null;
+    smtpHost?: string | null;
+    smtpPort?: number | null;
+    smtpUsername?: string | null;
+    smtpPasswordEnc?: string | null;
+    smtpFrom?: string | null;
+    smtpTo?: string | null;
+    syncFolderPath?: string | null;
   }): UserSettings {
     const budgetCurrency = settings.budgetCurrency?.toUpperCase() ?? 'USD';
     const monthlyBudgetCents =
@@ -96,6 +144,15 @@ export class SettingsService {
       channels = ['email', 'push'];
     }
 
+    const hasSmtpFields = Boolean(
+      settings.smtpHost ||
+      settings.smtpPort ||
+      settings.smtpUsername ||
+      settings.smtpPasswordEnc ||
+      settings.smtpFrom ||
+      settings.smtpTo,
+    );
+
     return {
       notificationPreference: {
         id: SETTINGS_ID,
@@ -112,6 +169,22 @@ export class SettingsService {
               currency: budgetCurrency,
               alertTriggered: settings.budgetAlertTriggered ?? false,
             },
+      ...(settings.webhookUrl ? { webhookUrl: settings.webhookUrl } : {}),
+      ...(hasSmtpFields
+        ? {
+            smtp: {
+              host: settings.smtpHost ?? undefined,
+              port: settings.smtpPort ?? undefined,
+              username: settings.smtpUsername ?? undefined,
+              hasPassword: Boolean(settings.smtpPasswordEnc),
+              from: settings.smtpFrom ?? undefined,
+              to: settings.smtpTo ?? undefined,
+            },
+          }
+        : {}),
+      ...(settings.syncFolderPath
+        ? { syncFolderPath: settings.syncFolderPath }
+        : {}),
     };
   }
 }

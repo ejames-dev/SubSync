@@ -1,4 +1,7 @@
-import type { AppUpdateStatus } from '@subscription-tracker/types';
+import type {
+  AppUpdateStatus,
+  DesktopShellSettings,
+} from '@subscription-tracker/types';
 
 export type DesktopBridge = {
   getAppVersion: () => Promise<string>;
@@ -6,6 +9,10 @@ export type DesktopBridge = {
   checkForUpdates: () => Promise<AppUpdateStatus>;
   downloadUpdate: () => Promise<AppUpdateStatus>;
   quitAndInstall: () => Promise<void>;
+  getDesktopSettings?: () => Promise<DesktopShellSettings>;
+  updateDesktopSettings?: (
+    settings: Partial<DesktopShellSettings>,
+  ) => Promise<DesktopShellSettings>;
 };
 
 type WindowWithDesktopBridge = Window & {

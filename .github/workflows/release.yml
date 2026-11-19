@@ -33,9 +33,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # No macOS signing certificate is configured; build unsigned instead of
-      # failing identity auto-discovery.
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      SUBSYNC_MACOS_SIGNED: ${{ secrets.CSC_LINK != '' && 'true' || 'false' }}
+      # Fall back to unsigned builds cleanly when CSC_LINK is not configured.
+      CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +56,9 @@ jobs:
 
       - name: Generate Prisma client
         run: npm run prisma:generate --workspace api
+
+      - name: Run unit & e2e tests before release
+        run: npm test && npm run test:e2e --workspace api
 
       - name: Build desktop bundle
         run: npm run build:desktop

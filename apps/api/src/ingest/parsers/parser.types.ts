@@ -1,6 +1,12 @@
-export type ReceiptBillingInterval = 'monthly' | 'quarterly' | 'yearly';
+export type ReceiptBillingInterval =
+  | 'weekly'
+  | 'monthly'
+  | 'quarterly'
+  | 'yearly';
 
 export type ReceiptPaymentSource = 'card' | 'paypal';
+
+export type ReceiptLifecycleIntent = 'renewal' | 'cancellation' | 'trial_start';
 
 export interface ReceiptEmailInput {
   sender: string;
@@ -26,6 +32,8 @@ export interface ParsedReceiptItem {
   billingCurrency: string;
   billingInterval?: ReceiptBillingInterval;
   nextRenewal?: string;
+  trialEndsAt?: string;
+  lifecycleIntent?: ReceiptLifecycleIntent;
   paymentSource?: ReceiptPaymentSource;
   paymentLast4?: string;
   confidence: number;

@@ -4,7 +4,11 @@ describe('ReminderService', () => {
   const prisma = {
     subscription: {
       findMany: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn(),
+    },
+    subscriptionEvent: {
+      create: jest.fn(),
     },
     userSettings: {
       findUnique: jest.fn(),
@@ -27,6 +31,8 @@ describe('ReminderService', () => {
       channels: ['push'],
     });
     prisma.subscription.updateMany.mockResolvedValue({ count: 1 });
+    prisma.subscription.update.mockResolvedValue({});
+    prisma.subscriptionEvent.create.mockResolvedValue({});
     notificationDelivery.queueRenewalReminder.mockResolvedValue({
       id: 'notif_1',
       subscriptionId: 'sub_1',
@@ -204,5 +210,131 @@ describe('ReminderService', () => {
       where: { id: 'default', budgetAlertTriggered: true },
       data: { budgetAlertTriggered: false },
     });
+  });
+
+  it('rolls forward elapsed active renewals, converts trials, and archives canceled_pending', async () => {
+    const now = new Date('2026-05-15T12:00:00.000Z');
+    prisma.subscription.findMany.mockResolvedValue([
+      {
+        id: 'sub_active',
+        status: 'active',
+        planName: 'Premium',
+        billingAmountCents: 1500,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        customIntervalDays: null,
+        nextRenewal: new Date('2026-05-01T00:00:00.000Z'),
+        trialEndsAt: null,
+        postTrialAmountCents: null,
+        service: { name: 'Spotify' },
+      },
+      {
+        id: 'sub_canceling',
+        status: 'canceled_pending',
+        planName: 'Standard',
+        billingAmountCents: 1999,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        customIntervalDays: null,
+        nextRenewal: new Date('2026-05-10T00:00:00.000Z'),
+        trialEndsAt: null,
+        postTrialAmountCents: null,
+        service: { name: 'Netflix' },
+      },
+      {
+        id: 'sub_trial',
+        status: 'trial',
+        planName: 'Pro',
+        billingAmountCents: 0,
+        billingCurrency: 'USD',
+        billingInterval: 'monthly',
+        customIntervalDays: null,
+        nextRenewal: new Date('2026-05-12T00:00:00.000Z'),
+        trialEndsAt: new Date('2026-05-12T00:00:00.000Z'),
+        postTrialAmountCents: 2000,
+        service: { name: 'ChatGPT Plus' },
+      },
+    ]);
+
+    const service = new ReminderService(
+      prisma as never,
+      notificationPreferences as never,
+      notificationDelivery as never,
+    );
+
+    await expect(service.rolloverElapsedRenewals(now)).resolves.toBe(3);
+
+    expect(prisma.subscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sub_active' },
+        data: expect.objectContaining({
+          nextRenewal: new Date('2026-06-01T00:00:00.000Z'),
+          nextRenewalReminderSent: false,
+        }),
+      }),
+    );
+    expect(prisma.subscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sub_canceling' },
+        data: expect.objectContaining({
+          status: 'canceled',
+        }),
+      }),
+    );
+    expect(prisma.subscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sub_trial' },
+        data: expect.objectContaining({
+          status: 'active',
+          billingAmountCents: 2000,
+          nextRenewal: new Date('2026-06-12T00:00:00.000Z'),
+        }),
+      }),
+    );
+  });
+
+  it('honors per-subscription leadTimeDaysOverride and trial conversion copy', async () => {
+    const now = new Date('2026-05-01T00:00:00.000Z');
+    prisma.subscription.findMany.mockResolvedValue([
+      {
+        id: 'sub_override_due',
+        status: 'trial',
+        planName: 'Plus Trial',
+        billingAmountCents: 0,
+        billingCurrency: 'USD',
+        nextRenewal: new Date('2026-05-12T00:00:00.000Z'),
+        trialEndsAt: new Date('2026-05-12T00:00:00.000Z'),
+        postTrialAmountCents: 2000,
+        leadTimeDaysOverride: 14,
+        service: { name: 'ChatGPT' },
+      },
+      {
+        id: 'sub_not_due',
+        status: 'active',
+        planName: 'Basic',
+        billingAmountCents: 999,
+        billingCurrency: 'USD',
+        nextRenewal: new Date('2026-05-12T00:00:00.000Z'),
+        trialEndsAt: null,
+        postTrialAmountCents: null,
+        leadTimeDaysOverride: null,
+        service: { name: 'Hulu' },
+      },
+    ]);
+
+    const service = new ReminderService(
+      prisma as never,
+      notificationPreferences as never,
+      notificationDelivery as never,
+    );
+
+    await expect(service.queueDueRenewalReminders(now)).resolves.toBe(1);
+    expect(notificationDelivery.queueRenewalReminder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscriptionId: 'sub_override_due',
+        title: 'ChatGPT trial ends soon',
+        body: expect.stringContaining('converts to USD 20.00'),
+      }),
+    );
   });
 });

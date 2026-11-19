@@ -4,6 +4,7 @@ import {
   BillingInterval,
   EmailIngestResult,
   EmailReceiptItem,
+  EmailReceiptSource,
   ServiceProvider,
   Subscription,
 } from '@subscription-tracker/types';
@@ -18,7 +19,7 @@ import { EmailReceipt as PrismaEmailReceipt } from '../../prisma/generated/clien
 
 type IngestRequest = EmailIngestPayload & {
   externalMessageId?: string;
-  source?: 'gmail' | 'manual';
+  source?: EmailReceiptSource;
   authenticatedSender?: boolean;
 };
 
@@ -159,10 +160,13 @@ export class EmailIngestService {
           billingInterval: (parsedItem.billingInterval ??
             'monthly') as BillingInterval,
           nextRenewal,
+          trialEndsAt: parsedItem.trialEndsAt,
+          lifecycleIntent: parsedItem.lifecycleIntent,
           paymentSource: parsedItem.paymentSource,
           paymentLast4: parsedItem.paymentLast4,
           notes: `Imported from ${parsed.parserId} receipt "${payload.subject}" on ${payload.receivedAt}`,
           autoImportSource: 'email',
+          importKey: this.buildImportKey(service.id, parsedItem),
           observedAt: payload.receivedAt,
           priceChangeNotification: {
             channels: notificationPreference.channels,
@@ -270,6 +274,23 @@ export class EmailIngestService {
     return value.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
 
+  private buildImportKey(
+    serviceId: string,
+    item: { planName: string; paymentLast4?: string },
+  ): string {
+    const planSlug =
+      item.planName
+        .slice(0, 120)
+        .toLowerCase()
+        .replace(/\bimported plan\b/g, '')
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
+        .join('-') || 'default';
+    return item.paymentLast4
+      ? `${serviceId}:${planSlug}:${item.paymentLast4}`
+      : `${serviceId}:${planSlug}`;
+  }
+
   private autoApproveThreshold(): number {
     const configured = Number(
       process.env.EMAIL_IMPORT_AUTO_APPROVE_CONFIDENCE ?? '90',
@@ -286,13 +307,15 @@ export class EmailIngestService {
 
   private inferNextRenewal(
     receivedAt: string,
-    interval: 'monthly' | 'quarterly' | 'yearly',
+    interval: 'weekly' | 'monthly' | 'quarterly' | 'yearly',
   ): string {
     const next = new Date(receivedAt);
     if (interval === 'yearly') {
       next.setFullYear(next.getFullYear() + 1);
     } else if (interval === 'quarterly') {
       next.setMonth(next.getMonth() + 3);
+    } else if (interval === 'weekly') {
+      next.setDate(next.getDate() + 7);
     } else {
       next.setMonth(next.getMonth() + 1);
     }
@@ -373,7 +396,12 @@ export class EmailIngestService {
   }
 
   private toBillingInterval(value: string): BillingInterval {
-    if (value === 'yearly' || value === 'quarterly' || value === 'custom') {
+    if (
+      value === 'weekly' ||
+      value === 'yearly' ||
+      value === 'quarterly' ||
+      value === 'custom'
+    ) {
       return value;
     }
     return 'monthly';

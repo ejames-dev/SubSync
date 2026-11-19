@@ -1,3 +1,4 @@
+import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
 export function getSqliteFilePath(
@@ -18,4 +19,13 @@ export function getBackupDirectory(
 
   const databasePath = getSqliteFilePath(databaseUrl);
   return resolve(databasePath, '..', 'backups');
+}
+
+export function getSyncAllowedRoot(): string {
+  const configured = process.env.SYNC_ROOT_DIR?.trim();
+  if (configured) {
+    return resolve(process.cwd(), configured);
+  }
+
+  return resolve(homedir());
 }

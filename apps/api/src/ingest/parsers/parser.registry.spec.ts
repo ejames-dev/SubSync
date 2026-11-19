@@ -89,12 +89,136 @@ describe('email receipt parser registry', () => {
         nextRenewal: '2026-08-12T00:00:00.000Z',
       }),
       expect.objectContaining({
-        providerName: 'iCloud+ 200 GB',
+        providerName: 'iCloud+',
+        planName: 'iCloud+ 200 GB',
         merchantName: 'Apple',
         billingAmount: 2.99,
         nextRenewal: '2026-08-15T00:00:00.000Z',
       }),
     ]);
+  });
+
+  it('parses Amazon Prime, Disney+, YouTube Premium, Xbox, PlayStation, and Steam receipts', () => {
+    expect(
+      parseEmailReceipt({
+        sender: 'digital-no-reply@amazon.com',
+        subject: 'Your Amazon Prime membership renewal',
+        body: 'Amount charged: $14.99 monthly. Next billing date: August 10, 2026',
+        receivedAt,
+      }).items[0],
+    ).toEqual(
+      expect.objectContaining({
+        providerName: 'Amazon Prime',
+        billingAmount: 14.99,
+        billingInterval: 'monthly',
+      }),
+    );
+
+    expect(
+      parseEmailReceipt({
+        sender: 'disneyplus@mail.disneyplus.com',
+        subject: 'Disney+ Bundle invoice',
+        body: 'Charged: $19.99 per month',
+        receivedAt,
+      }).items[0],
+    ).toEqual(
+      expect.objectContaining({
+        providerName: 'Disney+',
+        planName: 'Disney+ Bundle',
+        billingAmount: 19.99,
+      }),
+    );
+
+    expect(
+      parseEmailReceipt({
+        sender: 'googleplay-noreply@google.com',
+        subject: 'Your YouTube Premium Family receipt',
+        body: 'Amount: $22.99 monthly',
+        receivedAt,
+      }).items[0],
+    ).toEqual(
+      expect.objectContaining({
+        providerName: 'YouTube Premium',
+        planName: 'YouTube Premium Family',
+        billingAmount: 22.99,
+      }),
+    );
+
+    expect(
+      parseEmailReceipt({
+        sender: 'microsoft-noreply@microsoft.com',
+        subject: 'Xbox Game Pass Ultimate recurring charge',
+        body: 'Amount: $19.99 monthly',
+        receivedAt,
+      }).items[0],
+    ).toEqual(
+      expect.objectContaining({
+        providerName: 'Xbox Game Pass',
+        planName: 'Xbox Game Pass Ultimate',
+        billingAmount: 19.99,
+      }),
+    );
+
+    expect(
+      parseEmailReceipt({
+        sender: 'sony@email.playstation.com',
+        subject: 'PlayStation Plus Extra renewal receipt',
+        body: 'Price: $14.99 monthly',
+        receivedAt,
+      }).items[0],
+    ).toEqual(
+      expect.objectContaining({
+        providerName: 'PlayStation Plus',
+        planName: 'PlayStation Plus Extra',
+        billingAmount: 14.99,
+      }),
+    );
+
+    expect(
+      parseEmailReceipt({
+        sender: 'noreply@steampowered.com',
+        subject: 'Thank you for your Steam subscription purchase',
+        body: 'Subscription: Dota Plus\nPrice: $3.99 monthly',
+        receivedAt,
+      }).items[0],
+    ).toEqual(
+      expect.objectContaining({
+        providerName: 'Steam',
+        planName: 'Dota Plus',
+        billingAmount: 3.99,
+      }),
+    );
+  });
+
+  it('detects cancellation confirmation emails and trial welcome emails', () => {
+    const cancelResult = parseEmailReceipt({
+      sender: 'info@account.netflix.com',
+      subject: 'Your Netflix subscription cancelled',
+      body: 'Cancellation confirmed. Your membership ends on August 15, 2026.',
+      receivedAt,
+    });
+    expect(cancelResult.items[0]).toEqual(
+      expect.objectContaining({
+        providerName: 'Netflix',
+        lifecycleIntent: 'cancellation',
+        nextRenewal: '2026-08-15T00:00:00.000Z',
+      }),
+    );
+
+    const trialResult = parseEmailReceipt({
+      sender: 'no-reply@spotify.com',
+      subject: 'Welcome to your free trial of Spotify Premium Individual',
+      body: 'Your 30-day free trial started. Trial ends August 1, 2026, then $11.99 monthly.',
+      receivedAt,
+    });
+    expect(trialResult.items[0]).toEqual(
+      expect.objectContaining({
+        providerName: 'Spotify',
+        lifecycleIntent: 'trial_start',
+        trialEndsAt: '2026-08-01T00:00:00.000Z',
+        billingAmount: 11.99,
+      }),
+    );
   });
 
   it('uses generic low-confidence parsing for unsupported providers', () => {

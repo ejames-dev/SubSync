@@ -161,4 +161,13 @@ export const STREAMING_SERVICES: ServiceProvider[] = [
     logoUrl: 'https://logo.clearbit.com/audible.com',
     cancelUrl: 'https://help.audible.com/s/article/cancel-membership',
   },
+  {
+    id: 'svc_steam',
+    name: 'Steam',
+    category: 'gaming',
+    supportsOAuth: false,
+    description: 'PC gaming subscriptions and recurring game passes',
+    logoUrl: 'https://logo.clearbit.com/steampowered.com',
+    cancelUrl: 'https://help.steampowered.com/en/faqs/view/726E-E811-168F-0D9E',
+  },
 ];

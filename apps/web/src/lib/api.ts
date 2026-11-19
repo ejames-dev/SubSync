@@ -1,21 +1,31 @@
 import { cache } from 'react';
 import type {
+  BankCsvIngestResult,
   BillingInterval,
+  BulkSubscriptionAction,
+  BulkSubscriptionsResult,
   DashboardSummary,
   DataBackupInfo,
   DataRestoreResult,
   DuplicateDismissResult,
   EmailReceipt,
   EmailIngestResult,
+  EncryptedSyncResult,
+  ExchangeRateEntry,
   GmailAuthUrlResponse,
   GmailConnectionStatus,
   GmailSyncResult,
+  ImapConnectionStatus,
+  ImapSyncResult,
   IntegrationConnection,
   NotificationPreference,
   PendingRenewalNotification,
+  ServiceCategory,
   ServiceProvider,
   Subscription,
   SubscriptionEvent,
+  SubscriptionImportColumnMap,
+  SubscriptionImportResult,
   UserSettings,
   YearlyReview,
 } from '@subscription-tracker/types';
@@ -90,6 +100,35 @@ export function listServices() {
   return getServices();
 }
 
+export function createCustomService(payload: {
+  name: string;
+  category: ServiceCategory;
+  description?: string;
+  logoUrl?: string;
+  cancelUrl?: string;
+}) {
+  return apiRequest<ServiceProvider>('/services', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateService(
+  id: string,
+  payload: Partial<{
+    name: string;
+    category: ServiceCategory;
+    description?: string;
+    logoUrl?: string;
+    cancelUrl?: string;
+  }>
+) {
+  return apiRequest<ServiceProvider>(`/services/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function listSubscriptions() {
   return getSubscriptions();
 }
@@ -131,6 +170,17 @@ export function snoozeSubscription(id: string, days = 7) {
   return apiRequest<Subscription>(`/subscriptions/${id}/snooze`, {
     method: 'POST',
     body: JSON.stringify({ days }),
+  });
+}
+
+export function bulkUpdateSubscriptions(payload: {
+  ids: string[];
+  action: BulkSubscriptionAction;
+  snoozeDays?: number;
+}) {
+  return apiRequest<BulkSubscriptionsResult>('/subscriptions/bulk', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 }
 
@@ -181,13 +231,28 @@ export function getSettings() {
 export function updateSettings(payload: {
   leadTimeDays: number;
   channels: Array<'email' | 'push'>;
-  monthlyBudgetCents: number | null;
-  budgetCurrency: string;
+  monthlyBudgetCents?: number | null;
+  budgetCurrency?: string;
+  webhookUrl?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUsername?: string | null;
+  smtpPassword?: string | null;
+  smtpFrom?: string | null;
+  smtpTo?: string | null;
+  syncFolderPath?: string | null;
 }) {
   return apiRequest<UserSettings>('/settings', {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
+}
+
+export function sendTestOutboundAlert() {
+  return apiRequest<{ webhookSent: boolean; smtpSent: boolean }>(
+    '/settings/test-alert',
+    { method: 'POST' }
+  );
 }
 
 export function ingestEmail(payload: {
@@ -358,13 +423,171 @@ export function restoreStoredDatabaseBackup(fileName: string) {
   );
 }
 
+export async function importSubscriptionsFile(
+  file: File,
+  columnMap?: SubscriptionImportColumnMap
+) {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (columnMap) {
+    const cleaned = Object.fromEntries(
+      Object.entries(columnMap).filter(([, v]) => Boolean(v && v.trim()))
+    );
+    if (Object.keys(cleaned).length > 0) {
+      formData.append('columnMap', JSON.stringify(cleaned));
+    }
+  }
+  const response = await fetch(`${getApiBaseUrl()}/data/import/subscriptions`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Subscription import failed');
+  }
+  return (await response.json()) as SubscriptionImportResult;
+}
+
+export async function ingestEmlFile(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${getApiBaseUrl()}/ingest/eml`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'EML import failed');
+  }
+  return (await response.json()) as EmailIngestResult;
+}
+
+export async function ingestBankCsvFile(file: File, currency = 'USD') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('currency', currency);
+  const response = await fetch(`${getApiBaseUrl()}/ingest/bank-csv`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Bank statement analysis failed');
+  }
+  return (await response.json()) as BankCsvIngestResult;
+}
+
+export function getImapStatus() {
+  return apiRequest<ImapConnectionStatus>('/imap/status');
+}
+
+export function connectImap(payload: {
+  host: string;
+  port?: number;
+  tls?: boolean;
+  username: string;
+  password: string;
+  mailbox?: string;
+}) {
+  return apiRequest<ImapConnectionStatus>('/imap/connect', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function syncImapBillingEmails() {
+  return apiRequest<ImapSyncResult>('/imap/sync', { method: 'POST' });
+}
+
+export function disconnectImap() {
+  return apiRequest<ImapConnectionStatus>('/imap/disconnect', {
+    method: 'DELETE',
+  });
+}
+
+export function listExchangeRates() {
+  return apiRequest<ExchangeRateEntry[]>('/exchange-rates');
+}
+
+export function upsertExchangeRate(currency: string, rateToUsd: number) {
+  return apiRequest<ExchangeRateEntry>(
+    `/exchange-rates/${encodeURIComponent(currency)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ rateToUsd }),
+    }
+  );
+}
+
+export function refreshExchangeRates() {
+  return apiRequest<ExchangeRateEntry[]>('/exchange-rates/refresh', {
+    method: 'POST',
+  });
+}
+
+export async function downloadEncryptedSyncSnapshot(passphrase: string) {
+  const response = await fetch(`${getApiBaseUrl()}/data/sync/export`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ passphrase }),
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Encrypted sync export failed');
+  }
+  const blob = await response.blob();
+  const fallback = `subsync-sync-${new Date().toISOString().slice(0, 10)}.subsync.enc`;
+  triggerBrowserDownload(blob, getDownloadFileName(response, fallback));
+}
+
+export async function importEncryptedSyncSnapshot(
+  file: File,
+  passphrase: string
+) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('passphrase', passphrase);
+  const response = await fetch(`${getApiBaseUrl()}/data/sync/import`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Encrypted sync import failed');
+  }
+  return (await response.json()) as EncryptedSyncResult;
+}
+
+export function pushEncryptedSyncFolder(passphrase: string) {
+  return apiRequest<EncryptedSyncResult>('/data/sync/push', {
+    method: 'POST',
+    body: JSON.stringify({ passphrase }),
+  });
+}
+
+export function pullEncryptedSyncFolder(passphrase: string) {
+  return apiRequest<EncryptedSyncResult>('/data/sync/pull', {
+    method: 'POST',
+    body: JSON.stringify({ passphrase }),
+  });
+}
+
 type CreateSubscriptionPayload = {
   serviceId: string;
   planName: string;
   billingAmount: number;
   billingCurrency: string;
   billingInterval: BillingInterval;
+  customIntervalDays?: number | null;
   nextRenewal: string;
+  trialEndsAt?: string | null;
+  postTrialAmount?: number | null;
+  leadTimeDaysOverride?: number | null;
+  tags?: string[];
+  totalSeats?: number | null;
+  sharedSeats?: number | null;
+  personalShare?: number | null;
+  bundleParentId?: string | null;
   paymentSource?: Subscription['paymentSource'];
   paymentLast4?: string;
   autoImportSource?: Subscription['autoImportSource'];

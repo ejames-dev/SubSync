@@ -548,4 +548,47 @@ describe('SubscriptionsService', () => {
       }),
     });
   });
+
+  describe('bulkUpdate', () => {
+    it('pauses multiple subscriptions and clears pending reminders', async () => {
+      const first = subscriptionEntity();
+      const second = { ...subscriptionEntity(), id: 'sub_2' };
+      prisma.subscription.findMany.mockResolvedValue([first, second]);
+      prisma.subscription.updateMany.mockResolvedValue({ count: 2 });
+
+      const result = await service.bulkUpdate({
+        ids: ['sub_1', 'sub_2'],
+        action: 'pause',
+      });
+
+      expect(result).toEqual({ action: 'pause', affectedCount: 2 });
+      expect(prisma.subscription.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: { in: ['sub_1', 'sub_2'] } },
+          data: expect.objectContaining({ status: 'paused' }),
+        }),
+      );
+      expect(prisma.pendingNotification.deleteMany).toHaveBeenCalledWith({
+        where: {
+          subscriptionId: { in: ['sub_1', 'sub_2'] },
+          deliveredAt: null,
+        },
+      });
+    });
+
+    it('deletes selected subscriptions in bulk', async () => {
+      prisma.subscription.findMany.mockResolvedValue([subscriptionEntity()]);
+      prisma.subscription.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.bulkUpdate({
+        ids: ['sub_1'],
+        action: 'delete',
+      });
+
+      expect(result).toEqual({ action: 'delete', affectedCount: 1 });
+      expect(prisma.subscription.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['sub_1'] } },
+      });
+    });
+  });
 });

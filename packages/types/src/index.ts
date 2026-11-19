@@ -1,9 +1,30 @@
+export const SERVICE_CATEGORIES = [
+  'streaming',
+  'music',
+  'gaming',
+  'saas',
+  'productivity',
+  'cloud',
+  'utilities',
+  'fitness',
+  'other',
+] as const;
+
+export type ServiceCategory = (typeof SERVICE_CATEGORIES)[number];
+
 export type SubscriptionStatus =
   | 'active'
   | 'trial'
+  | 'paused'
   | 'flagged_for_cancellation'
-  | 'canceled_pending';
-export type BillingInterval = 'monthly' | 'yearly' | 'quarterly' | 'custom';
+  | 'canceled_pending'
+  | 'canceled';
+export type BillingInterval =
+  | 'weekly'
+  | 'monthly'
+  | 'yearly'
+  | 'quarterly'
+  | 'custom';
 export type SubscriptionEventType =
   | 'created'
   | 'status_changed'
@@ -14,8 +35,9 @@ export type SubscriptionEventType =
 export interface ServiceProvider {
   id: string;
   name: string;
-  category: 'streaming' | 'music' | 'gaming' | 'other';
+  category: ServiceCategory;
   supportsOAuth: boolean;
+  isCustom?: boolean;
   description?: string;
   logoUrl?: string;
   cancelUrl?: string;
@@ -29,7 +51,16 @@ export interface Subscription {
   billingAmount: number;
   billingCurrency: string;
   billingInterval: BillingInterval;
+  customIntervalDays?: number;
   nextRenewal: string; // ISO date
+  trialEndsAt?: string;
+  postTrialAmount?: number;
+  leadTimeDaysOverride?: number;
+  tags?: string[];
+  totalSeats?: number;
+  sharedSeats?: number;
+  personalShare?: number;
+  bundleParentId?: string;
   paymentSource?: 'card' | 'paypal' | 'gift' | 'other';
   paymentLast4?: string;
   autoImportSource?: 'oauth' | 'email' | 'manual';
@@ -71,6 +102,15 @@ export interface PendingRenewalNotification {
   createdAt: string;
 }
 
+export interface SmtpSettingsSummary {
+  host?: string;
+  port?: number;
+  username?: string;
+  hasPassword: boolean;
+  from?: string;
+  to?: string;
+}
+
 export interface UserSettings {
   notificationPreference: NotificationPreference;
   emailForwardingAlias: string;
@@ -80,6 +120,9 @@ export interface UserSettings {
     currency: string;
     alertTriggered: boolean;
   };
+  webhookUrl?: string;
+  smtp?: SmtpSettingsSummary;
+  syncFolderPath?: string;
 }
 
 export type IntegrationSource = 'oauth' | 'email' | 'manual';
@@ -103,6 +146,19 @@ export interface DashboardDuplicateGroup {
   serviceName: string;
   count: number;
   subscriptionIds: string[];
+}
+
+export type BulkSubscriptionAction =
+  | 'pause'
+  | 'activate'
+  | 'flag_cancel'
+  | 'archive'
+  | 'snooze'
+  | 'delete';
+
+export interface BulkSubscriptionsResult {
+  action: BulkSubscriptionAction;
+  affectedCount: number;
 }
 
 export interface DuplicateDismissResult {
@@ -136,6 +192,8 @@ export interface SpendForecast {
 
 export interface DashboardSummary {
   monthlyEquivalentSpend: number;
+  grossMonthlyEquivalentSpend?: number;
+  convertedCurrencyCount?: number;
   activeSubscriptions: number;
   upcomingRenewalCount: number;
   nextRenewal?: {
@@ -192,6 +250,11 @@ export interface YearlyReview {
   isEstimate: true;
   methodology: string;
   spendByCurrency: YearlyReviewSpendTotal[];
+  normalizedSpend?: {
+    currency: string;
+    amount: number;
+    excludedCurrencyCount: number;
+  };
   biggestPriceIncreases: YearlyReviewPriceIncrease[];
   reviewSignals: YearlyReviewSignal[];
 }
@@ -212,6 +275,11 @@ export interface AppUpdateStatus {
   availableVersion?: string;
   percent?: number;
   message?: string;
+}
+
+export interface DesktopShellSettings {
+  minimizeToTray: boolean;
+  launchAtLogin: boolean;
 }
 
 export interface EmailIngestResult {
@@ -266,9 +334,16 @@ export interface EmailReceiptItem {
   updatedAt: string;
 }
 
+export type EmailReceiptSource =
+  | 'gmail'
+  | 'manual'
+  | 'eml'
+  | 'imap'
+  | 'bank_csv';
+
 export interface EmailReceipt {
   id: string;
-  source: 'gmail' | 'manual';
+  source: EmailReceiptSource;
   externalMessageId?: string;
   sender: string;
   subject: string;
@@ -343,5 +418,68 @@ export interface DataRestoreResult {
   restoredAt: string;
   sourceName: string;
   safetyBackupFileName: string;
+  message: string;
+}
+
+export interface SubscriptionImportColumnMap {
+  serviceName?: string;
+  planName?: string;
+  billingAmount?: string;
+  billingCurrency?: string;
+  billingInterval?: string;
+  nextRenewal?: string;
+  status?: string;
+  paymentSource?: string;
+  paymentLast4?: string;
+  notes?: string;
+}
+
+export interface SubscriptionImportResult {
+  created: number;
+  updated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface BankCsvIngestResult {
+  scannedRows: number;
+  detectedGroups: number;
+  receiptId?: string;
+  items: EmailReceiptItem[];
+  message: string;
+}
+
+export interface ImapConnectionStatus {
+  connected: boolean;
+  host?: string;
+  port?: number;
+  username?: string;
+  mailbox?: string;
+  tls?: boolean;
+  connectedAt?: string;
+  lastSyncedAt?: string;
+}
+
+export interface ImapSyncResult {
+  scanned: number;
+  imported: number;
+  review: number;
+  skipped: number;
+  failed: number;
+  syncedAt: string;
+}
+
+export interface ExchangeRateEntry {
+  currency: string;
+  rateToUsd: number;
+  isManualOverride: boolean;
+  updatedAt: string;
+}
+
+export interface EncryptedSyncResult {
+  filePath?: string;
+  syncedAt: string;
+  subscriptionsCount: number;
+  servicesCount: number;
   message: string;
 }

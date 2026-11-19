@@ -2,6 +2,7 @@
 
 import { Suspense, type FormEvent, useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import type {
   DashboardSummary,
   ServiceProvider,
@@ -54,6 +55,11 @@ const categoryLabels: Record<SpendCategory, string> = {
   streaming: 'Streaming',
   music: 'Music',
   gaming: 'Gaming',
+  saas: 'SaaS',
+  productivity: 'Productivity',
+  cloud: 'Cloud',
+  utilities: 'Utilities',
+  fitness: 'Fitness',
   other: 'Other',
 };
 
@@ -75,6 +81,31 @@ const categoryStyles: Record<
     bar: 'bg-amber-500',
     bg: 'bg-amber-50',
     dot: 'bg-amber-500',
+  },
+  saas: {
+    bar: 'bg-indigo-500',
+    bg: 'bg-indigo-50',
+    dot: 'bg-indigo-500',
+  },
+  productivity: {
+    bar: 'bg-blue-500',
+    bg: 'bg-blue-50',
+    dot: 'bg-blue-500',
+  },
+  cloud: {
+    bar: 'bg-violet-500',
+    bg: 'bg-violet-50',
+    dot: 'bg-violet-500',
+  },
+  utilities: {
+    bar: 'bg-teal-500',
+    bg: 'bg-teal-50',
+    dot: 'bg-teal-500',
+  },
+  fitness: {
+    bar: 'bg-rose-500',
+    bg: 'bg-rose-50',
+    dot: 'bg-rose-500',
   },
   other: {
     bar: 'bg-slate-500',
@@ -129,7 +160,12 @@ export function DashboardClient() {
     services.map((service) => [service.id, service])
   );
   const upcomingRenewals = subscriptions
-    .filter((subscription) => !isRenewalSnoozed(subscription))
+    .filter(
+      (subscription) =>
+        subscription.status !== 'canceled' &&
+        subscription.status !== 'paused' &&
+        !isRenewalSnoozed(subscription)
+    )
     .slice()
     .sort((a, b) => a.nextRenewal.localeCompare(b.nextRenewal))
     .slice(0, 3);
@@ -184,6 +220,9 @@ export function DashboardClient() {
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm('Delete this subscription?')) {
+      return;
+    }
     setError(null);
     try {
       await deleteSubscription(id);
@@ -251,6 +290,17 @@ export function DashboardClient() {
             </p>
             <p className="text-xs text-slate-500">
               Normalized monthly equivalent
+              {summary?.grossMonthlyEquivalentSpend !== undefined &&
+              summary.grossMonthlyEquivalentSpend !==
+                summary.budget.monthlyEquivalentSpend
+                ? ` · Gross card: ${formatCurrency(
+                    summary.grossMonthlyEquivalentSpend,
+                    summary.budget.currency
+                  )}`
+                : ''}
+              {summary?.convertedCurrencyCount
+                ? ` · ${summary.convertedCurrencyCount} FX-converted`
+                : ''}
               {summary?.budget.excludedCurrencyCount
                 ? ` · ${summary.budget.excludedCurrencyCount} other-currency plan${summary.budget.excludedCurrencyCount === 1 ? '' : 's'} excluded`
                 : ''}
@@ -385,13 +435,21 @@ export function DashboardClient() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Upcoming renewals
               </h2>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void loadData()}
-              >
-                Refresh
-              </Button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/calendar"
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
+                  Open calendar &rarr;
+                </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadData()}
+                >
+                  Refresh
+                </Button>
+              </div>
             </div>
             <div className="space-y-3">
               {loading ? (
@@ -532,6 +590,7 @@ export function DashboardClient() {
               <SubscriptionsGrid
                 subscriptions={subscriptions}
                 servicesById={servicesById}
+                onChanged={loadData}
               />
             </Suspense>
           </div>
@@ -539,9 +598,18 @@ export function DashboardClient() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Add subscription</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle>Quick add</CardTitle>
+              <Link
+                href="/subscriptions/new"
+                className="text-xs font-medium text-blue-600 hover:underline"
+              >
+                Full form &rarr;
+              </Link>
+            </div>
             <p className="text-sm text-slate-500">
-              This writes directly to the local SQLite-backed API.
+              Add a plan quickly, or open the full form for custom services,
+              trials, and tags.
             </p>
           </CardHeader>
           <CardContent>
@@ -617,6 +685,7 @@ export function DashboardClient() {
                       })
                     }
                   >
+                    <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
                     <option value="quarterly">Quarterly</option>

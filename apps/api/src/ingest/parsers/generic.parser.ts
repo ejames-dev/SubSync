@@ -1,5 +1,6 @@
 import {
   detectInterval,
+  detectLifecycleIntent,
   detectPayment,
   detectRenewalDate,
   emailContent,
@@ -38,15 +39,16 @@ export const genericReceiptParser: EmailReceiptParser = {
   parse(input: ReceiptEmailInput): ReceiptParseResult {
     const content = plainText(emailContent(input));
     const money = findPreferredMoney(content);
+    const lifecycleIntent = detectLifecycleIntent(content);
     const providerName = inferProvider(input);
-    if (!money || !providerName) {
+    if ((!money && lifecycleIntent !== 'cancellation') || !providerName) {
       return {
         parserId: this.id,
         parserVersion: this.version,
         confidence: 0,
         items: [],
         warnings: [
-          !money
+          !money && lifecycleIntent !== 'cancellation'
             ? 'No billing amount was found.'
             : 'The subscription provider could not be inferred.',
         ],
@@ -64,13 +66,20 @@ export const genericReceiptParser: EmailReceiptParser = {
         {
           providerName,
           planName: `${providerName} Imported Plan`,
-          billingAmount: money.amount,
-          billingCurrency: money.currency,
+          billingAmount: money?.amount ?? 0,
+          billingCurrency: money?.currency ?? 'USD',
           billingInterval: detectInterval(content),
           nextRenewal: renewal?.iso,
+          trialEndsAt:
+            lifecycleIntent === 'trial_start' ? renewal?.iso : undefined,
+          lifecycleIntent,
           ...payment,
           confidence,
-          evidence: evidence(money.raw, undefined, renewal?.raw),
+          evidence: evidence(
+            money?.raw ?? 'cancellation',
+            undefined,
+            renewal?.raw,
+          ),
         },
       ],
       warnings: ['Parsed with generic heuristics; review is recommended.'],

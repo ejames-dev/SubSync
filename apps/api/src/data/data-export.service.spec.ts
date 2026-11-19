@@ -55,7 +55,7 @@ describe('DataExportService', () => {
   });
 
   it('neutralizes spreadsheet formula prefixes in CSV cells', () => {
-    expect(escapeCsv('=cmd|\'/C calc\'!A0')).toBe("'=cmd|'/C calc'!A0");
+    expect(escapeCsv("=cmd|'/C calc'!A0")).toBe("'=cmd|'/C calc'!A0");
     expect(escapeCsv('+SUM(A1:A2)')).toBe("'+SUM(A1:A2)");
     expect(escapeCsv('@HYPERLINK("https://evil.example","Click")')).toBe(
       '"\'@HYPERLINK(""https://evil.example"",""Click"")"',

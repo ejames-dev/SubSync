@@ -1,6 +1,12 @@
 export * from './parser.types';
 export * from './parser.registry';
+export { amazonPrimeReceiptParser } from './amazon-prime.parser';
 export { appleReceiptParser } from './apple.parser';
+export { disneyHuluReceiptParser } from './disney-hulu.parser';
 export { genericReceiptParser } from './generic.parser';
+export { googleYoutubeReceiptParser } from './google-youtube.parser';
+export { microsoftXboxReceiptParser } from './microsoft-xbox.parser';
 export { netflixReceiptParser } from './netflix.parser';
+export { playstationReceiptParser } from './playstation.parser';
 export { spotifyReceiptParser } from './spotify.parser';
+export { steamReceiptParser } from './steam.parser';

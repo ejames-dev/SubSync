@@ -4,11 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  BulkSubscriptionsResult,
   DuplicateDismissResult,
   NotificationChannel,
   Subscription,
   SubscriptionEvent,
 } from '@subscription-tracker/types';
+import { BulkSubscriptionsDto } from './dto/bulk-subscriptions.dto';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { MergeDuplicatesDto } from './dto/merge-duplicates.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
@@ -27,6 +29,8 @@ type ImportedSubscriptionInput = {
   billingCurrency: string;
   billingInterval: Subscription['billingInterval'];
   nextRenewal: string;
+  trialEndsAt?: string;
+  lifecycleIntent?: 'renewal' | 'cancellation' | 'trial_start';
   paymentSource?: Subscription['paymentSource'];
   paymentLast4?: string;
   notes?: string;
@@ -136,6 +140,76 @@ export class SubscriptionsService {
   async remove(id: string): Promise<void> {
     await this.getEntityOrThrow(id);
     await this.prisma.subscription.delete({ where: { id } });
+  }
+
+  async bulkUpdate(
+    dto: BulkSubscriptionsDto,
+  ): Promise<BulkSubscriptionsResult> {
+    const uniqueIds = Array.from(new Set(dto.ids));
+    if (dto.action === 'delete') {
+      const { count } = await this.prisma.subscription.deleteMany({
+        where: { id: { in: uniqueIds } },
+      });
+      return { action: dto.action, affectedCount: count };
+    }
+
+    if (dto.action === 'snooze') {
+      const days = dto.snoozeDays ?? 7;
+      let affectedCount = 0;
+      for (const id of uniqueIds) {
+        const existing = await this.prisma.subscription.findUnique({
+          where: { id },
+        });
+        if (!existing) continue;
+        await this.snoozeRenewal(id, days);
+        affectedCount += 1;
+      }
+      return { action: dto.action, affectedCount };
+    }
+
+    const targetStatus: Subscription['status'] = (() => {
+      switch (dto.action) {
+        case 'pause':
+          return 'paused';
+        case 'activate':
+          return 'active';
+        case 'flag_cancel':
+          return 'flagged_for_cancellation';
+        case 'archive':
+          return 'canceled';
+        default: {
+          const exhaustiveCheck: never = dto.action;
+          return exhaustiveCheck;
+        }
+      }
+    })();
+
+    const now = new Date();
+    const existingRows = await this.prisma.subscription.findMany({
+      where: { id: { in: uniqueIds } },
+      select: { id: true, status: true },
+    });
+    const { count } = await this.prisma.subscription.updateMany({
+      where: { id: { in: uniqueIds } },
+      data: {
+        status: targetStatus,
+        statusChangedAt: now,
+      },
+    });
+    if (targetStatus === 'paused' || targetStatus === 'canceled') {
+      await this.prisma.pendingNotification.deleteMany({
+        where: {
+          subscriptionId: { in: uniqueIds },
+          deliveredAt: null,
+        },
+      });
+    }
+    for (const row of existingRows) {
+      if (row.status !== targetStatus) {
+        await this.recordEvent(row.id, 'status_changed', targetStatus);
+      }
+    }
+    return { action: dto.action, affectedCount: count };
   }
 
   async snoozeRenewal(id: string, days = 7): Promise<Subscription> {
@@ -298,15 +372,18 @@ export class SubscriptionsService {
     const existing =
       byImportKey ??
       (await db.subscription.findFirst({
-        where: input.paymentLast4
-          ? {
-              serviceId: input.serviceId,
-              OR: [
-                { planName: input.planName },
-                { paymentLast4: input.paymentLast4 },
-              ],
-            }
-          : { serviceId: input.serviceId, planName: input.planName },
+        where:
+          input.lifecycleIntent === 'cancellation'
+            ? { serviceId: input.serviceId }
+            : input.paymentLast4
+              ? {
+                  serviceId: input.serviceId,
+                  OR: [
+                    { planName: input.planName },
+                    { paymentLast4: input.paymentLast4 },
+                  ],
+                }
+              : { serviceId: input.serviceId, planName: input.planName },
         orderBy: { updatedAt: 'desc' },
       }));
 
@@ -321,10 +398,44 @@ export class SubscriptionsService {
         return { mode: 'ignored', subscription: this.toDomain(existing) };
       }
 
+      if (input.lifecycleIntent === 'cancellation') {
+        const effectiveDate = new Date(input.nextRenewal);
+        const nextStatus: Subscription['status'] =
+          effectiveDate.getTime() <= observedAt.getTime()
+            ? 'canceled'
+            : 'canceled_pending';
+        const updated = await db.subscription.update({
+          where: { id: existing.id },
+          data: {
+            status: nextStatus,
+            statusChangedAt: observedAt,
+            nextRenewal: effectiveDate,
+            notes: input.notes ?? existing.notes,
+            importKey: existing.importKey ?? input.importKey,
+            lastImportedAt: observedAt,
+          },
+        });
+        await this.recordEvent(
+          updated.id,
+          'status_changed',
+          nextStatus,
+          'Cancellation confirmation imported from email',
+          undefined,
+          db,
+        );
+        return { mode: 'updated', subscription: this.toDomain(updated) };
+      }
+
       const newAmountCents = this.toAmountCents(input.billingAmount);
       const priceChanged =
         existing.billingAmountCents !== newAmountCents ||
         existing.billingCurrency !== input.billingCurrency;
+      const nextStatus: Subscription['status'] =
+        input.lifecycleIntent === 'trial_start'
+          ? 'trial'
+          : existing.status === 'flagged_for_cancellation'
+            ? existing.status
+            : 'active';
       const updated = await db.subscription.update({
         where: { id: existing.id },
         data: {
@@ -332,16 +443,16 @@ export class SubscriptionsService {
           billingCurrency: input.billingCurrency,
           billingInterval: input.billingInterval,
           nextRenewal: new Date(input.nextRenewal),
+          ...(input.trialEndsAt
+            ? { trialEndsAt: new Date(input.trialEndsAt) }
+            : {}),
           paymentSource: input.paymentSource,
           paymentLast4: input.paymentLast4,
           notes: input.notes,
           autoImportSource: input.autoImportSource,
-          status:
-            existing.status === 'flagged_for_cancellation'
-              ? existing.status
-              : 'active',
+          status: nextStatus,
           nextRenewalReminderSent: false,
-          importKey: input.importKey ?? existing.importKey,
+          importKey: existing.importKey ?? input.importKey,
           lastImportedAt: observedAt,
         },
       });
@@ -386,9 +497,16 @@ export class SubscriptionsService {
       };
     }
 
+    const initialStatus: Subscription['status'] =
+      input.lifecycleIntent === 'cancellation'
+        ? 'canceled_pending'
+        : input.lifecycleIntent === 'trial_start'
+          ? 'trial'
+          : 'active';
+
     const created = await db.subscription.create({
       data: {
-        status: 'active',
+        status: initialStatus,
         autoImportSource: input.autoImportSource,
         service: { connect: { id: input.serviceId } },
         planName: input.planName,
@@ -396,6 +514,9 @@ export class SubscriptionsService {
         billingCurrency: input.billingCurrency,
         billingInterval: input.billingInterval,
         nextRenewal: new Date(input.nextRenewal),
+        ...(input.trialEndsAt
+          ? { trialEndsAt: new Date(input.trialEndsAt) }
+          : {}),
         paymentSource: input.paymentSource,
         paymentLast4: input.paymentLast4,
         notes: input.notes,
@@ -443,7 +564,26 @@ export class SubscriptionsService {
       billingAmountCents: this.toAmountCents(dto.billingAmount),
       billingCurrency: dto.billingCurrency,
       billingInterval: dto.billingInterval,
+      ...(dto.customIntervalDays != null
+        ? { customIntervalDays: dto.customIntervalDays }
+        : {}),
       nextRenewal: new Date(dto.nextRenewal),
+      ...(dto.trialEndsAt ? { trialEndsAt: new Date(dto.trialEndsAt) } : {}),
+      ...(dto.postTrialAmount != null
+        ? { postTrialAmountCents: this.toAmountCents(dto.postTrialAmount) }
+        : {}),
+      ...(dto.leadTimeDaysOverride != null
+        ? { leadTimeDaysOverride: dto.leadTimeDaysOverride }
+        : {}),
+      ...(dto.tags !== undefined
+        ? { tagsJson: this.serializeTags(dto.tags) }
+        : {}),
+      ...(dto.totalSeats != null ? { totalSeats: dto.totalSeats } : {}),
+      ...(dto.sharedSeats != null ? { sharedSeats: dto.sharedSeats } : {}),
+      ...(dto.personalShare != null
+        ? { personalShareCents: this.toAmountCents(dto.personalShare) }
+        : {}),
+      ...(dto.bundleParentId ? { bundleParentId: dto.bundleParentId } : {}),
       paymentSource: dto.paymentSource,
       paymentLast4: dto.paymentLast4,
       notes: dto.notes,
@@ -468,10 +608,43 @@ export class SubscriptionsService {
     if (dto.billingInterval !== undefined) {
       data.billingInterval = dto.billingInterval;
     }
+    if (dto.customIntervalDays !== undefined) {
+      data.customIntervalDays = dto.customIntervalDays ?? null;
+    }
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.nextRenewal !== undefined) {
       data.nextRenewal = new Date(dto.nextRenewal);
       data.nextRenewalReminderSent = false;
+    }
+    if (dto.trialEndsAt !== undefined) {
+      data.trialEndsAt = dto.trialEndsAt ? new Date(dto.trialEndsAt) : null;
+    }
+    if (dto.postTrialAmount !== undefined) {
+      data.postTrialAmountCents =
+        dto.postTrialAmount === null
+          ? null
+          : this.toAmountCents(dto.postTrialAmount);
+    }
+    if (dto.leadTimeDaysOverride !== undefined) {
+      data.leadTimeDaysOverride = dto.leadTimeDaysOverride ?? null;
+    }
+    if (dto.tags !== undefined) {
+      data.tagsJson = this.serializeTags(dto.tags);
+    }
+    if (dto.totalSeats !== undefined) {
+      data.totalSeats = dto.totalSeats ?? null;
+    }
+    if (dto.sharedSeats !== undefined) {
+      data.sharedSeats = dto.sharedSeats ?? null;
+    }
+    if (dto.personalShare !== undefined) {
+      data.personalShareCents =
+        dto.personalShare === null
+          ? null
+          : this.toAmountCents(dto.personalShare);
+    }
+    if (dto.bundleParentId !== undefined) {
+      data.bundleParentId = dto.bundleParentId || null;
     }
     if (dto.paymentSource !== undefined) data.paymentSource = dto.paymentSource;
     if (dto.paymentLast4 !== undefined) data.paymentLast4 = dto.paymentLast4;
@@ -504,6 +677,7 @@ export class SubscriptionsService {
   }
 
   private toDomain(sub: PrismaSubscription): Subscription {
+    const tags = this.parseTags(sub.tagsJson ?? null);
     return {
       id: sub.id,
       serviceId: sub.serviceId,
@@ -512,7 +686,26 @@ export class SubscriptionsService {
       billingAmount: this.fromAmountCents(sub.billingAmountCents),
       billingCurrency: sub.billingCurrency,
       billingInterval: this.toBillingInterval(sub.billingInterval),
+      ...(sub.customIntervalDays != null
+        ? { customIntervalDays: sub.customIntervalDays }
+        : {}),
       nextRenewal: sub.nextRenewal.toISOString(),
+      ...(sub.trialEndsAt
+        ? { trialEndsAt: sub.trialEndsAt.toISOString() }
+        : {}),
+      ...(sub.postTrialAmountCents != null
+        ? { postTrialAmount: this.fromAmountCents(sub.postTrialAmountCents) }
+        : {}),
+      ...(sub.leadTimeDaysOverride != null
+        ? { leadTimeDaysOverride: sub.leadTimeDaysOverride }
+        : {}),
+      ...(tags.length > 0 ? { tags } : {}),
+      ...(sub.totalSeats != null ? { totalSeats: sub.totalSeats } : {}),
+      ...(sub.sharedSeats != null ? { sharedSeats: sub.sharedSeats } : {}),
+      ...(sub.personalShareCents != null
+        ? { personalShare: this.fromAmountCents(sub.personalShareCents) }
+        : {}),
+      ...(sub.bundleParentId ? { bundleParentId: sub.bundleParentId } : {}),
       paymentSource: this.toPaymentSource(sub.paymentSource),
       paymentLast4: sub.paymentLast4 ?? undefined,
       autoImportSource: this.toAutoImportSource(sub.autoImportSource),
@@ -548,8 +741,10 @@ export class SubscriptionsService {
   private toStatus(value: string): Subscription['status'] {
     if (
       value === 'trial' ||
+      value === 'paused' ||
       value === 'flagged_for_cancellation' ||
-      value === 'canceled_pending'
+      value === 'canceled_pending' ||
+      value === 'canceled'
     ) {
       return value;
     }
@@ -558,6 +753,7 @@ export class SubscriptionsService {
 
   private toBillingInterval(value: string): Subscription['billingInterval'] {
     if (
+      value === 'weekly' ||
       value === 'yearly' ||
       value === 'quarterly' ||
       value === 'custom' ||
@@ -566,6 +762,25 @@ export class SubscriptionsService {
       return value;
     }
     return 'monthly';
+  }
+
+  private serializeTags(tags: string[]): string | null {
+    const normalized = Array.from(
+      new Set(tags.map((tag) => tag.trim()).filter((tag) => tag.length > 0)),
+    );
+    return normalized.length > 0 ? JSON.stringify(normalized) : null;
+  }
+
+  private parseTags(tagsJson: string | null): string[] {
+    if (!tagsJson) return [];
+    try {
+      const parsed = JSON.parse(tagsJson) as unknown;
+      return Array.isArray(parsed)
+        ? parsed.filter((item): item is string => typeof item === 'string')
+        : [];
+    } catch {
+      return [];
+    }
   }
 
   private toEventType(value: string): SubscriptionEvent['eventType'] {

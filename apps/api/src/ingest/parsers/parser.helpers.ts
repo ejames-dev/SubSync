@@ -2,6 +2,7 @@ import {
   ParsedReceiptEvidence,
   ReceiptBillingInterval,
   ReceiptEmailInput,
+  ReceiptLifecycleIntent,
   ReceiptPaymentSource,
 } from './parser.types';
 
@@ -144,6 +145,9 @@ export function detectInterval(
   if (/\b(?:quarterly|every three months|per quarter)\b/i.test(content)) {
     return 'quarterly';
   }
+  if (/\b(?:weekly|every week|per week|\/\s*week)\b/i.test(content)) {
+    return 'weekly';
+  }
   if (/\b(?:monthly|per month|\/\s*month)\b/i.test(content)) {
     return 'monthly';
   }
@@ -158,10 +162,10 @@ export function detectRenewalDate(content: string):
   | undefined {
   const match =
     content.match(
-      /\b(?:renews?|next billing date|next charge|billing date)\s*:?\s*([A-Z][a-z]{2,8}\s+\d{1,2},?\s+\d{4})/i,
+      /\b(?:renews?|next billing date|next charge|billing date|ends on|expires on|trial ends(?:\s+on)?)\s*:?\s*([A-Z][a-z]{2,8}\s+\d{1,2},?\s+\d{4})/i,
     ) ??
     content.match(
-      /\b(?:renews?|next billing date|next charge|billing date)\s*:?\s*(\d{4}-\d{2}-\d{2})/i,
+      /\b(?:renews?|next billing date|next charge|billing date|ends on|expires on|trial ends(?:\s+on)?)\s*:?\s*(\d{4}-\d{2}-\d{2})/i,
     );
   if (!match) {
     return undefined;
@@ -172,6 +176,24 @@ export function detectRenewalDate(content: string):
     return undefined;
   }
   return { iso: parsed.toISOString(), raw: match[0] };
+}
+
+export function detectLifecycleIntent(content: string): ReceiptLifecycleIntent {
+  if (
+    /\b(?:cancell?ation confirmed|has been cancell?ed|subscription cancell?ed|membership cancell?ed|you['’]?ve cancell?ed|auto-?renew(?:al)? (?:is|has been) turned off)\b/i.test(
+      content,
+    )
+  ) {
+    return 'cancellation';
+  }
+  if (
+    /\b(?:welcome to your free trial|free trial started|your (?:\d+-day )?free trial|trial ends(?:\s+on)?)\b/i.test(
+      content,
+    )
+  ) {
+    return 'trial_start';
+  }
+  return 'renewal';
 }
 
 export function detectPayment(content: string): {
